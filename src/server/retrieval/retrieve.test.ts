@@ -120,6 +120,11 @@ describe("retrieval eval (golden cases)", () => {
     expect(retrieve("What's the weather in Paris tomorrow?").noMatch).toBe(true);
   });
 
+  it("NKA-GRD-013: flags pricing questions that use unsupported tier names", () => {
+    const result = retrieve("What are the key differences between the Professional and Company pricing tiers?");
+    expect(result.unsupportedPricingTier).toBe(true);
+  });
+
   it("numbers passages 1..n in order", () => {
     const { passages } = retrieve("Relay pricing");
     expect(passages.map((p) => p.n)).toEqual(passages.map((_, i) => i + 1));

@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { citationNumber, citedNumbers, linkCitations } from "@/client/citations";
+import { citationNumber, citedNumbers, linkCitations, sanitizeAnswerText } from "@/client/citations";
 import { deadlineIn, formatWait, liveWaitCopy } from "@/client/cooldown";
 import { useCountdown } from "@/client/useCountdown";
 import type { AnswerState } from "@/shared/answer";
@@ -55,7 +55,8 @@ export function AnswerCard({
   const waiting = streaming && answer.text.length === 0;
   const lastFallback = answer.fallbacks.at(-1);
   const guarded = answer.answeredBy === KB_GUARD_ID;
-  const displayText = useMemo(() => presentationText(answer.text), [answer.text]);
+  const sourceNumbers = useMemo(() => new Set(answer.sources.map((s) => s.n)), [answer.sources]);
+  const displayText = useMemo(() => sanitizeAnswerText(presentationText(answer.text), sourceNumbers), [answer.text, sourceNumbers]);
   // R2: which retrieved passages the answer actually came from. Cited ones are always visible and
   // listed first; the rest stay available but marked, so nobody mistakes them for the answer's basis.
   const cited = useMemo(() => citedNumbers(displayText), [displayText]);

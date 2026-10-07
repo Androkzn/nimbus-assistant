@@ -330,6 +330,13 @@
       "expectNotInKb": true
     },
     {
+      "id": "NKA-GRD-013",
+      "brief": "E2",
+      "question": "What are the key differences between the Professional and Company pricing tiers?",
+      "expectNotInKb": true,
+      "note": "Unsupported tier names must not be mapped to documented tiers or given invented prices; closest documented tiers may be named."
+    },
+    {
       "id": "NKA-RET-017",
       "brief": "Q5/E5",
       "question": "Does Pulse support SAML SSO?",

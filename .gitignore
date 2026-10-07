@@ -52,3 +52,6 @@ next-env.d.ts
 /readiness/.run.lock
 /readiness/tmp/
 /readiness/reports/
+
+# live evaluation reports are generated artifacts
+/evals/reports/

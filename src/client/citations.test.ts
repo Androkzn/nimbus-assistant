@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { citationNumber, citedNumbers, linkCitations } from "./citations";
+import { citationNumber, citedNumbers, linkCitations, sanitizeAnswerText, stripSourceAppendix } from "./citations";
 
 describe("citation chips (NKA-GRD-001: every [n] maps to a shown passage)", () => {
   it("links single and adjacent markers", () => {
@@ -28,5 +28,16 @@ describe("citation chips (NKA-GRD-001: every [n] maps to a shown passage)", () =
     expect(citationNumber("#cite-x")).toBeNull();
     expect(citationNumber("https://example.com")).toBeNull();
     expect(citationNumber(undefined)).toBeNull();
+  });
+
+  it("removes model-generated source appendices because the answer card renders sources", () => {
+    const answer = "No matching tier is documented [1].\n\n**Cited sources:**\n1. relay.md · Pricing\n2. vault.md · Pricing";
+    expect(stripSourceAppendix(answer)).toBe("No matching tier is documented [1].");
+  });
+
+  it("drops citation markers that do not map to returned passages", () => {
+    const answer = sanitizeAnswerText("The answer is covered [1, 5]. More detail [9].", new Set([1]));
+    expect(answer).toBe("The answer is covered [1]. More detail .");
+    expect(linkCitations(answer)).toBe("The answer is covered [1](#cite-1). More detail .");
   });
 });

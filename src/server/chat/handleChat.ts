@@ -65,9 +65,9 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   const today = (deps.today ?? (() => new Date().toISOString().slice(0, 10)))();
   const instructions = buildInstructions(retrieval, today);
   const modelMessages = [...history.slice(-HISTORY_MESSAGES), { role: "user" as const, content: question }];
-  // Off-topic guard: nothing in the knowledge base matches and no product is in scope, so no model
-  // is called at all — the "not in the knowledge base" answer is deterministic (brief E2, the one rule).
-  const guarded = retrieval.noMatch && retrieval.products.length === 0;
+  // Guard questions the documents cannot answer deterministically: no meaningful match with no product
+  // in scope, or pricing questions using tier labels absent from the corpus (brief E2, the one rule).
+  const guarded = (retrieval.noMatch && retrieval.products.length === 0) || retrieval.unsupportedPricingTier;
 
   const trace: AttemptTrace[] = [];
   let ttftMs: number | null = null;

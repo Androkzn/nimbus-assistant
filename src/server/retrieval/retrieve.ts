@@ -25,6 +25,8 @@ export interface RetrievalResult {
   carriedTopic: string | null;
   /** True when nothing in the corpus scores meaningfully — a hint to the prompt, not a refusal. */
   noMatch: boolean;
+  /** True when a pricing question names tier labels the documents do not use. */
+  unsupportedPricingTier: boolean;
 }
 
 const MAX_PASSAGES = 10;
@@ -80,6 +82,7 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   const topic = isElliptical(question) ? carriedTopic(history) : null;
   const queryText = topic ? `${question} ${topic}` : question;
   const version = detectVersion(queryText);
+  const unsupportedPricingTier = detectTopics(queryText).includes("pricing") && /\b(?:professional|company)\b/i.test(queryText);
   const queryTokens = [...expandQuery(queryText), ...products];
 
   const scored = idx.chunks.map((chunk, i) => {
@@ -126,7 +129,7 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   addConflictCompanions(picked, queryText, scored);
 
   const passages = picked.slice(0, MAX_PASSAGES).map((p, i) => ({ n: i + 1, chunk: p.chunk, score: p.score }));
-  return { passages, products, inheritedProducts: inherited, carriedTopic: topic, noMatch: best < NO_MATCH_SCORE };
+  return { passages, products, inheritedProducts: inherited, carriedTopic: topic, noMatch: best < NO_MATCH_SCORE, unsupportedPricingTier };
 }
 
 /**
