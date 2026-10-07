@@ -82,7 +82,7 @@ export function detectProducts(text: string): Product[] {
   const exact = PRODUCTS.filter((p) => [p, ...PRODUCT_ALIASES[p]].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(lower)));
   const tokens = tokenize(text);
   const fuzzy = PRODUCTS.filter((p) => !exact.includes(p) && tokens.some((token) => token.length >= 4 && editDistance(token, p) <= 1));
-  return [...exact, ...fuzzy];
+  return [...exact, ...(fuzzy.length === 1 ? fuzzy : [])];
 }
 
 /** A product release asked about ("v4.2", "4.2"). Protocol versions ("SAML 2.0", "TLS 1.2") are not releases. */
