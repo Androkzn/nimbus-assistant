@@ -1,6 +1,6 @@
 {
   "version": "2026-10-07d",
-  "source": "docs/requirements/00_KB_Discovery.md §3–§4 (answer key) and 04_Acceptance_Matrix.md (row ids)",
+  "source": "NimbusStack assessment brief Q1–Q6 and the supplied knowledge base",
   "notInKbPattern": "(?i)couldn't find (this|that|it|.{0,40}) in the (NimbusStack )?knowledge base|knowledge base (has|contains) no (information|mention|record)|(is|are) not (in|covered (in|by)) the (NimbusStack )?knowledge base|no information (about|on) .{0,60}in the knowledge base",
   "cases": [
     {

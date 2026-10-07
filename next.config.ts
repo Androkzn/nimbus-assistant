@@ -1,16 +1,14 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
-// Vercel exposes VERCEL_ENV only at build time. Re-export it to the browser so the
-// customer-facing app can keep local/preview tooling out of the production chrome.
+// Vercel exposes VERCEL_ENV only at build time. Re-export it for observability metadata.
 const deploymentEnv = process.env.VERCEL_ENV ?? process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development";
 
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_VERCEL_ENV: deploymentEnv,
   },
-  // The readiness runner (scripts/readiness/run.mjs) builds into its own directory so it never
-  // touches the .next/ another server may be serving. Unset = the default.
+  // Allow isolated build tooling to choose a separate output directory when needed.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // The knowledge base is read from disk at runtime; make sure serverless
   // bundles of the API routes ship with it.

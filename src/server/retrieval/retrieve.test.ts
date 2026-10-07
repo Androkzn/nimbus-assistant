@@ -4,7 +4,7 @@ import { detectProducts, detectVersion, type HistoryMessage } from "./query";
 
 /**
  * Retrieval eval — the offline CI gate (TRD §9). Each case is taken from the discovery answer key
- * (docs/requirements/00_KB_Discovery.md §3). `all` = every id must be retrieved;
+ * (NimbusStack assessment brief Q5). `all` = every id must be retrieved;
  * `anyOf` = at least one id of each group must be retrieved.
  */
 interface Case {

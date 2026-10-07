@@ -47,11 +47,11 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 
-# readiness runner: isolated build, run lock, per-run scratch (logs, Playwright report)
+# isolated build/test output
 /.next-readiness/
-/readiness/.run.lock
-/readiness/tmp/
-/readiness/reports/
+
+# local developer-only artifacts
+/readiness/
 
 # live evaluation reports are generated artifacts
 /evals/reports/

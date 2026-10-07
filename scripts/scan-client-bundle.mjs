@@ -55,7 +55,7 @@ if (process.argv.includes("--self-test")) {
   process.exit(0);
 }
 
-// NEXT_DIST_DIR: same override as next.config.ts (the readiness runner builds into .next-readiness).
+// NEXT_DIST_DIR: optional override for an isolated build output directory.
 const target = path.join(process.cwd(), process.env.NEXT_DIST_DIR || ".next", "static");
 try {
   statSync(target);
