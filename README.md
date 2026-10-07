@@ -32,6 +32,8 @@ npm run ci
 
 This runs typechecking, linting, unit/integration/retrieval tests, a production build, the client-bundle secret scan, and Playwright browser tests with the deterministic mock model.
 
+Pushes to `main` run these gates in GitHub Actions and deploy production only after they pass. Configure the protected `production` environment with `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets to enable the deployment job. The developer-only readiness environment is intentionally maintained outside this assessment repository.
+
 To run the individual checks:
 
 ```bash
