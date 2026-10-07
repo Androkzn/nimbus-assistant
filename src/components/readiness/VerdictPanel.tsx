@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Summary } from "@/readiness/coverage";
 import type { RunSession } from "@/readiness/useReadinessRun";
 import { TONE_CLASS, TONE_TEXT } from "./badges";
-import { formatDuration } from "./format";
+import { formatDuration, slug } from "./format";
 import type { Verdict } from "./verdict";
 
 function VerdictGlyph({ verdict }: { verdict: Verdict }) {
@@ -49,7 +49,45 @@ function Stat({ label, value, sub, testId }: { label: string; value: ReactNode; 
     <div data-testid={testId} className="min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3">
       <p className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">{label}</p>
       <p className="mt-1 font-display text-[22px] leading-tight font-bold text-text tabular-nums">{value}</p>
-      {sub && <p className="mt-0.5 truncate text-[12.5px] text-muted tabular-nums">{sub}</p>}
+      {sub && <p className="mt-0.5 text-[12.5px] leading-snug text-muted tabular-nums">{sub}</p>}
+    </div>
+  );
+}
+
+export interface GroupStat {
+  name: string;
+  total: number;
+  verified: number;
+  failed: number;
+}
+
+function GroupBreakdown({ groups }: { groups: GroupStat[] }) {
+  return (
+    <div className="mt-6 border-t border-border pt-4">
+      <h3 className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">By requirement group</h3>
+      <ul className="mt-2.5 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+        {groups.map((g) => {
+          const all = g.total > 0 && g.verified === g.total;
+          return (
+            <li key={g.name} className="flex min-w-0 items-center gap-3 text-[12.5px]">
+              <a
+                href={`#group-${slug(g.name)}-section`}
+                className="min-w-0 flex-1 truncate text-text underline-offset-2 hover:text-orange-ink hover:underline"
+              >
+                {g.name}
+              </a>
+              <span className={`shrink-0 tabular-nums ${g.failed ? "font-semibold text-[var(--rdy-fail)]" : all ? "font-semibold text-[var(--rdy-pass)]" : "text-muted"}`}>
+                {g.verified}/{g.total}
+                <span className="sr-only"> verified{g.failed ? `, ${g.failed} failed` : ""}</span>
+              </span>
+              <span aria-hidden className="flex h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-[var(--rdy-track)]">
+                <span className="h-full bg-[var(--rdy-pass)] transition-[width] duration-500" style={{ width: `${g.total ? (g.verified / g.total) * 100 : 0}%` }} />
+                <span className="h-full bg-[var(--rdy-fail)] transition-[width] duration-500" style={{ width: `${g.total ? (g.failed / g.total) * 100 : 0}%` }} />
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -60,12 +98,14 @@ export function VerdictPanel({
   session,
   elapsedMs,
   controls,
+  groups,
 }: {
   verdict: Verdict;
   summary: Summary;
   session: RunSession;
   elapsedMs?: number;
   controls: ReactNode;
+  groups: GroupStat[];
 }) {
   const { requirements, checks, tests } = summary;
   const done = Math.max(0, checks.total - checks.pending);
@@ -106,6 +146,20 @@ export function VerdictPanel({
           <p className="mt-3 max-w-xl text-[14.5px] leading-relaxed text-text" data-testid="verdict-sentence">
             {verdict.sentence}
           </p>
+          {verdict.refs && verdict.refs.length > 0 && (
+            <p className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Requirements concerned">
+              {verdict.refs.slice(0, 10).map((id) => (
+                <a
+                  key={id}
+                  href={`#req-row-${slug(id)}`}
+                  className={`inline-flex h-6 items-center rounded-md border px-2 font-mono text-[11.5px] font-semibold transition-colors hover:underline ${TONE_CLASS[verdict.tone]}`}
+                >
+                  {id}
+                </a>
+              ))}
+              {verdict.refs.length > 10 && <span className="text-[12.5px] text-muted">+{verdict.refs.length - 10} more</span>}
+            </p>
+          )}
 
           <div className="mt-5">
             <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
@@ -147,6 +201,7 @@ export function VerdictPanel({
               </span>
             </p>
           </div>
+          <GroupBreakdown groups={groups} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">

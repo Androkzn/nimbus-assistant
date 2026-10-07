@@ -9,12 +9,11 @@ export interface Verdict {
   label: string;
   tone: Tone;
   sentence: string;
+  /** Requirement ids the sentence is about (failed or without evidence), shown as links to their rows. */
+  refs?: string[];
 }
 
-function ids(views: RequirementView[], max = 4): string {
-  const list = views.slice(0, max).map((v) => v.requirement.id);
-  return views.length > max ? `${list.join(", ")} and ${views.length - max} more` : list.join(", ");
-}
+const idsOf = (views: RequirementView[]) => views.map((v) => v.requirement.id);
 
 /**
  * The page's verdict. READY only when the run finished, nothing failed and every brief requirement has
@@ -43,8 +42,9 @@ export function verdictOf(summary: Summary, session: RunSession, coverage: Requi
       tone: "fail",
       sentence:
         failed.length > 0
-          ? `${failed.length} ${failed.length === 1 ? "requirement" : "requirements"} failed: ${ids(failed)}. The redacted reason is on each failed check below.`
+          ? `${failed.length} ${failed.length === 1 ? "requirement" : "requirements"} failed. The redacted reason is on each failed check below.`
           : "A gate failed. See the pipeline for the stage and its reason.",
+      refs: idsOf(failed),
     };
   }
   if (session.phase === "stopped") {
@@ -59,7 +59,8 @@ export function verdictOf(summary: Summary, session: RunSession, coverage: Requi
       kind: "incomplete",
       label: "Incomplete",
       tone: "warn",
-      sentence: `Nothing failed, but ${unproven.length} ${unproven.length === 1 ? "requirement has" : "requirements have"} no passing evidence from this run: ${ids(unproven)}.`,
+      sentence: `Nothing failed, but ${unproven.length} ${unproven.length === 1 ? "requirement has" : "requirements have"} no passing evidence from this run.`,
+      refs: idsOf(unproven),
     };
   }
   return {

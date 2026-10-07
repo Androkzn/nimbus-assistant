@@ -1,11 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { manifest } from "../src/readiness/manifest";
 import { STAGE_INFO, type ReadinessEvent } from "../src/readiness/schema";
 
 /**
  * Readiness report page (docs/requirements/06_Readiness_Report.md §6). Runs against the production build
- * with the mock LLM. The runner endpoint is always stubbed here, so no test can spawn a gate run; the
- * live probes go to the real server under test.
+ * with the mock LLM. The runner endpoint is stubbed for the whole browser context (popups included), so no
+ * test can spawn a gate run even where the runner is available (next dev); the live probes go to the real
+ * server under test.
  */
 
 const RUNNER = "**/api/readiness/run";
@@ -13,10 +14,13 @@ const FREE_PROBES = ["health", "models", "blank", "oversize", "unknown-model", "
 const FINAL = /^(ready|not-ready|incomplete)$/;
 const GROUPS = [...new Set(manifest.requirements.map((r) => r.group))];
 
-/** Stubs /api/readiness/run and records every request method. GET answers like production unless `stream` is given. */
-async function stubRunner(page: Page, stream?: ReadinessEvent[]): Promise<string[]> {
+/**
+ * Stubs /api/readiness/run for every page of the context and records each request method. GET answers
+ * "unavailable" like production unless a runner `stream` is given; a POST is never forwarded.
+ */
+async function stubRunner(context: BrowserContext, stream?: ReadinessEvent[]): Promise<string[]> {
   const calls: string[] = [];
-  await page.route(RUNNER, async (route) => {
+  await context.route(RUNNER, async (route) => {
     const method = route.request().method();
     calls.push(method);
     if (method === "GET") return route.fulfill({ json: { available: Boolean(stream), running: false } });
@@ -31,8 +35,25 @@ async function stubRunner(page: Page, stream?: ReadinessEvent[]): Promise<string
 const feedItem = (page: Page, id: string) => page.locator(`[data-testid="feed-item"][data-result-id="${id}"]`);
 
 test.describe("Readiness report", () => {
+  test("RDY-001: the header's Readiness test button opens the report in its own window", async ({ page }) => {
+    const calls = await stubRunner(page.context());
+    await page.goto("/");
+
+    const [popup] = await Promise.all([page.waitForEvent("popup"), page.getByTestId("readiness-link").click()]);
+    await popup.waitForLoadState();
+    const url = new URL(popup.url());
+    expect(url.pathname + url.search).toBe("/readiness?autostart=1");
+    await expect(popup.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
+    await expect(popup.getByTestId("mode-banner")).toHaveAttribute("data-mode", "replay");
+
+    // The chat stays where it was.
+    expect(new URL(page.url()).pathname).toBe("/");
+    expect(calls).toContain("GET");
+    expect(calls, "no POST, so no gate run was spawned").not.toContain("POST");
+  });
+
   test("RDY-003: a recorded run replays labelled recorded with its date and build; every brief item gets a status", async ({ page }) => {
-    const calls = await stubRunner(page);
+    const calls = await stubRunner(page.context());
     await page.goto("/readiness?mode=replay&speed=instant&probes=0");
 
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 15_000 });
@@ -60,7 +81,7 @@ test.describe("Readiness report", () => {
   });
 
   test("RDY-003: live probes run for real against the server and are labelled live", async ({ page }) => {
-    const calls = await stubRunner(page);
+    const calls = await stubRunner(page.context());
     await page.goto("/readiness?mode=probes");
 
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
@@ -79,7 +100,7 @@ test.describe("Readiness report", () => {
   });
 
   test("RDY-005: the page never starts a local run unless asked; where the runner is unavailable it replays, then probes live", async ({ page }) => {
-    const calls = await stubRunner(page);
+    const calls = await stubRunner(page.context());
 
     await page.goto("/readiness");
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", "idle");
@@ -110,7 +131,7 @@ test.describe("Readiness report", () => {
       durationMs: 12,
       source: "live" as const,
     };
-    const calls = await stubRunner(page, [
+    const calls = await stubRunner(page.context(), [
       {
         type: "run-start",
         meta: { runId: "2026-10-07-00-00-00", mode: "local", startedAt: at, platform: "node v22 · test", environment: "local working tree", build: "e2e0000" },

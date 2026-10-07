@@ -58,3 +58,8 @@ export function parentName(fullName: string): string | undefined {
   const parts = fullName.split(" › ");
   return parts.length > 1 ? parts.slice(0, -1).join(" › ") : undefined;
 }
+
+/** Stable, URL-safe id fragment: "Edge cases (E1–E10)" → "edge-cases-e1-e10". */
+export function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}

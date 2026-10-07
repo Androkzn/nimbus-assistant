@@ -421,24 +421,87 @@ export function taggedEmitter(write = (chunk) => writeAllSync(1, chunk)) {
 }
 
 // ── Recorded live eval (I7: source "recorded", labelled with date and build) ──────────────────────
+/** A report is complete when at least this many models each answered every golden case (per-vendor checks need it). */
+export const MIN_COMPLETE_MODELS = 2;
+
 /**
- * Newest committed live-eval report (stamps sort chronologically), or null.
+ * @typedef {{ complete: boolean, casesCovered: number, casesTotal: number, models: string[], fullModels: string[], graded: number }} EvalCoverage
+ */
+
+/**
+ * How much of the current golden set one eval report covers.
+ * @param {any} report parsed results.json
+ * @param {string[]} caseIds case ids of the current evals/golden-set.json
+ * @returns {EvalCoverage}
+ */
+export function evalCoverage(report, caseIds) {
+  const rows = Array.isArray(report?.results) ? report.results : [];
+  /** @type {Map<string, Set<string>>} */
+  const byModel = new Map();
+  for (const r of rows) byModel.set(r.model, (byModel.get(r.model) ?? new Set()).add(r.caseId));
+  const fullModels = [...byModel].filter(([, cases]) => caseIds.every((id) => cases.has(id))).map(([model]) => model);
+  const casesCovered = new Set(rows.map((/** @type {any} */ r) => r.caseId).filter((id) => caseIds.includes(id))).size;
+  return {
+    complete: caseIds.length > 0 && fullModels.length >= MIN_COMPLETE_MODELS,
+    casesCovered,
+    casesTotal: caseIds.length,
+    models: [...byModel.keys()],
+    fullModels,
+    graded: rows.length,
+  };
+}
+
+/**
+ * The report the live-eval stage shows: the newest COMPLETE one (every current golden case, for at least two
+ * models). A newer partial run — one model, a few cases — must not hide the evidence of the last full one. If none
+ * is complete: the one with the most graded answers (newest on a tie), labelled partial by recordedEval.
+ * @template {{ path: string, json: any }} R
+ * @param {R[]} reports oldest first
+ * @param {string[]} caseIds
+ * @returns {(R & { coverage: EvalCoverage }) | null}
+ */
+export function chooseEvalReport(reports, caseIds) {
+  const scored = reports.map((report) => ({ ...report, coverage: evalCoverage(report.json, caseIds) }));
+  const complete = scored.filter((r) => r.coverage.complete).at(-1);
+  if (complete) return complete;
+  /** @type {(R & { coverage: EvalCoverage }) | null} */
+  let best = null;
+  for (const r of scored) if (!best || r.coverage.graded >= best.coverage.graded) best = r;
+  return best;
+}
+
+/**
+ * The committed live-eval report to show (see chooseEvalReport), or null when there is none.
  * @param {string} root
- * @returns {{ path: string, json: any } | null}
  */
 export function latestEvalReport(root) {
   const dir = path.join(root, "evals", "reports");
   if (!existsSync(dir)) return null;
-  const stamps = readdirSync(dir)
-    .filter((d) => existsSync(path.join(dir, d, "results.json")))
-    .sort();
-  const stamp = stamps.at(-1);
-  if (!stamp) return null;
-  const rel = `evals/reports/${stamp}/results.json`;
-  return { path: rel, json: JSON.parse(readFileSync(path.join(root, rel), "utf8")) };
+  const reports = readdirSync(dir)
+    .sort() // stamps sort chronologically
+    .map((stamp) => `evals/reports/${stamp}/results.json`)
+    .filter((rel) => existsSync(path.join(root, rel)))
+    .flatMap((rel) => {
+      try {
+        return [{ path: rel, json: JSON.parse(readFileSync(path.join(root, rel), "utf8")) }];
+      } catch {
+        return []; // a report being written right now, or a broken file: not evidence
+      }
+    });
+  let caseIds = [];
+  try {
+    caseIds = JSON.parse(readFileSync(path.join(root, "evals", "golden-set.json"), "utf8")).cases.map((/** @type {any} */ c) => c.id);
+  } catch {
+    /* no golden set: nothing can be complete; the most graded report is shown as partial */
+  }
+  return chooseEvalReport(reports, caseIds);
 }
 
-const VERDICT_STATUS = /** @type {const} */ ({ pass: "passed", fallback: "passed", fail: "failed" });
+/**
+ * Verdict → status. "fallback" means a backup model answered, so the model under evaluation was not evaluated:
+ * skipped (with a note), never passed — the per-vendor checks rely on these results.
+ */
+const VERDICT_STATUS = /** @type {const} */ ({ pass: "passed", fallback: "skipped", fail: "failed" });
 
 /**
  * A grading reason, safe to publish. "figures not in sources: 59, 12" lists numbers from the answer itself
@@ -451,13 +514,13 @@ const publishableReason = (reason) => reason.replace(/^figures not in sources: (
 const utcMinute = (isoString) => `${String(isoString).slice(0, 10)} ${String(isoString).slice(11, 16)} UTC`;
 
 /**
- * Events for a committed eval-live results.json: one result per case × model, never relabelled as live.
- * `fallback` (a backup model answered and passed every check) counts as passed — eval-live only fails on `fail` —
- * and keeps its verdict in `detail`.
+ * Events for a committed eval-live results.json: one result per case × model, never relabelled as live (I7).
+ * The stage note carries the recording date, build and environment, and the report's golden-set coverage.
  * @param {any} report parsed results.json
  * @param {string} reportPath repo-relative path of that file
+ * @param {EvalCoverage} [coverage] from evalCoverage / chooseEvalReport
  */
-export function recordedEval(report, reportPath) {
+export function recordedEval(report, reportPath, coverage) {
   const meta = report?.meta ?? {};
   const rows = Array.isArray(report?.results) ? report.results : [];
   const counts = emptyCounts();
@@ -487,12 +550,19 @@ export function recordedEval(report, reportPath) {
         environment: meta.environment,
         verdict: r.verdict === "pass" ? undefined : r.verdict,
         answeredBy: r.answeredBy && r.answeredBy !== r.model ? r.answeredBy : undefined,
+        note: r.verdict === "fallback" ? `answered by ${r.answeredBy ?? "a backup"}, so ${r.model} was not evaluated on this case` : undefined,
         warnings: Array.isArray(r.warnings) && r.warnings.length ? r.warnings.length : undefined,
       },
     });
   });
-  const note = `recorded ${utcMinute(meta.startedAt)} · build ${meta.build ?? "unknown"} · ${meta.environment ?? "unknown environment"}`;
-  return { events, counts, durationMs, note, status: /** @type {Status} */ (counts.failed ? "failed" : rows.length ? "passed" : "skipped") };
+  const scope = !coverage
+    ? []
+    : coverage.complete
+      ? [`${coverage.casesTotal} cases × ${coverage.fullModels.length} models`]
+      : [`partial: ${coverage.casesCovered}/${coverage.casesTotal} cases, ${coverage.models.length} model${coverage.models.length === 1 ? "" : "s"}`];
+  const note = [`recorded ${utcMinute(meta.startedAt)}`, `build ${meta.build ?? "unknown"}`, meta.environment ?? "unknown environment", ...scope].join(" · ");
+  const status = /** @type {Status} */ (counts.failed ? "failed" : counts.passed ? "passed" : "skipped");
+  return { events, counts, durationMs, note, status };
 }
 
 // ── Run metadata ──────────────────────────────────────────────────────────────────────────────────

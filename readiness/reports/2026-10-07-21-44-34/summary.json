@@ -1,0 +1,129 @@
+{
+  "runId": "2026-10-07-21-44-34",
+  "status": "passed",
+  "interrupted": null,
+  "startedAt": "2026-10-07T21:44:34.140Z",
+  "endedAt": "2026-10-07T21:44:56.622Z",
+  "durationMs": 22482,
+  "meta": {
+    "runId": "2026-10-07-21-44-34",
+    "mode": "local",
+    "startedAt": "2026-10-07T21:44:34.140Z",
+    "platform": "node v22.15.0 · darwin arm64",
+    "environment": "local working tree",
+    "build": "86b3545+dirty",
+    "branch": "main",
+    "goldenVersion": "2026-10-07d",
+    "pricingVersion": "2026-10-07",
+    "corpusHash": "4259b258e6",
+    "promptHash": "a0c89054c9"
+  },
+  "stages": [
+    {
+      "id": "typecheck",
+      "title": "Typecheck",
+      "status": "passed",
+      "durationMs": 3925,
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live"
+    },
+    {
+      "id": "lint",
+      "title": "Lint",
+      "status": "passed",
+      "durationMs": 3238,
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live"
+    },
+    {
+      "id": "unit",
+      "title": "Unit · integration · retrieval eval",
+      "status": "passed",
+      "durationMs": 1816,
+      "counts": {
+        "passed": 285,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live"
+    },
+    {
+      "id": "build",
+      "title": "Production build",
+      "status": "passed",
+      "durationMs": 6165,
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live",
+      "note": "→ .next-readiness/ (BUILD_ID E9T4-lXPQVJSl3nQ0l9Dx) · .next/ untouched (BUILD_ID unchanged)"
+    },
+    {
+      "id": "bundle-scan",
+      "title": "Client bundle secret scan",
+      "status": "passed",
+      "durationMs": 68,
+      "counts": {
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live",
+      "note": "scanned .next-readiness/static for key shapes and key values from the environment and .env.local"
+    },
+    {
+      "id": "e2e",
+      "title": "Browser E2E",
+      "status": "passed",
+      "durationMs": 7201,
+      "counts": {
+        "passed": 16,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live",
+      "note": "next start :3199 on .next-readiness/ with the mock model · HTML report readiness/tmp/2026-10-07-21-44-34/playwright-report · .next/ untouched (BUILD_ID unchanged)"
+    },
+    {
+      "id": "live-eval",
+      "title": "Live answer eval",
+      "status": "passed",
+      "durationMs": 24473,
+      "counts": {
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "recorded",
+      "note": "recorded 2026-10-07 21:22 UTC · build a6af017 · https://nimbus-assistant-coral.vercel.app"
+    }
+  ],
+  "failures": [],
+  "isolation": {
+    "distDir": ".next-readiness",
+    "e2ePort": 3199,
+    "restoredFiles": [
+      "tsconfig.json",
+      "next-env.d.ts"
+    ],
+    "nextBuildIdBefore": "OZ3z6diLtbxRpQFZxY79n",
+    "nextBuildIdAfter": "OZ3z6diLtbxRpQFZxY79n",
+    "nextBuildIdUnchanged": true
+  },
+  "artifacts": {
+    "events": "readiness/reports/2026-10-07-21-44-34/events.ndjson",
+    "scratch": "readiness/tmp/2026-10-07-21-44-34",
+    "playwrightReport": "readiness/tmp/2026-10-07-21-44-34/playwright-report",
+    "summary": "readiness/reports/2026-10-07-21-44-34/summary.json"
+  }
+}

@@ -7,7 +7,7 @@ import type { Status, TestResult } from "@/readiness/schema";
 import { IdChip, LayerBadge, SourceBadge, StatusIcon, StatusPill, TONE_TEXT, toneOf } from "./badges";
 import type { Filter, FilteredRequirement } from "./filter";
 import { resultPasses } from "./filter";
-import { formatDuration, leafName, parentName, plural, shortFile } from "./format";
+import { formatDuration, leafName, parentName, plural, shortFile, slug } from "./format";
 
 const RESULTS_PREVIEW = 6;
 
@@ -15,22 +15,36 @@ function statusRank(s: Status): number {
   return s === "failed" ? 0 : s === "running" ? 1 : 2;
 }
 
-function slug(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+/** Keys already shown elsewhere on the row (file) or too long to help at a glance. */
+const DETAIL_SKIP = new Set(["reportPath", "environment", "note"]);
+
+function detailValue(key: string, value: string | number | boolean): string {
+  if (typeof value === "number") {
+    if (/costUSD$/i.test(key)) return `$${value < 0.01 ? value.toFixed(5) : value.toFixed(4)}`;
+    if (/Ms$/.test(key)) return formatDuration(value);
+  }
+  const text = String(value);
+  return text.length > 48 ? `${text.slice(0, 47)}…` : text;
 }
 
 function DetailLine({ detail }: { detail: TestResult["detail"] }) {
   if (!detail) return null;
-  const entries = Object.entries(detail).slice(0, 5);
-  if (entries.length === 0) return null;
+  const entries = Object.entries(detail).filter(([k]) => !DETAIL_SKIP.has(k)).slice(0, 6);
+  const note = typeof detail.note === "string" ? detail.note : undefined;
+  if (entries.length === 0 && !note) return null;
   return (
-    <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[11px] text-muted">
-      {entries.map(([k, v]) => (
-        <span key={k}>
-          {k} <span className="text-text">{String(v)}</span>
-        </span>
-      ))}
-    </p>
+    <>
+      {entries.length > 0 && (
+        <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[11px] text-muted">
+          {entries.map(([k, v]) => (
+            <span key={k}>
+              {k.replace(/Ms$/, "").replace(/USD$/, "")} <span className="text-text">{detailValue(k, v)}</span>
+            </span>
+          ))}
+        </p>
+      )}
+      {note && <p className="mt-1 text-[11.5px] text-muted italic">{note}</p>}
+    </>
   );
 }
 
@@ -138,33 +152,42 @@ function RequirementRow({
   const failed = view.status === "failed";
   return (
     <li
+      id={`req-row-${slug(r.id)}`}
       data-requirement-id={r.id}
       data-status={view.status}
-      className={`border-t border-border first:border-t-0 ${failed ? "bg-[var(--rdy-fail-bg)]/40" : ""}`}
+      className={`scroll-mt-4 border-t border-border first:border-t-0 ${failed ? "bg-[var(--rdy-fail-bg)]/40" : ""}`}
     >
       <button
         type="button"
         aria-expanded={expanded}
         aria-controls={panelId}
         onClick={onToggle}
-        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 px-4 py-3 text-left transition-colors hover:bg-orange-soft/60 sm:px-5 md:grid-cols-[4.5rem_minmax(0,1fr)_auto_auto]"
+        className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 px-4 py-3.5 text-left transition-colors hover:bg-orange-soft/60 sm:px-5 md:grid-cols-[minmax(0,1fr)_auto_auto_auto] md:gap-x-4"
       >
-        <span className="flex items-center gap-1.5 max-md:col-span-2 max-md:row-start-1 md:flex-col md:items-start md:gap-1 md:pt-0.5">
-          <IdChip strong>{r.id}</IdChip>
-          <span className="font-mono text-[10.5px] font-semibold text-muted">{r.priority}</span>
-        </span>
-        <span className="min-w-0 max-md:row-start-2">
-          <span className="block text-[14px] leading-snug font-semibold text-text">{r.title}</span>
-          <span className="mt-1 flex flex-wrap gap-1">
+        <span className="col-span-2 row-start-1 min-w-0 md:col-span-1 md:col-start-1">
+          <span className="block text-[14px] leading-snug font-semibold text-text">
+            <IdChip strong className="mr-1.5 align-[1px]">
+              {r.id}
+            </IdChip>
+            <span className="mr-2 font-mono text-[10.5px] font-semibold text-muted" title={`Priority ${r.priority}`}>
+              {r.priority}
+            </span>
+            {r.title}
+          </span>
+          <span className="mt-1.5 flex flex-wrap items-center gap-1">
+            {r.brd.length > 0 && <span className="mr-0.5 text-[10px] font-semibold tracking-[0.1em] text-muted uppercase">BRD</span>}
             {r.brd.map((id) => (
               <IdChip key={id}>{id}</IdChip>
             ))}
+            {r.acceptance.length > 0 && (
+              <span className={`mr-0.5 text-[10px] font-semibold tracking-[0.1em] text-muted uppercase ${r.brd.length ? "ml-2" : ""}`}>Acceptance</span>
+            )}
             {r.acceptance.map((id) => (
               <IdChip key={id}>{id}</IdChip>
             ))}
           </span>
         </span>
-        <span className="flex flex-col items-end gap-1.5 max-md:col-start-2 max-md:row-start-2 md:pt-0.5">
+        <span className="col-span-2 col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:col-span-1 md:col-start-2 md:row-start-1 md:flex-col md:items-end md:gap-1.5 md:pt-0.5">
           <span className="text-[12px] whitespace-nowrap text-muted tabular-nums">
             {plural(view.checks.length, "check")} · {plural(testCount, "test")}
           </span>
@@ -174,13 +197,15 @@ function RequirementRow({
             ))}
           </span>
         </span>
-        <span className="flex items-center gap-2 max-md:col-start-2 max-md:row-start-1 max-md:justify-self-end md:pt-0.5">
+        <span className="col-start-1 row-start-2 md:col-start-3 md:row-start-1 md:pt-0.5">
           <StatusPill status={view.status} kind="requirement" size="sm" />
-          <ChevronDownIcon className={`shrink-0 text-muted transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
         </span>
+        <ChevronDownIcon
+          className={`col-start-3 row-start-1 mt-0.5 shrink-0 text-muted transition-transform duration-200 md:col-start-4 md:mt-1.5 ${expanded ? "rotate-180" : ""}`}
+        />
       </button>
       {expanded && (
-        <div id={panelId} className="px-4 pb-4 sm:px-5 md:pl-[calc(4.5rem+1.25rem+0.75rem)]">
+        <div id={panelId} className="px-4 pb-4 sm:px-5">
           {r.detail && <p className="mb-2.5 text-[13px] leading-relaxed text-muted">{r.detail}</p>}
           {checks.length > 0 ? (
             <ul className="space-y-2.5" aria-label={`Checks for ${r.id}`}>
@@ -229,10 +254,11 @@ export function TraceabilityMatrix({ items, filter, searching }: { items: Filter
         return (
           <section
             key={g.name}
+            id={`${headingId}-section`}
             aria-labelledby={headingId}
             data-testid="requirement-group"
             data-group={g.name}
-            className="overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgb(15_23_42/0.04)]"
+            className="scroll-mt-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgb(15_23_42/0.04)]"
           >
             <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border bg-surface-2 px-4 py-2.5 sm:px-5">
               <h3 id={headingId} className="font-display text-[14.5px] font-bold tracking-[-0.01em] text-text">

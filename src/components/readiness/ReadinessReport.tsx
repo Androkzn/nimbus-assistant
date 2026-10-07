@@ -14,7 +14,7 @@ import { RunControls } from "./RunControls";
 import { StagePipeline } from "./StagePipeline";
 import { TraceabilityMatrix } from "./TraceabilityMatrix";
 import { verdictOf } from "./verdict";
-import { VerdictPanel } from "./VerdictPanel";
+import { VerdictPanel, type GroupStat } from "./VerdictPanel";
 
 /** Wall clock for ticking durations; only ticks while a run is in flight. */
 function useNow(active: boolean, intervalMs = 250): number {
@@ -54,6 +54,17 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
   const summary = useMemo(() => summarize(manifest, state), [state]);
   const unclaimed = useMemo(() => unclaimedResults(manifest, state), [state]);
   const verdict = verdictOf(summary, session, coverage);
+  const groupStats = useMemo(() => {
+    const out: GroupStat[] = [];
+    for (const v of coverage) {
+      let g = out.find((x) => x.name === v.requirement.group);
+      if (!g) out.push((g = { name: v.requirement.group, total: 0, verified: 0, failed: 0 }));
+      g.total += 1;
+      if (v.status === "passed") g.verified += 1;
+      if (v.status === "failed") g.failed += 1;
+    }
+    return out;
+  }, [coverage]);
 
   // check id → requirement ids, as the coverage computed it.
   const checkRequirements = useMemo(() => {
@@ -139,6 +150,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
           summary={summary}
           session={session}
           elapsedMs={elapsedMs}
+          groups={groupStats}
           controls={
             <RunControls
               session={session}

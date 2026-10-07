@@ -473,7 +473,7 @@ const STAGES = {
     const report = latestEvalReport(ROOT);
     if (!report) return skipStage("live-eval", "skipped: no committed live-eval report under evals/reports/");
     const run = new StageRun("live-eval");
-    const recorded = recordedEval(report.json, report.path);
+    const recorded = recordedEval(report.json, report.path, report.coverage);
     recorded.events.forEach((event) => run.record(event));
     return run.end({ status: recorded.status, source: "recorded", durationMs: recorded.durationMs, note: recorded.note });
   },
