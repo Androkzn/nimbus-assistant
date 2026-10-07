@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readEvents } from "@/client/stream";
 import { deadlineIn, formatWait } from "@/client/cooldown";
-import { nextQuestions } from "@/client/suggestions";
 import { useCountdown } from "@/client/useCountdown";
 import { toCSV, toJSON, totals, type UsageRow } from "@/client/usage";
 import { applyEvent, emptyAnswer, type AnswerState } from "@/shared/answer";
@@ -15,7 +14,6 @@ import { BrandLockup } from "./BrandLockup";
 import { EmptyState } from "./EmptyState";
 import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, ChevronDownIcon, PlusIcon, StopIcon } from "./icons";
 import { SessionPanel } from "./SessionPanel";
-import { SuggestionChips } from "./SuggestionChips";
 
 interface Turn {
   id: string;
@@ -213,12 +211,6 @@ export function ChatApp() {
   }
 
   const canSend = draft.trim().length > 0 && !busy && !cooling && Boolean(modelId);
-  const lastTurn = turns.at(-1);
-  const suggestions = nextQuestions({
-    asked: turns.map((t) => t.question),
-    lastQuestion: lastTurn?.question,
-    lastAnswer: lastTurn?.answer.text,
-  });
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
       <header className="brand-glow relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-navy-3 bg-navy px-4 text-on-navy sm:px-6">
@@ -311,8 +303,6 @@ export function ChatApp() {
               </button>
             )}
             <div className="mx-auto max-w-3xl">
-              {/* Hidden while an answer streams: follow-ups belong to the finished answer. */}
-              {turns.length > 0 && !busy && modelId && <SuggestionChips questions={suggestions} onAsk={(q) => void send(q)} disabled={busy || cooling} />}
               {cooling && (
                 <p
                   role="status"
