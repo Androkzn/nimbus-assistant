@@ -209,9 +209,11 @@ function RequirementRow({
           {r.detail && <p className="mb-2.5 text-[13px] leading-relaxed text-muted">{r.detail}</p>}
           {checks.length > 0 ? (
             <ul className="space-y-2.5" aria-label={`Checks for ${r.id}`}>
-              {checks.map((c) => (
-                <CheckBlock key={c.check.id} view={c} filter={filter} />
-              ))}
+              {[...checks]
+                .sort((a, b) => statusRank(a.status) - statusRank(b.status))
+                .map((c) => (
+                  <CheckBlock key={c.check.id} view={c} filter={filter} />
+                ))}
             </ul>
           ) : (
             <p className="text-[12.5px] text-muted">No checks match this filter.</p>

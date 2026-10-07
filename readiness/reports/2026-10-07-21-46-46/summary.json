@@ -1,0 +1,50 @@
+{
+  "runId": "2026-10-07-21-46-46",
+  "status": "passed",
+  "interrupted": null,
+  "startedAt": "2026-10-07T21:46:46.571Z",
+  "endedAt": "2026-10-07T21:46:46.674Z",
+  "durationMs": 102,
+  "meta": {
+    "runId": "2026-10-07-21-46-46",
+    "mode": "local",
+    "startedAt": "2026-10-07T21:46:46.571Z",
+    "platform": "node v22.15.0 · darwin arm64",
+    "environment": "local working tree",
+    "build": "d059fa7+dirty",
+    "branch": "main",
+    "goldenVersion": "2026-10-07d",
+    "pricingVersion": "2026-10-07",
+    "corpusHash": "4259b258e6",
+    "promptHash": "a0c89054c9"
+  },
+  "stages": [
+    {
+      "id": "live-eval",
+      "title": "Live answer eval",
+      "status": "passed",
+      "durationMs": 199632,
+      "counts": {
+        "passed": 90,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "recorded",
+      "note": "recorded 2026-10-07 21:03 UTC · build 091ba66 · http://localhost:3300 · 30 cases × 3 models"
+    }
+  ],
+  "failures": [],
+  "isolation": {
+    "distDir": ".next-readiness",
+    "e2ePort": 3199,
+    "restoredFiles": [],
+    "nextBuildIdBefore": "OZ3z6diLtbxRpQFZxY79n",
+    "nextBuildIdAfter": "OZ3z6diLtbxRpQFZxY79n",
+    "nextBuildIdUnchanged": true
+  },
+  "artifacts": {
+    "events": "readiness/reports/2026-10-07-21-46-46/events.ndjson",
+    "scratch": "readiness/tmp/2026-10-07-21-46-46",
+    "summary": "readiness/reports/2026-10-07-21-46-46/summary.json"
+  }
+}

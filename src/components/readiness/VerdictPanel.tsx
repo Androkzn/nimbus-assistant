@@ -65,7 +65,7 @@ function GroupBreakdown({ groups }: { groups: GroupStat[] }) {
   return (
     <div className="mt-6 border-t border-border pt-4">
       <h3 className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">By requirement group</h3>
-      <ul className="mt-2.5 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+      <ul className="mt-2.5 grid gap-y-2">
         {groups.map((g) => {
           const all = g.total > 0 && g.verified === g.total;
           return (
@@ -76,11 +76,11 @@ function GroupBreakdown({ groups }: { groups: GroupStat[] }) {
               >
                 {g.name}
               </a>
-              <span className={`shrink-0 tabular-nums ${g.failed ? "font-semibold text-[var(--rdy-fail)]" : all ? "font-semibold text-[var(--rdy-pass)]" : "text-muted"}`}>
+              <span className={`w-12 shrink-0 text-right tabular-nums ${g.failed ? "font-semibold text-[var(--rdy-fail)]" : all ? "font-semibold text-[var(--rdy-pass)]" : "text-muted"}`}>
                 {g.verified}/{g.total}
                 <span className="sr-only"> verified{g.failed ? `, ${g.failed} failed` : ""}</span>
               </span>
-              <span aria-hidden className="flex h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-[var(--rdy-track)]">
+              <span aria-hidden className="flex h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[var(--rdy-track)] sm:w-40">
                 <span className="h-full bg-[var(--rdy-pass)] transition-[width] duration-500" style={{ width: `${g.total ? (g.verified / g.total) * 100 : 0}%` }} />
                 <span className="h-full bg-[var(--rdy-fail)] transition-[width] duration-500" style={{ width: `${g.total ? (g.failed / g.total) * 100 : 0}%` }} />
               </span>
@@ -164,7 +164,7 @@ export function VerdictPanel({
           <div className="mt-5">
             <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
               <span id="progress-label" className="font-semibold text-text">
-                Checks complete
+                {running || session.phase === "idle" ? "Checks complete" : "Checks with a result"}
               </span>
               <span className="text-muted tabular-nums">
                 {done} / {checks.total} · {pct}%
@@ -197,7 +197,8 @@ export function VerdictPanel({
                 <span aria-hidden className="h-2 w-2 rounded-full bg-[var(--rdy-fail)]" /> failed
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <span aria-hidden className="h-2 w-2 rounded-full bg-[var(--rdy-track)] ring-1 ring-border" /> not yet run
+                <span aria-hidden className="h-2 w-2 rounded-full bg-[var(--rdy-track)] ring-1 ring-border" />{" "}
+                {running || session.phase === "idle" ? "not yet run" : "no result in this run"}
               </span>
             </p>
           </div>

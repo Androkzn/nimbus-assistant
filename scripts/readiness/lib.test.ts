@@ -176,19 +176,64 @@ describe("result ids (spec §4)", () => {
 });
 
 describe("recorded live eval (I7)", () => {
+  const golden = JSON.parse(readFileSync(path.join(lib.ROOT, "evals/golden-set.json"), "utf8"));
+  const caseIds: string[] = golden.cases.map((c: { id: string }) => c.id);
   const latest = lib.latestEvalReport(lib.ROOT);
 
-  it("reads the newest committed results.json", () => {
+  // Synthetic reports: `models` answer `cases` (rows only carry what the selection reads).
+  const report = (stamp: string, models: string[], cases: string[]) => ({
+    path: `evals/reports/${stamp}/results.json`,
+    json: { results: models.flatMap((model) => cases.map((caseId) => ({ caseId, model, verdict: "pass" }))) },
+  });
+  const ids = ["C-1", "C-2", "C-3"];
+
+  it("shows the newest COMPLETE committed report: every current golden case, for at least two models", () => {
     expect(latest).not.toBeNull();
-    const stamps = readdirSync(path.join(lib.ROOT, "evals", "reports")).filter((d) => existsSync(path.join(lib.ROOT, "evals", "reports", d, "results.json")));
-    expect(latest!.path).toBe(`evals/reports/${stamps.sort().at(-1)}/results.json`);
+    const all = readdirSync(path.join(lib.ROOT, "evals", "reports"))
+      .sort()
+      .filter((d) => existsSync(path.join(lib.ROOT, "evals", "reports", d, "results.json")))
+      .map((d) => ({ path: `evals/reports/${d}/results.json`, json: JSON.parse(readFileSync(path.join(lib.ROOT, "evals", "reports", d, "results.json"), "utf8")) }));
+    const complete = all.filter((r) => lib.evalCoverage(r.json, caseIds).complete);
+    if (complete.length) {
+      expect(latest!.path).toBe(complete.at(-1)!.path);
+      expect(latest!.coverage).toMatchObject({ complete: true, casesCovered: caseIds.length, casesTotal: caseIds.length });
+      expect(latest!.coverage.fullModels.length).toBeGreaterThanOrEqual(lib.MIN_COMPLETE_MODELS);
+    } else {
+      expect(latest!.coverage.graded).toBe(Math.max(...all.map((r) => r.json.results.length)));
+    }
   });
 
-  it("emits one recorded result per case × model, labelled with date, build and environment", () => {
-    const { json, path: reportPath } = latest!;
-    const rec = lib.recordedEval(json, reportPath);
+  it("a newer partial run (one model, some cases) does not replace an older complete one", () => {
+    const chosen = lib.chooseEvalReport([report("a", ["m1", "m2"], ids), report("b", ["m1", "m2", "m3"], ids), report("c", ["m1"], ids)], ids);
+    expect(chosen?.path).toBe("evals/reports/b/results.json");
+    expect(chosen?.coverage).toEqual({ complete: true, casesCovered: 3, casesTotal: 3, models: ["m1", "m2", "m3"], fullModels: ["m1", "m2", "m3"], graded: 9 });
+  });
+
+  it("is not complete when only one model covers every case, or a case added to the golden set is missing", () => {
+    expect(lib.evalCoverage(report("a", ["m1"], ids).json, ids).complete).toBe(false);
+    const oneShort = { results: [...report("a", ["m1"], ids).json.results, ...report("a", ["m2"], ["C-1", "C-2"]).json.results] };
+    expect(lib.evalCoverage(oneShort, ids)).toMatchObject({ complete: false, fullModels: ["m1"], casesCovered: 3 });
+    expect(lib.evalCoverage(report("a", ["m1", "m2"], ["C-1", "C-2"]).json, ids)).toMatchObject({ complete: false, casesCovered: 2 });
+  });
+
+  it("with no complete report, falls back to the most graded answers (newest on a tie) and labels it partial", () => {
+    // graded answers: a 2, b 3, c 2, d 3 → b and d tie; the newer one (d) wins.
+    const reports = [report("a", ["m1", "m2"], ["C-1"]), report("b", ["m1"], ids), report("c", ["m3", "m4"], ["C-1"]), report("d", ["m2"], ids)];
+    const chosen = lib.chooseEvalReport(reports, ids);
+    expect(chosen?.path).toBe("evals/reports/d/results.json");
+    const meta = { startedAt: "2026-10-07T21:22:23.000Z", build: "a6af017", environment: "https://example.test" };
+    expect(lib.recordedEval({ meta, ...chosen!.json }, chosen!.path, chosen!.coverage).note).toBe(
+      "recorded 2026-10-07 21:22 UTC · build a6af017 · https://example.test · partial: 3/3 cases, 1 model",
+    );
+    expect(lib.chooseEvalReport([], ids)).toBeNull();
+  });
+
+  it("emits one recorded result per case × model, labelled with date, build, environment and coverage", () => {
+    const { json, path: reportPath, coverage } = latest!;
+    const rec = lib.recordedEval(json, reportPath, coverage);
     expect(rec.events).toHaveLength(json.results.length);
-    expect(rec.note).toBe(`recorded ${json.meta.startedAt.slice(0, 10)} ${json.meta.startedAt.slice(11, 16)} UTC · build ${json.meta.build} · ${json.meta.environment}`);
+    const scope = coverage.complete ? `${coverage.casesTotal} cases × ${coverage.fullModels.length} models` : `partial: ${coverage.casesCovered}/${coverage.casesTotal} cases`;
+    expect(rec.note.startsWith(`recorded ${json.meta.startedAt.slice(0, 10)} ${json.meta.startedAt.slice(11, 16)} UTC · build ${json.meta.build} · ${json.meta.environment} · ${scope}`)).toBe(true);
     expect(rec.counts.passed + rec.counts.failed + rec.counts.skipped).toBe(json.results.length);
     rec.events.forEach((event, i) => {
       const row = json.results[i];
@@ -200,7 +245,7 @@ describe("recorded live eval (I7)", () => {
         file: reportPath,
         fullName: `${row.caseId} — ${row.question}`,
         source: "recorded",
-        status: row.verdict === "fail" ? "failed" : "passed",
+        status: ({ pass: "passed", fail: "failed", fallback: "skipped" } as Record<string, string>)[row.verdict] ?? "failed",
       });
       expect(parsed.result.detail).toMatchObject({ model: row.model, reportPath, environment: json.meta.environment });
       // I6: the model's answer text is evidence in the report file, never in an event.
@@ -208,11 +253,12 @@ describe("recorded live eval (I7)", () => {
     });
   });
 
-  it("maps verdicts, keeps answer figures out of failure reasons, and omits null metrics", () => {
+  it("maps verdicts — a fallback is skipped, never passed — keeps answer figures out of reasons, omits null metrics", () => {
     const rows = [
       { caseId: "C-1", question: "q1", model: "m", verdict: "fail", failed: ["missing /x/", "figures not in sources: 59, 12"], ttftMs: null, totalMs: 10, costUSD: 0 },
       { caseId: "C-2", question: "q2", model: "m", verdict: "fallback", failed: [], answeredBy: "backup", ttftMs: 5, totalMs: 20, costUSD: 0.001 },
       { caseId: "C-3", question: "q3", model: "m", verdict: "weird", failed: [], ttftMs: 5, totalMs: 30, costUSD: 0 },
+      { caseId: "C-4", question: "q4", model: "m", verdict: "pass", failed: [], answeredBy: "m", ttftMs: 7, totalMs: 40, costUSD: 0.002 },
     ];
     const rec = lib.recordedEval({ meta: { startedAt: "2026-10-07T20:41:15.000Z", build: "091ba66", environment: "http://localhost:3300" }, results: rows }, "evals/reports/x/results.json");
     const results = rec.events.map((e) => {
@@ -222,11 +268,17 @@ describe("recorded live eval (I7)", () => {
     });
     expect(results[0]).toMatchObject({ status: "failed", error: "missing /x/; figures not in sources (2)" });
     expect(results[0].detail).not.toHaveProperty("ttftMs");
-    expect(results[1]).toMatchObject({ status: "passed", detail: { verdict: "fallback", answeredBy: "backup" } });
+    expect(results[1]).toMatchObject({
+      status: "skipped",
+      detail: { verdict: "fallback", answeredBy: "backup", note: "answered by backup, so m was not evaluated on this case" },
+    });
     expect(results[1].error).toBeUndefined();
     expect(results[2]).toMatchObject({ status: "failed", error: 'unknown verdict "weird"' });
-    expect(rec).toMatchObject({ status: "failed", durationMs: 60, counts: { passed: 1, failed: 2, skipped: 0 }, note: "recorded 2026-10-07 20:41 UTC · build 091ba66 · http://localhost:3300" });
+    expect(results[3]).toMatchObject({ status: "passed", detail: { model: "m", ttftMs: 7 } });
+    expect(results[3].detail).not.toHaveProperty("answeredBy");
+    expect(rec).toMatchObject({ status: "failed", durationMs: 100, counts: { passed: 1, failed: 2, skipped: 1 }, note: "recorded 2026-10-07 20:41 UTC · build 091ba66 · http://localhost:3300" });
     expect(lib.recordedEval({ meta: {}, results: [] }, "p").status).toBe("skipped");
+    expect(lib.recordedEval({ meta: {}, results: [rows[1]] }, "p").status).toBe("skipped");
   });
 });
 
