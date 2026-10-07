@@ -6,20 +6,6 @@ Assessment deployment: https://nimbus-assistant-production.vercel.app
 
 Optional developer deployment with the Readiness test: https://nimbus-assistant-dev.vercel.app
 
-## Optional internal tooling
-
-The developer deployment includes the internal Readiness report. It is intentionally separate from the assessment deployment: the production link stays focused on the customer-facing assistant, while the optional link shows how the implementation is verified against the brief.
-
-These screenshots are included as evidence of that engineering work. The first shows the requirement-to-check traceability view and recorded CI evidence; the second shows live probes running against the deployed developer environment. This makes the quality story reviewable without exposing the tooling in the assessment experience.
-
-![Readiness report overview](docs/screenshots/readiness-overview.png)
-
-*Readiness overview: requirements, automated checks, recorded evidence, and the live probe feed in one report.*
-
-![Live deployment probes](docs/screenshots/readiness-live-probes.png)
-
-*Live probes: the optional developer environment checks its deployed headers, routes, bundle, and health behavior directly.*
-
 ## Run locally
 
 Requirements: Node.js 22.12+ and npm.
@@ -47,6 +33,20 @@ npm run ci
 ```
 
 This runs typechecking, linting, unit/integration/retrieval tests, a production build, the client-bundle secret scan, and Playwright browser tests with the deterministic mock model.
+
+## Optional internal tooling
+
+The developer deployment includes the internal Readiness report. It is intentionally separate from the assessment deployment: the production link stays focused on the customer-facing assistant, while the optional link shows how the implementation is verified against the brief.
+
+These screenshots are included as evidence of that engineering work. The first shows the requirement-to-check traceability view and recorded CI evidence; the second shows live probes running against the deployed developer environment. This makes the quality story reviewable without exposing the tooling in the assessment experience.
+
+![Readiness report overview](docs/screenshots/readiness-overview.png)
+
+*Readiness overview: requirements, automated checks, recorded evidence, and the live probe feed in one report.*
+
+![Live deployment probes](docs/screenshots/readiness-live-probes.png)
+
+*Live probes: the optional developer environment checks its deployed headers, routes, bundle, and health behavior directly.*
 
 Pushes to `main` run these gates in GitHub Actions and deploy the assessment build only after they pass. Configure the protected `production` environment with `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets to enable the deployment job. The optional developer deployment at `nimbus-assistant-dev.vercel.app` includes the Readiness test; the assessment deployment intentionally does not expose that internal tooling.
 
