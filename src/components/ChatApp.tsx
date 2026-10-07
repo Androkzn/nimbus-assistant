@@ -12,7 +12,8 @@ import { formatUSD } from "@/shared/cost";
 import { AnswerCard } from "./AnswerCard";
 import { BrandLockup } from "./BrandLockup";
 import { EmptyState } from "./EmptyState";
-import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, ChevronDownIcon, PlusIcon, StopIcon } from "./icons";
+import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, PlusIcon, StopIcon } from "./icons";
+import { ModelPicker } from "./ModelPicker";
 import { SessionPanel } from "./SessionPanel";
 
 interface Turn {
@@ -351,30 +352,7 @@ export function ChatApp() {
                   className="block max-h-[200px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-base leading-relaxed outline-none placeholder:text-muted/80 focus-visible:outline-none sm:text-[15px]"
                 />
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-2.5 pb-2.5">
-                  <div className="relative shrink-0">
-                    <label htmlFor="model" className="sr-only">
-                      AI model
-                    </label>
-                    <select
-                      id="model"
-                      data-testid="model-select"
-                      value={modelId}
-                      onChange={(e) => setModelId(e.target.value)}
-                      className="h-9 max-w-[15rem] cursor-pointer sm:max-w-[17rem] appearance-none truncate rounded-full border border-border bg-surface-2 pr-8 pl-3.5 text-[13px] font-semibold text-text transition-colors hover:border-orange-strong hover:bg-orange-soft"
-                    >
-                      {providerGroups.map(([provider, models]) => (
-                        <optgroup key={provider} label={provider}>
-                          {models.map((m) => (
-                            <option key={m.id} value={m.id} disabled={!m.available}>
-                              {m.displayName} — {m.description}
-                              {m.available ? "" : " (not configured)"}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted" />
-                  </div>
+                  <ModelPicker value={modelId} groups={providerGroups} onChange={setModelId} />
                   <p
                     data-testid="model-description"
                     title={selected ? `${selected.providerName} · ${selected.description}` : undefined}

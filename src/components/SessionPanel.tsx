@@ -5,7 +5,7 @@ import type { UsageRow, UsageTotals } from "@/client/usage";
 import type { ContextLevel } from "@/shared/context";
 import type { PublicModel } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
-import { CloseIcon, DownloadIcon } from "./icons";
+import { AlertIcon, CloseIcon, DownloadIcon } from "./icons";
 
 /** Warning colours stay fixed: the panel is navy in both light and dark mode. */
 const LEVEL_BAR: Record<ContextLevel, string> = { ok: "bg-on-navy/80", amber: "bg-[#f5b14a]", red: "bg-[#f87171]" };
@@ -140,8 +140,9 @@ export function SessionPanel({
                   : "Loading model…"}
               </p>
               {level !== "ok" && (
-                <p className={`mt-2 text-xs font-semibold ${level === "red" ? "text-[#f87171]" : "text-[#f5b14a]"}`}>
-                  {level === "red" ? "⚠ Near the limit — start a new conversation" : "⚠ Approaching the limit"}
+                <p className={`mt-2 flex items-center gap-1.5 text-xs font-semibold ${level === "red" ? "text-[#f87171]" : "text-[#f5b14a]"}`}>
+                  <AlertIcon className="h-3.5 w-3.5 shrink-0" />
+                  {level === "red" ? "Near the limit — start a new conversation" : "Approaching the limit"}
                 </p>
               )}
             </div>

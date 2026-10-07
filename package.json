@@ -27,6 +27,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
+    "simple-icons": "^16.34.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
