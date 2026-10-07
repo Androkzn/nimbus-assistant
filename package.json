@@ -12,6 +12,7 @@
     "e2e": "playwright test",
     "scan:bundle": "node scripts/scan-client-bundle.mjs",
     "eval:live": "node scripts/eval-live.mjs",
+    "readiness": "node scripts/readiness/run.mjs",
     "ci": "npm run typecheck && npm run lint && npm test && npm run build && npm run scan:bundle && npm run e2e"
   },
   "dependencies": {
