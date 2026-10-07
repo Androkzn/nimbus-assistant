@@ -44,6 +44,7 @@ Rules:
 | v0.2 | 2026-10-07 | Self-review cycle 1 (adversarial checklist from `/create-brd` Reviewer B/C): added BR-26 abuse guard (public URL + paid keys + no login); made every edge case state an explicit user-facing outcome; split fallback into "before first word" vs "mid-answer" (E8); added KPI targets |
 | v1.0 | 2026-10-07 | Accepted for build; open product questions converted to logged assumptions (§9) |
 | v1.1 | 2026-10-07 | Added A9 from live-eval evidence (see [05_Retrospective.md](05_Retrospective.md)) |
+| v1.2 | 2026-10-07 | A9 reversed to "complete" to match the answer key and acceptance matrix; TRD rules G10–G11 |
 
 ---
 
@@ -256,7 +257,7 @@ The client was not reachable inside the time box, so each open question has a do
 | A6 | Context meter basis | Full next request (instructions + passages + history) vs selected model window | That is what actually hits the limit |
 | A7 | Default model / fallback order | Configurable; default = fast low-cost model with a working key | Free tiers are fine per brief; cost-aware default |
 | A8 | Access control on the public link | No login (brief); abuse limits instead (BR-26) | Brief says login not required |
-| A9 | "What should they check first?" / "What new features…?" — literal or complete? | Literal: first documented step per product is required, full ordered checklist is a bonus; bug fixes are not "features" | All three evaluated models answer literally; confirm the preferred depth with Support (added v1.1 from live-eval evidence) |
+| A9 | "What should they check first?" / "What new features…?" — literal or complete? | Complete: the full ordered checklist per product with step 1 marked as "check first"; every item of the version's release notes, grouped New / Fixed as the notes group them | Matches the answer key (00 §3 Q3–Q4) and acceptance rows NKA-RET-009/010; a rep on a live call needs step 2 the moment step 1 checks out. v1.1 chose "literal" from model output, which fitted the requirement to the results; reversed in v1.2 |
 
 ---
 

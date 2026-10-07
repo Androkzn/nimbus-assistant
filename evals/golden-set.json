@@ -44,12 +44,10 @@
       "mustInclude": [
         "(?i)replay",
         "(?i)eu\\.relay\\.nimbusstack\\.com|frankfurt",
-        "\\$59"
-      ],
-      "shouldInclude": [
+        "\\$59",
         "(?i)retry"
       ],
-      "note": "A bug fix is not a new feature: the Fixed item is nice-to-have."
+      "note": "Answer key 00 §3 Q3 and acceptance row RET-009 list every 4.2 item, including the Fixed retry-storm item and the $59 Pro price change (BRD A9 v1.2)."
     },
     {
       "id": "NKA-RET-010",
@@ -57,13 +55,12 @@
       "question": "A client is getting a 403 on the API. What should they check first?",
       "mustInclude": [
         "(?i)scope",
-        "(?i)member"
-      ],
-      "shouldInclude": [
         "(?i)allowlist",
-        "(?i)suspend"
+        "(?i)suspend",
+        "(?i)member",
+        "(?i)bound to the project|per[- ]project"
       ],
-      "note": "Question asks what to check FIRST: first documented step per product is required; the full checklist is nice-to-have (BRD assumption A9)."
+      "note": "Answer key 00 §4 Q4 and acceptance row RET-010: the full ordered checklist for Relay (scope, allowlist, suspended seat) and Pulse (workspace member, key bound to project), step 1 marked as first (BRD A9 v1.2)."
     },
     {
       "id": "NKA-RET-002",
@@ -153,11 +150,12 @@
       "brief": "E2",
       "question": "What's Vault's uptime SLA?",
       "mustInclude": [
-        "(?i)couldn.t find|not (in|covered|documented|specified|mentioned|stated)|no (uptime|information|mention)|(doesn.t|does not|do not|don.t) (state|contain|cover|include|specify|mention|list|have)"
+        "(?i)couldn.t find|not (in|covered|documented|specified|mentioned|stated)|no (uptime|information|mention)|(doesn.t|does not|do not|don.t) (state|contain|cover|include|specify|mention|list|have|give|provide)"
       ],
       "mustNotInclude": [
         "99\\.\\d+ ?%"
-      ]
+      ],
+      "note": "Decline-phrase regex lists paraphrases seen in correct answers (\"does not state\", 2026-10-07-19-31-36; \"does not give\", 2026-10-07-19-43-42). The fabrication guard is mustNotInclude 99.x%."
     },
     {
       "id": "NKA-GRD-004",
@@ -165,11 +163,12 @@
       "question": "What is Vault Enterprise's price, and what is its uptime guarantee?",
       "mustInclude": [
         "(?i)custom",
-        "(?i)couldn.t find|not (in|covered|documented|specified|mentioned|stated)|no (uptime|information|mention)|(doesn.t|does not|do not|don.t) (state|contain|cover|include|specify|mention|list|have)"
+        "(?i)couldn.t find|not (in|covered|documented|specified|mentioned|stated)|no (uptime|information|mention)|(doesn.t|does not|do not|don.t) (state|contain|cover|include|specify|mention|list|have|give|provide)"
       ],
       "mustNotInclude": [
         "99\\.\\d+ ?%"
-      ]
+      ],
+      "note": "Decline-phrase regex lists paraphrases seen in correct answers (\"does not state\", 2026-10-07-19-31-36; \"does not give\", 2026-10-07-19-43-42). The fabrication guard is mustNotInclude 99.x%."
     },
     {
       "id": "NKA-GRD-005",

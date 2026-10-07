@@ -42,10 +42,10 @@ test("NKA-USG-003 / CHAT-003: totals add up, New Conversation resets", async ({ 
   await expect(lastAnswer(page)).toHaveAttribute("data-status", "done");
   await ask(page, "Vault pricing");
   await expect(lastAnswer(page)).toHaveAttribute("data-status", "done");
-  await expect(page.getByTestId("session-totals")).toContainText("Session: 2 answers");
+  await expect(page.getByTestId("session-totals")).toContainText("2 answers");
   await page.getByTestId("new-conversation").click();
   await expect(page.getByTestId("answer")).toHaveCount(0);
-  await expect(page.getByTestId("session-totals")).toContainText("Session: 0 answers");
+  await expect(page.getByTestId("session-totals")).toContainText("0 answers");
 });
 
 test("NKA-MDL-003: switching model keeps history; next reply from the new model", async ({ page }) => {

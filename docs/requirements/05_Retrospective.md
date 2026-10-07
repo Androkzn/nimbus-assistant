@@ -36,15 +36,15 @@ The answer key in the discovery doc became three test layers: the offline **retr
 | 10 | Live eval r1 | Integration answer dropped "read-only" from the partner requirement | Prompt: include every relevant column of the row |
 | 11 | Live eval r2 | Grader too strict: correct "not in KB" paraphrases and uncited refusals marked as failures | Grader accepts clear paraphrases; no citation required on a refusal (documented in golden-set notes) |
 
-**Eval trend (54 graded answers per run):** 12 failures → 6 → 3 → 1. The remaining failure is real and kept: GPT-5.6 Luna omits the $59 price change from the Relay 4.2 notes.
+**Eval trend (54 graded answers per run):** 12 failures → 6 → 3 → 1 → 0. The 3 → 1 step was partly false progress: the full-checklist and retry-fix checks had been demoted to nice-to-have. They were restored as required (answer key Q3/Q4), which exposed 6 failures. Explicit prompt rules G10–G11 brought it to 0. Lesson: low-effort models (Gemini thinking `minimal`, GPT effort `low`) answer the literal question ("what to check *first*", "new *features*") unless the prompt names the shortcut they take and forbids it.
 
 ## 3. Model selection — by measurement, not preference
 
 | Model | Golden set | p50 first word | Cost / 18 answers |
 |-------|-----------|----------------|-------------------|
-| **Gemini 3.1 Flash-Lite** (default) | **18/18** | ~1.0 s | $0.008 |
-| Claude Haiku 5.5 | 18/18 | ~1.0 s | $0.006 |
-| GPT-5.6 Luna | 17/18 | ~1.7 s | $0.006 |
+| **Gemini 3.1 Flash-Lite** (default) | **18/18** | ~1.1 s | $0.009 |
+| Claude Haiku 5.5 | 18/18 | ~1.2 s | $0.007 |
+| GPT-5.6 Luna | 18/18 | ~1.8 s | $0.007 |
 | Gemini 3.5 Flash (thinking low) | spot-checked: most thorough | ~3.6–4.9 s | ~$0.012 / answer |
 
 Fallback order alternates vendors (Google → OpenAI → Anthropic → …) so a single vendor outage never takes the assistant down.
@@ -53,7 +53,7 @@ Fallback order alternates vendors (Google → OpenAI → Anthropic → …) so a
 
 - **A1** Unnamed product → answer per product (not a clarifying question) — optimised for Sarah on a live call.
 - **A2** Conflicts are shown, never auto-resolved; the newer document is noted.
-- **A9** "What should they check first?" → first documented step per product is required; the full ordered checklist is a nice-to-have (models answer the literal question). Same for "new features": bug fixes are not features.
+- **A9** "What should they check first?" → the full ordered checklist per product, step 1 marked "check first". "What's new in vX" → every release-note item, New and Fixed. This matches the answer key; confirm the preferred depth with Support.
 - Public demo URL has no login (brief): mitigated by per-IP rate limit, message cap and output cap.
 
 ## 5. Not done / next steps
