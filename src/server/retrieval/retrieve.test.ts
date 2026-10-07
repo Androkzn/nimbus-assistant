@@ -135,6 +135,11 @@ describe("retrieval eval (golden cases)", () => {
     expect(result.unsupportedTroubleshootingStatus).toBe(true);
   });
 
+  it("NKA-GRD-016: flags a priority outside the documented P1–P4 range", () => {
+    const result = retrieve("What's the SLA for Priority 12 support tickets?");
+    expect(result.unsupportedPriority).toBe(true);
+  });
+
   it("numbers passages 1..n in order", () => {
     const { passages } = retrieve("Relay pricing");
     expect(passages.map((p) => p.n)).toEqual(passages.map((_, i) => i + 1));

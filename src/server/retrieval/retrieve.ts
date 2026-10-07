@@ -31,6 +31,8 @@ export interface RetrievalResult {
   ambiguousReleaseVersion: boolean;
   /** True when an API troubleshooting question uses an HTTP status not documented in the corpus. */
   unsupportedTroubleshootingStatus: boolean;
+  /** True when an SLA question uses a priority outside the documented P1–P4 range. */
+  unsupportedPriority: boolean;
 }
 
 const MAX_PASSAGES = 10;
@@ -90,6 +92,8 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   const ambiguousReleaseVersion = detectTopics(queryText).includes("release") && /\bv\d+\b/i.test(queryText) && !version;
   const status = queryText.match(/\b([1-5]\d{2})\b/)?.[1];
   const unsupportedTroubleshootingStatus = Boolean(status && !/^(?:403|429)$/.test(status) && /\b(?:api|error|troubleshoot|check)\b/i.test(queryText));
+  const priority = queryText.match(/\b(?:priority|p)\s*(\d+)\b/i)?.[1];
+  const unsupportedPriority = Boolean(priority && !/^[1-4]$/.test(priority) && /\b(?:sla|priority|support)\b/i.test(queryText));
   const queryTokens = [...expandQuery(queryText), ...products];
 
   const scored = idx.chunks.map((chunk, i) => {
@@ -145,6 +149,7 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
     unsupportedPricingTier,
     ambiguousReleaseVersion,
     unsupportedTroubleshootingStatus,
+    unsupportedPriority,
   };
 }
 

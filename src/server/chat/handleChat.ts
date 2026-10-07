@@ -71,7 +71,8 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
     (retrieval.noMatch && retrieval.products.length === 0) ||
     retrieval.unsupportedPricingTier ||
     retrieval.ambiguousReleaseVersion ||
-    retrieval.unsupportedTroubleshootingStatus;
+    retrieval.unsupportedTroubleshootingStatus ||
+    retrieval.unsupportedPriority;
 
   const trace: AttemptTrace[] = [];
   let ttftMs: number | null = null;

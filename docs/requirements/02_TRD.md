@@ -244,7 +244,7 @@ If an answer cites a Support SLA table but doesn't say what the times measure, t
 
 ### 4.7 Off-topic guard (BR-02, deterministic)
 
-If retrieval finds no meaningful match (`noMatch`: best BM25 score < 2.5) **and** no product is in scope, no model is called: the server streams "I couldn't find this in the NimbusStack knowledge base." plus what the assistant covers, with `answeredBy: "kb-guard"`, zero tokens and zero cost. Calibrated on the golden set: every legitimate question scored ≥ 5.7, every off-topic probe ≤ 2.1. A question that names a product always reaches a model.
+If retrieval finds no meaningful match (`noMatch`: best BM25 score < 2.5) **and** no product is in scope, no model is called: the server streams "I couldn't find this in the NimbusStack knowledge base." plus what the assistant covers, with `answeredBy: "kb-guard"`, zero tokens and zero cost. The same deterministic guard applies when a question names an unsupported pricing tier, an incomplete release version, an undocumented HTTP status or a priority outside P1–P4; these inputs must never be mapped to a nearby documented value. Calibrated on the golden set: every legitimate question scored ≥ 5.7, every off-topic probe ≤ 2.1. A question that names a product always reaches a model unless one of these unsupported-input guards fires.
 
 ## 5. API contract
 

@@ -351,6 +351,13 @@
       "note": "The corpus documents 403 and 429 troubleshooting, not 500; the assistant must not reuse a different status checklist."
     },
     {
+      "id": "NKA-GRD-016",
+      "brief": "E2",
+      "question": "What's the SLA for Priority 12 support tickets?",
+      "expectNotInKb": true,
+      "note": "The SLA tables document P1 through P4 only; the assistant must not cite or choose a row for Priority 12."
+    },
+    {
       "id": "NKA-RET-017",
       "brief": "Q5/E5",
       "question": "Does Pulse support SAML SSO?",
