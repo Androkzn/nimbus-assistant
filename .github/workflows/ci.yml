@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      eval_base_url:
+        description: "Run the live answer eval against this URL (needs EVAL_BYPASS_TOKEN secret)"
+        required: false
+
+jobs:
+  quality-gates:
+    name: Offline quality gates (no API keys)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit + integration + retrieval eval
+        run: npm test
+      - name: Bundle scanner self-test (planted keys must be caught)
+        run: node scripts/scan-client-bundle.mjs --self-test
+      - name: Build
+        run: npm run build
+      - name: Client bundle secret scan
+        run: npm run scan:bundle
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: E2E (mock LLM)
+        run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  live-eval:
+    name: Live answer eval (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.eval_base_url != ''
+    needs: quality-gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/eval-live.mjs --base-url "${{ inputs.eval_base_url }}"
+        env:
+          EVAL_BYPASS_TOKEN: ${{ secrets.EVAL_BYPASS_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report
+          path: evals/reports/

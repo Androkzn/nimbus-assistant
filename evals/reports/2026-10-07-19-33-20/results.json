@@ -1,0 +1,162 @@
+{
+  "meta": {
+    "startedAt": "2026-10-07T19:33:20.558Z",
+    "platform": "node v22.15.0",
+    "environment": "http://localhost:3300",
+    "build": "local",
+    "corpusHash": "4259b258e6",
+    "promptHash": "201091d8a5",
+    "goldenVersion": "2026-10-07",
+    "pricingVersion": "2026-10-07",
+    "models": [
+      "openai-luna",
+      "claude-haiku",
+      "gemini-flash-lite"
+    ]
+  },
+  "summary": [
+    {
+      "model": "openai-luna",
+      "done": 2,
+      "pass": 2,
+      "fallback": 0,
+      "fail": 0,
+      "p50TtftMs": 2072,
+      "costUSD": 0.0005272
+    },
+    {
+      "model": "claude-haiku",
+      "done": 2,
+      "pass": 2,
+      "fallback": 0,
+      "fail": 0,
+      "p50TtftMs": 1182,
+      "costUSD": 0.00040390000000000006
+    },
+    {
+      "model": "gemini-flash-lite",
+      "done": 2,
+      "pass": 2,
+      "fallback": 0,
+      "fail": 0,
+      "p50TtftMs": 1503,
+      "costUSD": 0.0006995
+    }
+  ],
+  "results": [
+    {
+      "caseId": "NKA-GRD-003",
+      "brief": "E2",
+      "question": "What's Vault's uptime SLA?",
+      "model": "openai-luna",
+      "verdict": "pass",
+      "failed": [],
+      "warnings": [],
+      "answeredBy": "openai-luna",
+      "fallbacks": [],
+      "ttftMs": 2072,
+      "totalMs": 2074,
+      "usage": {
+        "inputTokens": 863,
+        "outputTokens": 36
+      },
+      "costUSD": 0.00021580000000000001,
+      "answer": "I couldn't find this in the NimbusStack knowledge base. The knowledge base covers Vault's support response-time SLA, including P1 service-down response times by tier."
+    },
+    {
+      "caseId": "NKA-GRD-004",
+      "brief": "E3",
+      "question": "What is Vault Enterprise's price, and what is its uptime guarantee?",
+      "model": "openai-luna",
+      "verdict": "pass",
+      "failed": [],
+      "warnings": [],
+      "answeredBy": "openai-luna",
+      "fallbacks": [],
+      "ttftMs": 1785,
+      "totalMs": 1786,
+      "usage": {
+        "inputTokens": 1281,
+        "outputTokens": 46
+      },
+      "costUSD": 0.0003114,
+      "answer": "- **Vault · Enterprise · Price:** Custom [1]\n- **Uptime guarantee:** I couldn't find this in the NimbusStack knowledge base. The knowledge base covers Vault pricing, features, and release notes."
+    },
+    {
+      "caseId": "NKA-GRD-003",
+      "brief": "E2",
+      "question": "What's Vault's uptime SLA?",
+      "model": "claude-haiku",
+      "verdict": "pass",
+      "failed": [],
+      "warnings": [],
+      "answeredBy": "claude-haiku",
+      "fallbacks": [],
+      "ttftMs": 689,
+      "totalMs": 689,
+      "usage": {
+        "inputTokens": 1278,
+        "outputTokens": 54
+      },
+      "costUSD": 0.00015480000000000002,
+      "answer": "I couldn't find this in the NimbusStack knowledge base. The closest information available is Nimbus Vault's support response-time SLA by priority and tier [1]."
+    },
+    {
+      "caseId": "NKA-GRD-004",
+      "brief": "E3",
+      "question": "What is Vault Enterprise's price, and what is its uptime guarantee?",
+      "model": "claude-haiku",
+      "verdict": "pass",
+      "failed": [],
+      "warnings": [],
+      "answeredBy": "claude-haiku",
+      "fallbacks": [],
+      "ttftMs": 1182,
+      "totalMs": 1183,
+      "usage": {
+        "inputTokens": 1961,
+        "outputTokens": 106
+      },
+      "costUSD": 0.00024910000000000004,
+      "answer": "Vault · Enterprise price: Custom [1].\n\nUptime guarantee: I couldn't find this in the NimbusStack knowledge base. The closest information covers Vault's pricing, features, and release notes, and the support policy says response times are in each product's own SLA table, but no Vault SLA table is included in the passages."
+    },
+    {
+      "caseId": "NKA-GRD-003",
+      "brief": "E2",
+      "question": "What's Vault's uptime SLA?",
+      "model": "gemini-flash-lite",
+      "verdict": "pass",
+      "failed": [],
+      "warnings": [],
+      "answeredBy": "gemini-flash-lite",
+      "fallbacks": [],
+      "ttftMs": 1503,
+      "totalMs": 1503,
+      "usage": {
+        "inputTokens": 919,
+        "outputTokens": 28
+      },
+      "costUSD": 0.00027175,
+      "answer": "I couldn't find this in the NimbusStack knowledge base. The knowledge base covers human response time SLAs for Nimbus Vault and Nimbus Ledger."
+    },
+    {
+      "caseId": "NKA-GRD-004",
+      "brief": "E3",
+      "question": "What is Vault Enterprise's price, and what is its uptime guarantee?",
+      "model": "gemini-flash-lite",
+      "verdict": "pass",
+      "failed": [],
+      "warnings": [],
+      "answeredBy": "gemini-flash-lite",
+      "fallbacks": [],
+      "ttftMs": 799,
+      "totalMs": 799,
+      "usage": {
+        "inputTokens": 1429,
+        "outputTokens": 47
+      },
+      "costUSD": 0.00042775,
+      "answer": "Nimbus Vault Enterprise price: Custom [1].\n\nI couldn't find this in the NimbusStack knowledge base. The knowledge base covers product pricing, features, release notes, and support plans, but does not contain uptime guarantee information."
+    }
+  ]
+}
