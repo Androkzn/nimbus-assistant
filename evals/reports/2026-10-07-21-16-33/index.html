@@ -1,0 +1,120 @@
+<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Live answer eval — NimbusStack Assistant</title>
+<style>body{font:14px/1.45 -apple-system,system-ui,sans-serif;margin:24px;color:#1f2328}h1{font-size:20px;margin:0 0 6px}
+.badge{font-size:11px;font-weight:600;padding:2px 6px;border-radius:10px;white-space:nowrap}.pill{background:#eaeef2;border-radius:4px;padding:0 4px;font-weight:600}
+table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid #d0d7de;padding:6px 8px;vertical-align:top;text-align:left}th{background:#f6f8fa}
+.muted{color:#57606a;font-size:12px}.q{max-width:260px}.fails{margin:4px 0 0;padding-left:16px;color:#cf222e;font-size:12px}.warns{margin:4px 0 0;padding-left:16px;color:#9a6700;font-size:12px}pre{white-space:pre-wrap;font-size:12px;max-width:420px}</style></head>
+<body><h1>Live answer eval — NimbusStack Product Assistant </h1><div class="muted"><span class="pill">node v22.15.0</span> · <span class="pill">environment https://nimbus-assistant-coral.vercel.app</span> · <span class="pill">build a6af017</span> · <span class="pill">corpus 4259b258e6</span> · <span class="pill">prompt a0c89054c9</span> · <span class="pill">golden v2026-10-07d</span> · <span class="pill">pricing 2026-10-07</span></div>
+<p class="muted">Started 2026-10-07T21:16:33.164Z · 15/15 answers graded</p>
+<table><tr><th>Model</th><th>Pass</th><th>Fallback</th><th>Fail</th><th>p50 time to first word</th><th>Cost</th></tr><tr><td><b>Claude Haiku 5.5</b></td><td>14/15</td><td>0</td><td>1</td><td>1549 ms</td><td>$0.0065</td></tr></table>
+<table><tr><th>Case</th><th>Question</th><th>Claude Haiku 5.5</th></tr><tr><td><b>NKA-RET-011</b><div class="muted">Q1</div></td><td class="q">What are the key differences between the Pro and Enterprise pricing tiers?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">9407 ms · $0.00127</div><details><summary>answer</summary><pre>**Pro vs. Enterprise:** Pro has fixed prices and limits. Enterprise is custom-priced with higher limits and extra features. Each product's differences are below.
+
+**Nimbus Relay** (per seat per month, annual plan)
+- Pro: $49 [1]. See the pricing note below.
+- Enterprise: Custom [1].
+- Seats: Pro 25; Enterprise Unlimited [1].
+- API rate limit: Pro 10,000 req/min; Enterprise 100,000 req/min [1].
+- Single sign-on: Pro No; Enterprise SAML 2.0 [1].
+- Audit log retention: Pro 90 days; Enterprise 400 days [1].
+- Request replay: Pro No; Enterprise Yes [1].
+- Regional routing: Pro US only; Enterprise US and EU [1].
+- Support plan: Pro Standard; Enterprise Premium [1].
+
+⚠️ **Documents disagree:** The Pro price is $49 per seat per month in relay.md (updated 2026-06-12) [1], but $59 per seat per month in relay-release-notes.md (4.2, 2026-06-10) [5], for new contracts signed on or after 1 August 2026.
+- Applies today (2026-10-07): the $59 price applies to new contracts signed on or after 1 August 2026. Existing contracts keep their price until renewal [5].
+
+**Nimbus Vault** (per seat per month, annual plan)
+- Pro: $35; Enterprise: Custom [2].
+- Secrets: Pro 10,000; Enterprise Unlimited [2].
+- Single sign-on: Pro SAML 2.0; Enterprise SAML 2.0 [2].
+- HSM-backed keys: Pro No; Enterprise Yes [2].
+- Audit log retention: Pro 180 days; Enterprise 400 days [2].
+- Support plan: Pro Standard; Enterprise Premium [2].
+
+**Nimbus Pulse** (per workspace per month, annual plan)
+- Pro: $299; Enterprise: Custom [3].
+- Monthly events: Pro 50 million; Enterprise Custom [3].
+- Session replay: Pro Yes; Enterprise Yes [3].
+- Warehouse export: Pro Snowflake; Enterprise Snowflake and BigQuery [3].
+- Support plan: Pro Standard; Enterprise Premium [3].
+
+**Nimbus Ledger** (per month, annual plan, plus 0.5% of invoiced volume)
+- Pro: $199; Enterprise: Custom [4].
+- Invoiced volume included: Pro $500,000; Enterprise Custom [4].
+- Federated login (SAML 2.0): Pro Yes; Enterprise Yes [4].
+- Dunning: Pro Yes; Enterprise Yes [4].
+- Support plan: Pro Standard; Enterprise Premium [4].</pre></details></td></tr><tr><td><b>NKA-RET-007</b><div class="muted">Q2</div></td><td class="q">Does Pulse integrate with Salesforce? What version is required?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">1405 ms · $0.00025</div><details><summary>answer</summary><pre>Yes. Nimbus Pulse integrates with Salesforce.
+
+- Salesforce · Minimum Pulse version: 4.3; Partner requirement: Salesforce API v59 or later; read-only sync of Accounts and Opportunities [1]
+
+Release notes for 4.3 (released 2026-08-20) also list &quot;Salesforce sync: Accounts and Opportunities appear as user properties&quot; [2].</pre></details></td></tr><tr><td><b>NKA-RET-008</b><div class="muted">Q2</div></td><td class="q">Does Ledger integrate with Salesforce?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">1351 ms · $0.00029</div><details><summary>answer</summary><pre>The NimbusStack knowledge base does not confirm a Ledger integration with Salesforce as available today. The Ledger integrations table lists Salesforce as &quot;coming soon&quot; in the 2.6 roadmap, with partner requirement &quot;Not yet published&quot; [1]. The 2.6 release notes state that the Salesforce integration is planned for a later release [2].
+
+Related: Nimbus Pulse (minimum version 4.3) and Nimbus Vault (minimum version 3.1) both have Salesforce integrations, with their own partner requirements [5][6]. These do not apply to Ledger.</pre></details></td></tr><tr><td><b>NKA-RET-009</b><div class="muted">Q3</div></td><td class="q">What new features were released in v4.2 of Relay?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">1210 ms · $0.00027</div><details><summary>answer</summary><pre>Nimbus Relay 4.2 (released 2026-06-10) [1]
+
+**New**
+- Request replay: replay any request from the last 7 days against a staging endpoint. Enterprise. [1]
+- Regional routing: an EU endpoint (`eu.relay.nimbusstack.com`) with data residency in Frankfurt. Enterprise. [1]
+- Pro tier pricing changes to $59 per seat per month for new contracts signed on or after 1 August 2026. Existing contracts keep their price until renewal. [1]
+
+**Fixed**
+- Webhook retry storm when a downstream returned 5xx for more than ten minutes. [1]</pre></details></td></tr><tr><td><b>NKA-RET-010</b><div class="muted">Q4</div></td><td class="q">A client is getting a 403 on the API. What should they check first?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">3023 ms · $0.00044</div><details><summary>answer</summary><pre>**Nimbus Relay** [1]
+1. **(check first)** The token's scope includes the route being called. Scopes are per route since Relay 4.0; a token minted for `/orders` cannot call `/customers`.
+2. The caller's IP is on the workspace allowlist, if one is configured.
+3. The seat that owns the token is not suspended.
+
+**Nimbus Pulse** [3]
+1. **(check first)** The user who owns the API key is a member of the workspace the project belongs to.
+2. The API key is bound to the project being queried; keys are per project since 4.0.
+
+**Nimbus Vault and Nimbus Ledger:** not in the NimbusStack knowledge base. The knowledge base has Vault integration requirements [2], but no 403 troubleshooting for Vault.</pre></details></td></tr><tr><td><b>NKA-RET-002</b><div class="muted">Q5</div></td><td class="q">Which of our products support SSO via SAML 2.0?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">5143 ms · $0.00085</div><details><summary>answer</summary><pre>**Products with SAML 2.0 SSO:**
+
+- **Nimbus Ledger:** SAML 2.0 on every tier [4][5][6].
+- **Nimbus Relay:** SAML 2.0 on Enterprise [1][5].
+- **Nimbus Vault:** SAML 2.0 on Pro and Enterprise [2]. Starter supports password-only sign-in [2].
+
+⚠️ **Documents disagree:** On Nimbus Vault, [5] security-overview.md (2026-01-15) says &quot;SAML 2.0 on Enterprise,&quot; while [2] vault.md (2026-07-03) says &quot;SAML 2.0&quot; on Pro and Enterprise. Release notes [8] vault-release-notes.md (2026-04-14) also say SAML 2.0 was &quot;extended to the Pro tier (previously Enterprise only).&quot;
+Today, SAML 2.0 applies to Vault Pro and Enterprise. The security overview predates the 2026-04-14 change, and the newer vault.md matches the release notes.
+
+**Nimbus Pulse: no SAML 2.0.** Pulse supports single sign-on through OpenID Connect (OIDC) on Pro and Enterprise, tested with Okta, Google Workspace and Microsoft Entra [3][5]. SAML 2.0 is on the roadmap and is not available today [3].</pre></details></td></tr><tr><td><b>NKA-RET-004</b><div class="muted">Q6</div></td><td class="q">What's the SLA for Priority 1 support tickets?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">1722 ms · $0.00038</div><details><summary>answer</summary><pre>Each product's SLA table gives the response time to first human reply for P1 (service down). This measures first human reply, not resolution time.
+
+- **Relay · Starter · P1:** 8 business hours [1]
+- **Relay · Pro · P1:** 2 hours [1]
+- **Relay · Enterprise · P1:** 15 minutes, 24x7 [1]
+- **Vault · Starter · P1:** 4 business hours [2]
+- **Vault · Pro · P1:** 1 hour [2]
+- **Vault · Enterprise · P1:** 30 minutes, 24x7 [2]
+- **Pulse · Growth · P1:** Next business day [3]
+- **Pulse · Pro · P1:** 4 hours [3]
+- **Pulse · Enterprise · P1:** 1 hour, 24x7 [3]
+- **Ledger · Starter · P1:** 8 business hours [4]
+- **Ledger · Pro · P1:** 2 hours [4]
+- **Ledger · Enterprise · P1:** 30 minutes, 24x7 [4]</pre></details></td></tr><tr><td><b>NKA-RET-005</b><div class="muted">E6</div></td><td class="q">What is the Relay Enterprise P1 SLA?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">800 ms · $0.00026</div><details><summary>answer</summary><pre>Nimbus Relay · Enterprise · P1 (service down): 15 minutes, 24x7 [1]
+
+This is the response time to first human reply, not a resolution time [1].</pre></details></td></tr><tr><td><b>NKA-RET-006</b><div class="muted">E6</div></td><td class="q">What's the P1 SLA for Pulse's entry-level tier?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">1387 ms · $0.00028</div><details><summary>answer</summary><pre>**Nimbus Pulse · Growth · P1 (service down): Next business day** [1]
+
+This is the response time to first human reply, not a resolution time [1].</pre></details></td></tr><tr><td><b>NKA-RET-003</b><div class="muted">E5</div></td><td class="q">does ledger do single sign-on?</td><td><span class="badge" style="color:#cf222e;background:#ffebe9">✗ FAIL</span><div class="muted">2073 ms · $0.00030</div><ul class="fails"><li>must not contain /(?i)disagree/</li></ul><details><summary>answer</summary><pre>Yes. Nimbus Ledger supports federated login (SAML 2.0) in every tier [1][2].
+
+Documents disagree on the scope of this sign-in method:
+
+⚠️ Documents disagree: Passage [1] (ledger.md, updated 2026-06-30) says &quot;Federated login (SAML 2.0) in every tier&quot; [1]. Passage [4] (security-overview.md, updated 2026-01-15) says Nimbus Ledger has &quot;SAML 2.0 on every tier&quot; [4]. The values match, so there is no conflict here; the only difference is wording and document date.
+
+Note: Both documents agree that SAML 2.0 is available on every Ledger tier, so the answer above is consistent across sources.</pre></details></td></tr><tr><td><b>NKA-CHAT-002</b><div class="muted">E1</div></td><td class="q">what about its SLA?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">3650 ms · $0.00053</div><details><summary>answer</summary><pre>Nimbus Pulse's support SLA gives response times to the first human reply for each priority and tier [1]:
+
+| Priority | Growth | Pro | Enterprise |
+|---|---|---|---|
+| P1 (service down) | Next business day | 4 hours | 1 hour, 24x7 |
+| P2 (degraded) | 2 business days | 1 business day | 4 hours |
+| P3 (question) | 5 business days | 2 business days | 1 business day |
+| P4 (feature request) | Best effort | Best effort | Best effort |
+
+These values measure response time to the first human reply, not resolution time [1].
+
+Correction to my previous answer: the passages do not give a Salesforce API version or say the sync is read-only. They only state that Salesforce sync was added in Pulse 4.3 (released 2026-08-20), with Accounts and Opportunities appearing as user properties [2]. The API v59 and read-only details are not in the NimbusStack knowledge base.</pre></details></td></tr><tr><td><b>NKA-GRD-002</b><div class="muted">E2</div></td><td class="q">What new features were released in Pulse 4.2?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">1549 ms · $0.00029</div><details><summary>answer</summary><pre>I couldn't find this in the NimbusStack knowledge base. The closest coverage is the Nimbus Pulse release notes for 4.1 and 4.3 [1][2].</pre></details></td></tr><tr><td><b>NKA-GRD-003</b><div class="muted">E2</div></td><td class="q">What's Vault's uptime SLA?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">831 ms · $0.00019</div><details><summary>answer</summary><pre>I couldn't find this in the NimbusStack knowledge base. The closest information is Nimbus Vault's support response-time SLA by priority and plan [1].
+
+_SLA times are the response time to the first human reply, not a resolution time [1]._</pre></details></td></tr><tr><td><b>NKA-GRD-004</b><div class="muted">E3</div></td><td class="q">What is Vault Enterprise's price, and what is its uptime guarantee?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">1064 ms · $0.00030</div><details><summary>answer</summary><pre>Vault Enterprise's price is Custom [1].
+
+The uptime guarantee is not in the NimbusStack knowledge base. The closest information I have is that Vault's support plan for Enterprise is Premium [1], and response times are listed in each product's own SLA table [5].</pre></details></td></tr><tr><td><b>NKA-GRD-005</b><div class="muted">E4</div></td><td class="q">Which Vault tiers support SAML?</td><td><span class="badge" style="color:#1a7f37;background:#dafbe1">✓ PASS</span><div class="muted">4468 ms · $0.00062</div><details><summary>answer</summary><pre>- **Enterprise:** SAML 2.0 [1]
+- **Pro:** SAML 2.0 [1]
+- **Starter:** Password only, so no SAML [1]
+
+⚠️ Documents disagree: Pro SAML support is stated as SAML 2.0 in vault.md (pricing, updated 2026-07-03) [1], but as Enterprise only in security-overview.md (updated 2026-01-15) [5]. The vault-release-notes.md entry for release 3.1 (released 2026-04-14) says SAML 2.0 sign-in was extended to Pro, previously Enterprise only [2]. The most recent document, vault.md dated 2026-07-03 [1], is consistent with that release note, so Pro supports SAML today.</pre></details></td></tr></table></body></html>
