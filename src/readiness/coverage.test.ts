@@ -218,12 +218,16 @@ describe("computeCoverage (06 §5 status rules)", () => {
       result({ id: "probe::health", stage: "probes", file: "https://nimbus.example", fullName: "Health" }),
       result({ id: "probe::bundle-keys", stage: "probes", file: "https://nimbus.example", fullName: "Served JS key scan", status: "failed", error: "chunks/app.js: Anthropic key pattern" }),
     );
-    const byId = Object.fromEntries(computeCoverage(manifest, s).map((v) => [v.requirement.id, v]));
-    expect(byId.E6).toMatchObject({ status: "passed", sources: ["recorded"] });
-    expect(byId.D1).toMatchObject({ status: "passed", sources: ["live"] });
-    expect(byId["AF-KEY"]).toMatchObject({ status: "failed", sources: ["live"] });
-    expect(byId["AF-KEY"].checks.find((c) => c.check.id === "probe.bundle-keys")?.results[0].error).toBe("chunks/app.js: Anthropic key pattern");
-    expect(byId.Q1.status).toBe("pending");
+    const byId = (state: RunState) => Object.fromEntries(computeCoverage(manifest, state).map((v) => [v.requirement.id, v]));
+    const live = byId(s);
+    expect(live.E6).toMatchObject({ status: "passed", sources: ["recorded"] });
+    expect(live.D1).toMatchObject({ status: "passed", sources: ["live"] });
+    expect(live["AF-KEY"]).toMatchObject({ status: "failed", sources: ["live"] });
+    expect(live["AF-KEY"].checks.find((c) => c.check.id === "probe.bundle-keys")?.results[0].error).toBe("chunks/app.js: Anthropic key pattern");
+    // Q1's live-eval checks have no result yet: running while that stage runs, pending once it has ended.
+    expect(live.Q1.status).toBe("running");
+    const ended = reduceRun(s, stageEnd("live-eval", "passed", { passed: 1, failed: 0, skipped: 0 }, "recorded"));
+    expect(byId(ended).Q1.status).toBe("pending");
   });
 });
 

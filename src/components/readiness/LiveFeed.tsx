@@ -5,7 +5,6 @@ import { ArrowDownIcon } from "@/components/icons";
 import type { Layer, StageId, TestResult } from "@/readiness/schema";
 import { IdChip, LayerBadge, SourceBadge, StatusPill } from "./badges";
 import { formatDuration, leafName, parentName } from "./format";
-import styles from "./readiness.module.css";
 
 export interface ResultContext {
   verifies?: string;
@@ -30,7 +29,7 @@ function FeedItem({ result, ctx }: { result: TestResult; ctx: ResultContext }) {
       data-result-id={result.id}
       data-status={result.status}
       data-source={result.source}
-      className={`border-b border-border px-4 py-3 last:border-b-0 ${styles.enter} ${result.status === "failed" ? "bg-[var(--rdy-fail-bg)]/50" : ""}`}
+      className={`border-b border-border px-4 py-3 last:border-b-0 rdy-enter ${result.status === "failed" ? "bg-[var(--rdy-fail-bg)]/50" : ""}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-1.5">
@@ -109,7 +108,7 @@ export function LiveFeed({
     >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-surface-2 px-4 py-2.5">
         <h2 id="feed-heading" className="flex items-center gap-2 font-display text-[14.5px] font-bold tracking-[-0.01em] text-text">
-          {active && <span aria-hidden className={`h-2 w-2 rounded-full bg-[var(--rdy-live-dot)] ${styles.pulse}`} />}
+          {active && <span aria-hidden className="rdy-pulse h-2 w-2 rounded-full bg-[var(--rdy-live-dot)]" />}
           Live feed
         </h2>
         <span className="text-[12px] text-muted tabular-nums" data-testid="feed-count">

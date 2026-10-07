@@ -21,6 +21,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { parseArgs } from "node:util";
 import {
+  addSecrets,
   DIST_DIR,
   E2E_PORT,
   EVENT_TAG_ENV,
@@ -46,6 +47,8 @@ import {
   recordedEval,
   redact,
   restoreFiles,
+  sanitizeError,
+  secretValues,
   runEndEvent,
   runMeta,
   runStartEvent,
@@ -55,6 +58,7 @@ import {
   stageStartEvent,
   testResultEvent,
   testStartEvent,
+  withEnvFiles,
 } from "./lib.mjs";
 
 const USAGE = `usage: node scripts/readiness/run.mjs [--stream] [--stages a,b] [--publish]
@@ -78,7 +82,7 @@ try {
   process.exit(2);
 }
 
-/** Keep-alive of scratch dirs (logs, Playwright report with traces); older runs are pruned at start. */
+/** How many runs keep their scratch dir (raw logs, Playwright report with traces); older ones are pruned at start. */
 const KEEP_SCRATCH_RUNS = 3;
 const EXIT_LOCKED = 75; // EX_TEMPFAIL: another run holds the lock
 const SIGNAL_EXIT = { SIGINT: 130, SIGTERM: 143, SIGHUP: 129 };
@@ -281,16 +285,22 @@ class StageRun {
   }
 
   /**
-   * Forward one tagged reporter line; returns true when the line was an event.
+   * Forward one tagged reporter line; returns true when the line was an event. Reporters already redact, but in a
+   * child that may not know every secret (offline env), so failure text is redacted again here; a malformed event
+   * is dropped rather than published.
    * @param {string} line
    */
   forward(line) {
     const event = decodeTagged(line, eventTag);
     if (!event) return false;
-    if (event.type === "test-result" && event.result && ["passed", "failed", "skipped"].includes(event.result.status)) {
-      this.record({ ...event, result: { ...event.result, stage: this.stage } });
-    } else if (event.type === "test-start" || event.type === "log") {
+    if (event.type === "test-result" && isResult(event.result)) {
+      const result = { ...event.result, stage: this.stage };
+      if (result.error) result.error = sanitizeError(result.error);
+      this.record({ type: "test-result", result });
+    } else if (event.type === "test-start" && typeof event.id === "string") {
       emit({ ...event, stage: this.stage });
+    } else if (event.type === "log") {
+      emit(logEvent(this.stage, event.line));
     }
     return true;
   }
@@ -305,6 +315,10 @@ class StageRun {
     return final;
   }
 }
+
+/** @param {any} r */
+const isResult = (r) =>
+  r && ["id", "file", "fullName"].every((k) => typeof r[k] === "string") && ["passed", "failed", "skipped"].includes(r.status) && Number.isFinite(r.durationMs);
 
 /** A stage that cannot run: still announced, so the page shows why instead of a stage stuck on "pending". */
 function skipStage(stage, note) {
@@ -339,10 +353,11 @@ async function reporterStage(stage, { command, args, display, env, note }) {
   const run = new StageRun(stage);
   const r = await runProcess(stage, command, args, { env, onLine: (line) => run.forward(line) });
   if (state.abortReason) return run.end({ status: "skipped", note: interruptedNote() });
-  if (!r.ok && run.counts.failed === 0) {
-    run.result({ ...gateIdentity(stage, display), status: "failed", durationMs: Date.now() - run.started, error: gateError(r.output) });
+  const reported = run.counts.passed + run.counts.failed + run.counts.skipped;
+  if ((!r.ok && run.counts.failed === 0) || reported === 0) {
+    const error = r.ok ? "the run reported no tests" : gateError(r.output);
+    run.result({ ...gateIdentity(stage, display), status: "failed", durationMs: Date.now() - run.started, error });
   }
-  if (r.ok && run.counts.passed + run.counts.failed === 0) return run.end({ status: "failed", note: "the run reported no tests" });
   return run.end({ status: r.ok && !run.counts.failed ? "passed" : "failed", note: note?.() });
 }
 
@@ -408,16 +423,18 @@ const STAGES = {
     const run = new StageRun("bundle-scan");
     const identity = gateIdentity("bundle-scan", display);
     run.start(identity);
-    // Real key values (when the env has them, e.g. a runner spawned by `next dev`) are passed through: the scan
-    // looks for them literally. They are never printed — output is redacted against them.
-    const env = childEnv(process.env, { extra: distEnv });
+    // The scan also looks for the real key values literally: those in the environment plus the .env files the
+    // build loaded. They are never printed — the scanner names variables only, and output is redacted against them.
+    const { env, files } = withEnvFiles(ROOT, childEnv(process.env, { extra: distEnv }));
+    addSecrets(secretValues(env));
     const selfTest = await runProcess("bundle-scan", process.execPath, [scanner, "--self-test"], { env });
     const scan = selfTest.ok && !state.abortReason ? await runProcess("bundle-scan", process.execPath, [scanner], { env }) : null;
     if (state.abortReason) return run.end({ status: "skipped", note: interruptedNote() });
     const ok = selfTest.ok && Boolean(scan?.ok);
     const error = !selfTest.ok ? `scanner self-test failed:\n${gateError(selfTest.output)}` : scan && !scan.ok ? gateError(scan.output) : undefined;
     run.result({ ...identity, status: ok ? "passed" : "failed", durationMs: Date.now() - run.started, error, detail: { selfTest: selfTest.ok ? "passed" : "failed", scanned: `${DIST_DIR}/static` } });
-    return run.end({ note: [pre.reused, `scanned ${DIST_DIR}/static`].filter(Boolean).join(" · ") });
+    const keySource = files.length ? `key values from the environment and ${files.join(", ")}` : "key values from the environment";
+    return run.end({ note: [pre.reused, `scanned ${DIST_DIR}/static for key shapes and ${keySource}`].filter(Boolean).join(" · ") });
   },
 
   e2e: async () => {
@@ -544,7 +561,7 @@ async function main() {
   try {
     emit(runStartEvent(meta, opts.stages));
     for (const stage of opts.stages) {
-      if (state.abortReason) skipStage(stage, `skipped: ${interruptedNote()}`);
+      if (state.abortReason) skipStage(stage, `skipped: the run was stopped (${state.abortReason})`);
       else await STAGES[stage]();
     }
     status = !state.abortReason && summary.stages.every((s) => s.status !== "failed") ? "passed" : "failed";

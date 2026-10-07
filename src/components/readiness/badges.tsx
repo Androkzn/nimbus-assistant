@@ -1,6 +1,5 @@
 import type { ReactNode, SVGProps } from "react";
 import type { Layer, Source, Status } from "@/readiness/schema";
-import styles from "./readiness.module.css";
 
 /**
  * Status pills, source and layer badges. Status is always icon + word, never colour alone;
@@ -187,12 +186,12 @@ export function LayerBadge({ layer }: { layer: Layer }) {
 }
 
 /** A requirement / acceptance id, in mono. */
-export function IdChip({ children, strong = false }: { children: ReactNode; strong?: boolean }) {
+export function IdChip({ children, strong = false, className = "" }: { children: ReactNode; strong?: boolean; className?: string }) {
   return (
     <span
       className={`inline-flex h-5 shrink-0 items-center rounded-md px-1.5 font-mono text-[11px] whitespace-nowrap ${
         strong ? "bg-navy font-semibold text-on-navy dark:bg-navy-3" : "border border-border bg-surface text-muted"
-      }`}
+      } ${className}`}
     >
       {children}
     </span>
@@ -200,5 +199,5 @@ export function IdChip({ children, strong = false }: { children: ReactNode; stro
 }
 
 export function LiveDot({ className = "" }: { className?: string }) {
-  return <span aria-hidden className={`inline-block h-2 w-2 rounded-full bg-[var(--rdy-live-dot)] ${styles.pulse} ${className}`} />;
+  return <span aria-hidden className={`inline-block h-2 w-2 rounded-full bg-[var(--rdy-live-dot)] rdy-pulse ${className}`} />;
 }

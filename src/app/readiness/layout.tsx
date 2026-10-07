@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "@/components/readiness/readiness.css";
 
 /**
  * Readiness report (docs/requirements/06_Readiness_Report.md). Showcase tooling: it reads the product,

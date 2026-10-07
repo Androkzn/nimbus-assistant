@@ -13,6 +13,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 /** @typedef {import("../../src/readiness/schema").ReadinessEvent} ReadinessEvent */
 /** @typedef {import("../../src/readiness/schema").TestResult} TestResult */
@@ -129,6 +130,14 @@ export function secretValues(env) {
 let processSecrets;
 const defaultSecrets = () => (processSecrets ??= secretValues(process.env));
 
+/**
+ * Also redact these values from now on (secrets the runner loaded itself, e.g. from .env files).
+ * @param {string[]} values
+ */
+export function addSecrets(values) {
+  processSecrets = [...new Set([...defaultSecrets(), ...values])].sort((a, b) => b.length - a.length);
+}
+
 /** @param {string} text */
 export const stripAnsi = (text) => text.replace(ANSI, "");
 
@@ -185,11 +194,13 @@ export const logLine = (text) => cap(redact(text).replace(/\s*\r?\n\s*/g, " ").t
 const ERROR_LINE = /\berror\b|\bfailed\b|failure|✗|✖|×|❌|cannot find|not found|unexpected|exception/i;
 const NOISE_LINE = /^(npm (error|ERR!|warn)|> |\s*at\s)/;
 const ESLINT_PROBLEM = /^\s+(\d+:\d+)\s+(error|warning)\s+(.*)$/;
+const LIST_ITEM = /^\s*[-•*]\s+\S/;
 const FILE_HEADER = /^(\.?[\w@~.-]+\/)*[\w.@-]+\.(c|m)?[jt]sx?$/;
 
 /**
  * The last relevant error lines of a failed gate (tsc, ESLint, next build, the bundle scan), ≤ 500 chars.
- * ESLint prints the file on its own line above its problems; it is folded into each problem line.
+ * ESLint prints the file on its own line above its problems; it is folded into each problem line. A list under an
+ * error line (the bundle scan's "- file: pattern" hits) is kept with it.
  * @param {string} output
  * @param {string[]} [secrets]
  */
@@ -200,6 +211,7 @@ export function gateError(output, secrets) {
     .filter((l) => l.trim() && !NOISE_LINE.test(l));
   const relevant = [];
   let file = "";
+  let inErrorList = false;
   for (const line of lines) {
     if (FILE_HEADER.test(line.trim())) {
       file = line.trim();
@@ -210,7 +222,14 @@ export function gateError(output, secrets) {
       if (problem[2] === "error") relevant.push(`${file}:${problem[1]} ${problem[3].replace(/\s{2,}/g, "  ")}`);
       continue;
     }
-    if (ERROR_LINE.test(line)) relevant.push(line.trim());
+    if (ERROR_LINE.test(line)) {
+      relevant.push(line.trim());
+      inErrorList = true;
+    } else if (inErrorList && LIST_ITEM.test(line)) {
+      relevant.push(`  ${line.trim()}`);
+    } else {
+      inErrorList = false;
+    }
   }
   const picked = (relevant.length ? relevant : lines.map((l) => l.trim())).slice(-8);
   return cap(picked.join("\n"), ERROR_MAX, "tail") || "exited with a non-zero status (no output)";
@@ -559,6 +578,24 @@ export function childEnv(env, { offline = false, extra = {} } = {}) {
     out[name] = value;
   }
   return { ...out, ...extra };
+}
+
+/** The .env files `next build` loads, highest precedence first (Next's production order). */
+export const PRODUCTION_ENV_FILES = [".env.production.local", ".env.local", ".env.production", ".env"];
+
+/**
+ * `env` plus the variables of the .env files a production build loads; `env` wins, as in Next. Gives the bundle
+ * scan the real key values from a terminal run too, not only when a `next dev` parent has already loaded them.
+ * @param {string} root
+ * @param {Record<string, string>} env
+ * @returns {{ env: Record<string, string>, files: string[] }}
+ */
+export function withEnvFiles(root, env) {
+  /** @type {Record<string, string>} */
+  const fromFiles = {};
+  const files = PRODUCTION_ENV_FILES.filter((file) => existsSync(path.join(root, file)));
+  for (const file of [...files].reverse()) Object.assign(fromFiles, parseEnv(readFileSync(path.join(root, file), "utf8")));
+  return { env: { ...fromFiles, ...env }, files };
 }
 
 // ── Isolation: snapshot / restore, .next/BUILD_ID, port check ─────────────────────────────────────

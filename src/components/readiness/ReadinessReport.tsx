@@ -9,7 +9,6 @@ import { countFor, filterCoverage, resultPasses, resultText, tokens, type Filter
 import { LiveFeed, type ResultContext, type RunningTest } from "./LiveFeed";
 import { MetaRow } from "./MetaRow";
 import { MethodPanel } from "./MethodPanel";
-import styles from "./readiness.module.css";
 import { ReportHeader } from "./ReportHeader";
 import { RunControls } from "./RunControls";
 import { StagePipeline } from "./StagePipeline";
@@ -117,7 +116,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
   const probesPlanned = session.mode === "probes" || options.probes;
 
   return (
-    <div className={`${styles.root} flex min-h-dvh w-full flex-col bg-canvas`}>
+    <div className="rdy-root flex min-h-dvh w-full flex-col bg-canvas">
       <ReportHeader session={session} meta={state.meta} />
 
       <main className="mx-auto w-full max-w-[1440px] flex-1 space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:space-y-7 lg:px-8 lg:py-7">

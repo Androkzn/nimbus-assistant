@@ -35,14 +35,9 @@ export function MetaRow({ meta, session, elapsedMs }: { meta: RunMeta | null; se
   }
 
   return (
-    <ul data-testid="meta-row" aria-label="Run metadata" className="flex flex-wrap items-center gap-x-1.5 gap-y-2 text-[12.5px]">
-      {items.map((it, i) => (
-        <li key={it.label} className="flex min-w-0 items-center gap-1.5">
-          {i > 0 && (
-            <span aria-hidden className="text-muted/60">
-              ·
-            </span>
-          )}
+    <ul data-testid="meta-row" aria-label="Run metadata" className="flex flex-wrap items-center gap-2 text-[12.5px]">
+      {items.map((it) => (
+        <li key={it.label} className="flex min-w-0 items-center">
           <span
             title={it.title}
             className="inline-flex min-w-0 items-baseline gap-1.5 rounded-md border border-border bg-surface px-2 py-[3px] shadow-[0_1px_0_rgb(15_23_42/0.03)]"

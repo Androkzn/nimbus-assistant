@@ -1,9 +1,10 @@
 /*
  * Readiness report tokens. Status colours follow the established report format
  * (evals/reports/<stamp>/index.html): pass #1a7f37 on #dafbe1, fail #cf222e, warning #9a6700.
- * Scoped to the report root so nothing leaks into the chat app.
+ * Plain CSS, scoped to .rdy-root with rdy- prefixed names, so nothing leaks into the chat app.
+ * (Not a CSS module: next.config.ts routes every *.css through the Tailwind loader as global CSS.)
  */
-.root {
+.rdy-root {
   --rdy-pass: #1a7f37;
   --rdy-pass-bg: #dafbe1;
   --rdy-pass-line: #aceebb;
@@ -24,7 +25,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .root {
+  .rdy-root {
     --rdy-pass: #4ac26b;
     --rdy-pass-bg: rgb(46 160 67 / 0.16);
     --rdy-pass-line: rgb(46 160 67 / 0.4);
@@ -45,7 +46,7 @@
 }
 
 /* A soft pulse on the "live" dot and on running items; reduced motion keeps them still. */
-.pulse {
+.rdy-pulse {
   animation: rdy-pulse 1.6s ease-in-out infinite;
 }
 @keyframes rdy-pulse {
@@ -54,7 +55,7 @@
 }
 
 /* The running stage's progress shimmer. */
-.indeterminate {
+.rdy-indeterminate {
   background-image: linear-gradient(90deg, transparent 0%, var(--rdy-run-line) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: rdy-sweep 1.4s linear infinite;
@@ -65,7 +66,7 @@
 }
 
 /* New feed rows fade in. */
-.enter {
+.rdy-enter {
   animation: rdy-enter 0.28s ease-out both;
 }
 @keyframes rdy-enter {
@@ -74,5 +75,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pulse, .indeterminate, .enter { animation: none; }
+  .pulse, .indeterminate, .rdy-enter { animation: none; }
 }

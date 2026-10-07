@@ -3,7 +3,6 @@ import type { Summary } from "@/readiness/coverage";
 import type { RunSession } from "@/readiness/useReadinessRun";
 import { TONE_CLASS, TONE_TEXT } from "./badges";
 import { formatDuration } from "./format";
-import styles from "./readiness.module.css";
 import type { Verdict } from "./verdict";
 
 function VerdictGlyph({ verdict }: { verdict: Verdict }) {
@@ -134,7 +133,7 @@ export function VerdictPanel({
                 className="h-full bg-[var(--rdy-fail)] transition-[width] duration-500 ease-out"
                 style={{ width: `${checks.total ? (checks.failed / checks.total) * 100 : 0}%` }}
               />
-              {running && <span className={`h-full flex-1 ${styles.indeterminate}`} />}
+              {running && <span className="rdy-indeterminate h-full flex-1" />}
             </div>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
               <span className="inline-flex items-center gap-1.5">

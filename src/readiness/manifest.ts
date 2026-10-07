@@ -1,5 +1,7 @@
+import modelConfig from "../../config/models.json";
 import golden from "../../evals/golden-set.json";
-import { PROBE_IDS, type Layer, type ProbeId, type StageId, type TestResult } from "./schema";
+import { GROUNDED_QUESTION, OFFTOPIC_QUESTION, PROBES } from "./probes";
+import type { Layer, ProbeId, StageId, TestResult } from "./schema";
 
 /**
  * Traceability manifest (docs/requirements/06_Readiness_Report.md §5).
@@ -272,7 +274,7 @@ const TEST_CHECKS: Check[] = [
 
   models("models.parses", "Shipped model config is valid", "parses the shipped config", ["NKA-MDL-002"],
     "config/models.json loads and passes validation, with at least three models."),
-  models("models.rejects", "Broken model config refused", "rejects a config with ", ["NKA-MDL-002"],
+  models("models.rejects", "Broken model config refused", "rejects a config with ", ["NKA-MDL-002", "D3"],
     "A broken config is refused: duplicate id, unknown fallback or default, model missing from the fallback order, missing provider, negative price."),
   models("models.order", "Fallback order comes from config", "orders attempts: selected first", ["R3"],
     "Attempts start with the selected model, then follow the configured fallback order, skipping providers that have no key."),
@@ -294,7 +296,7 @@ const TEST_CHECKS: Check[] = [
 
   fallback("fallback.selected", "Selected model answers when it works", "answers with the selected model when it works", ["R5", "NKA-CHAT-001"],
     "When the selected model works it answers, is named as the answering model, and its reply streams in several pieces."),
-  fallback("fallback.before-first-token", "Backup answers when the primary fails first", "NKA-MDL-004: falls back before the first token", ["NKA-MDL-004"],
+  fallback("fallback.before-first-token", "Backup answers when the primary fails first", "NKA-MDL-004: falls back before the first token", ["NKA-MDL-004", "D3"],
     "If the selected model fails before answering (HTTP 503), a model from another vendor answers and is named as the answering model."),
   fallback("fallback.mid-stream", "Mid-answer failure: backup text only", "NKA-MDL-005: mid-stream failure resets partial text", ["NKA-MDL-005"],
     "If the model fails mid-answer, its partial text is withdrawn and only the backup's full answer remains — never mixed output."),
@@ -500,37 +502,58 @@ const EVAL_CHECKS: Check[] = goldenCases.map((c) => ({
   covers: evalCovers(c.id, c.brief),
 }));
 
+/**
+ * D3 live evidence: one check per vendor in config/models.json, on a single factual lookup the off-topic guard
+ * never answers, so a pass means a real model of that vendor answered with a real key. One case rather than all
+ * of them: a wrong answer elsewhere is a grounding failure (its own case check), not a dead provider.
+ * The coverage rule cannot require two vendors at once; the page shows each vendor's check, so a missing one
+ * stays visibly pending.
+ */
+const PROVIDER_CASE = "NKA-RET-005";
+const providerCase = goldenCases.find((c) => c.id === PROVIDER_CASE);
+const vendors = [...new Set(modelConfig.models.map((m) => m.provider))].map((provider) => {
+  const models = modelConfig.models.filter((m) => m.provider === provider);
+  return { provider, providerName: models[0].providerName, ids: models.map((m) => m.id) };
+});
+
+const PROVIDER_CHECKS: Check[] = providerCase
+  ? vendors.map(({ provider, providerName, ids }) => ({
+      id: `eval.provider.${provider}`,
+      title: `${providerName} answers live`,
+      layer: "live-eval",
+      stage: "live-eval",
+      match: { id: `^eval::${escapeRegExp(PROVIDER_CASE)}::(?:${ids.map(escapeRegExp).join("|")})$` },
+      verifies: `In the recorded live eval, ${providerName} (${ids.join(" or ")}) answered "${providerCase.question}" with a real key and passed.`,
+      covers: ["D3"],
+    }))
+  : [];
+
 // ─── Live probes (this browser → the running app) ───────────────────────────────────────────────
 
-const PROBE_TEXT: Record<ProbeId, { title: string; covers: string[]; verifies: string }> = {
-  health: { title: "Health: app up, providers ready", covers: ["D1", "D3", "NKA-MDL-008"],
-    verifies: "The running app's /api/health answers ok with the knowledge base loaded and lists the AI providers ready to answer; two or more allow a backup." },
-  models: { title: "Model catalog from config, no secrets", covers: ["R3", "AF-KEY"],
-    verifies: "The running app's model list comes from the config — Claude, OpenAI and Gemini with descriptions, prices and windows — and contains no key." },
-  blank: { title: "Blank message rejected", covers: ["NKA-CHAT-005"],
-    verifies: "A whitespace-only message sent straight to the running chat API is rejected with HTTP 400 — no answer is generated." },
-  oversize: { title: "Over-long message rejected", covers: ["NKA-CHAT-006"],
-    verifies: "A 2,001-character message sent to the running chat API is rejected with HTTP 400 and a message stating the 2,000-character limit." },
-  "unknown-model": { title: "Unknown model rejected", covers: ["R5"],
-    verifies: "A request for a model that isn't in the config is rejected by the running API with HTTP 400 instead of reaching a provider." },
-  "offtopic-guard": { title: "Off-topic answered with no model call", covers: ["NKA-GRD-011", "RULE"],
-    verifies: "'hi' sent to the running chat API gets 'not in the knowledge base' from the guard: no model call, 0 tokens, $0." },
-  "stream-headers": { title: "Replies stream as NDJSON, uncached", covers: ["R5"],
-    verifies: "The running chat API streams its reply as NDJSON (application/x-ndjson) with caching disabled (no-store)." },
-  "bundle-keys": { title: "No key in the JavaScript the site serves", covers: ["NKA-SEC-001"],
-    verifies: "Every JavaScript file the running site serves to browsers is fetched and scanned for API-key patterns: none may appear." },
-  "grounded-answer": { title: "One real grounded answer", covers: ["NKA-GRD-001", "NKA-GRD-005", "RULE", "R2"],
-    verifies: "One real question to the running app: every [n] in the answer cites a passage it was shown, and the Vault SAML conflict is flagged." },
+/**
+ * Titles and covers come from PROBES (probe results carry PROBES[].title as fullName). The reviewer sentence here
+ * is a ≤170-character version of PROBES[].verifies, which holds the full detail.
+ */
+const PROBE_VERIFIES: Record<ProbeId, string> = {
+  health: "The running app's /api/health reports ok, all 10 knowledge-base documents loaded, and at least one AI provider with a key.",
+  models: "The running app's model list offers Anthropic, OpenAI and Google models with descriptions, windows and prices from the config, and nothing key-shaped.",
+  blank: "A whitespace-only question sent straight to the running chat API is rejected with HTTP 400 'invalid_input' before any model call.",
+  oversize: "A question one character over the 2,000-character limit is rejected by the running chat API with HTTP 400, and the error states the limit.",
+  "unknown-model": "A request naming a model that isn't in config/models.json is rejected by the running chat API with HTTP 400.",
+  "offtopic-guard": `"${OFFTOPIC_QUESTION}" sent to the running app is answered 'not in the knowledge base' by the guard: no model call, 0 tokens, $0.`,
+  "stream-headers": "The running app's chat reply streams as uncached NDJSON (application/x-ndjson, no-store), in several pieces, under a request id that matches the stream.",
+  "bundle-keys": "The page HTML and every script the running site sends a browser (/ and /readiness) are scanned for Anthropic, OpenAI, Google and Sentry key shapes: none.",
+  "grounded-answer": `One real question ("${GROUNDED_QUESTION}"): every [n] cites a passage that was sent, figures check out, cost is shown, and the conflict is flagged.`,
 };
 
-const PROBE_CHECKS: Check[] = PROBE_IDS.map((id) => ({
-  id: `probe.${id}`,
-  title: PROBE_TEXT[id].title,
+const PROBE_CHECKS: Check[] = PROBES.map((probe) => ({
+  id: `probe.${probe.id}`,
+  title: probe.title,
   layer: "live-probe",
   stage: "probes",
-  match: { id: `^probe::${escapeRegExp(id)}$` },
-  verifies: PROBE_TEXT[id].verifies,
-  covers: PROBE_TEXT[id].covers,
+  match: { id: `^probe::${escapeRegExp(probe.id)}$` },
+  verifies: PROBE_VERIFIES[probe.id],
+  covers: probe.covers,
 }));
 
 // ─── The report's own tests (file-level: their titles are the tooling authors' to change) ──────
@@ -550,26 +573,27 @@ const TOOLING_CHECKS: Check[] = [
     "Every acceptance row belongs to a brief item, every brief item has a check, and every test in the repo is claimed by exactly one check."),
   tooling("coverage", "Status rules of this report", "unit", "unit", { file: "src/readiness/coverage.test.ts" }, ["RDY-002", "RDY-004"],
     "An item is Verified only when a check passed and none failed; results stream in, retries replace earlier results, live and recorded are counted apart."),
-  tooling("isolation", "Chat app never imports the report", "unit", "static", { file: "src/readiness/isolation.test.ts" }, ["RDY-007"],
+  // RDY-001's "chat page otherwise unchanged" half; the header button itself has no automated test yet.
+  tooling("isolation", "Chat app never imports the report", "unit", "static", { file: "src/readiness/isolation.test.ts" }, ["RDY-001", "RDY-007"],
     "No chat-app code (server, shared, client, components, routes) imports the readiness tooling, so the report cannot change the assistant."),
-  tooling("probes", "Live probe rules", "unit", "unit", { file: "src/readiness/probes.test.ts" }, ["RDY-003"],
-    "The live probes' pass/fail rules are tested offline against canned server responses before they run against a real deployment."),
+  tooling("probes", "Live probe rules", "unit", "unit", { file: "src/readiness/probes.test.ts" }, ["RDY-003", "RDY-004"],
+    "Each live probe runs against the app's own handlers: it passes on a correct server and fails, precisely and redacted, on each broken behaviour."),
   tooling("replay", "Recorded run replay", "unit", "unit", { file: "src/readiness/replay.test.ts" }, ["RDY-003"],
-    "A published run replays with every result labelled recorded, with its date and build — recorded evidence is never shown as live."),
+    "A recorded run replays with every result and stage relabelled recorded, keeping its date, build and durations — never shown as live."),
   tooling("ndjson", "Event stream parsing", "unit", "unit", { file: "src/readiness/ndjson.test.ts" }, ["RDY-002"],
-    "The live event stream is read line by line against the shared contract, so a malformed event is reported instead of breaking the page."),
+    "The event stream is reassembled from chunks of any size and read line by line against the shared contract; a broken line is named, not fatal."),
   tooling("runner-gate", "Runner endpoint is local-only", "unit", "unit", { file: "src/readiness/runner-gate.test.ts" }, ["RDY-005"],
-    "The endpoint that runs the gates exists only locally: it answers 404 in production and whenever VERCEL is set."),
+    "The endpoint that runs the gates exists only under next dev or READINESS_RUNNER=1, never on Vercel, and only one run holds the lock."),
   tooling("runner", "Local gate runner", "unit", "unit", { id: "^scripts/readiness/[^:]+\\.test\\.ts::" }, ["RDY-002", "RDY-006"],
-    "The local runner streams each gate as it runs, redacts secrets from its events, and leaves the working tree and .next/ as it found them."),
-  tooling("page-e2e", "Readiness page in a real browser", "e2e", "e2e", { file: "e2e/readiness.spec.ts" }, ["RDY-001", "RDY-004"],
-    "In a real browser, the Readiness button opens /readiness in a new window, and the page shows each brief item with its status and evidence."),
+    "The runner streams each Vitest and Playwright result as it finishes, redacts secrets and paths, and restores rewritten files byte-for-byte."),
+  tooling("page-e2e", "Readiness page in a real browser", "e2e", "e2e", { file: "e2e/readiness.spec.ts" }, ["RDY-002", "RDY-003", "RDY-004", "RDY-005"],
+    "In a real browser the page replays a recorded run labelled recorded, runs live probes labelled live, and never starts a local run unless asked."),
 ];
 
 export const manifest: Manifest = {
   version: `1.0 · golden set ${golden.version}`,
   requirements: REQUIREMENTS,
-  checks: [...GATE_CHECKS, ...TEST_CHECKS, ...EVAL_CHECKS, ...PROBE_CHECKS, ...TOOLING_CHECKS],
+  checks: [...GATE_CHECKS, ...TEST_CHECKS, ...EVAL_CHECKS, ...PROVIDER_CHECKS, ...PROBE_CHECKS, ...TOOLING_CHECKS],
 };
 
 // ─── Matching ────────────────────────────────────────────────────────────────────────────────────

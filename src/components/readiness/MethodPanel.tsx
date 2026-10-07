@@ -76,8 +76,8 @@ export function MethodPanel({ unclaimed, requirementCount, checkCount }: { uncla
         </div>
         <div className="min-w-0 space-y-3 text-[13px] leading-relaxed text-muted">
           <p>
-            The manifest (<code className="font-mono text-[12px] text-text">src/readiness/manifest.ts</code>) lists {requirementCount} brief
-            requirements and {checkCount} automated checks. Its test fails CI if an acceptance row has no brief item, a
+            The manifest (<code className="font-mono text-[12px] text-text">src/readiness/manifest.ts</code>) lists {requirementCount} requirements and
+            {checkCount} automated checks. Its test fails CI if an acceptance row has no brief item, a
             requirement has no check, a check matches no real test, or a test is claimed by no check.
           </p>
           <p>

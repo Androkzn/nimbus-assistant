@@ -58,6 +58,11 @@ describe("redaction (I6)", () => {
     expect(lib.redact("token plain-value-1234 in /usr/bin:/bin", secrets)).toBe("token [redacted-env] in /usr/bin:/bin");
   });
 
+  it("redacts by default the secrets the runner loaded itself (e.g. from .env files)", () => {
+    lib.addSecrets(["loaded-from-dotenv-123"]);
+    expect(lib.redact("value loaded-from-dotenv-123 here")).toBe("value [redacted-env] here");
+  });
+
   it("makes paths repo-relative so no home directory is published", () => {
     const out = lib.redact(`${path.join(lib.ROOT, "src", "a.ts")}:3 and ${os.homedir()}/other`, []);
     expect(out).toBe("src/a.ts:3 and ~/other");
@@ -120,6 +125,11 @@ describe("gate failure reasons", () => {
     expect(reason).toContain("src/x.tsx:12:5 'y' is assigned a value but never used  @typescript-eslint/no-unused-vars");
     expect(reason).not.toContain("no-console");
     expect(lib.eslintCounts(output)).toEqual({ errors: 1, warnings: 1 });
+  });
+
+  it("keeps the bundle scan's list of hits under its error line", () => {
+    const output = "❌ API key material found in client bundle:\n  - chunks/a.js: OpenAI key pattern\n  - chunks/a.js: value of OPENAI_API_KEY\n";
+    expect(lib.gateError(output, [])).toBe("❌ API key material found in client bundle:\n  - chunks/a.js: OpenAI key pattern\n  - chunks/a.js: value of OPENAI_API_KEY");
   });
 
   it("is redacted, capped from the end, and never empty", () => {
@@ -381,6 +391,16 @@ describe("isolation helpers (I4, I5)", () => {
     ids.forEach((id) => mkdirSync(path.join(root, lib.TMP_DIR, id), { recursive: true }));
     expect(lib.pruneTmp(root, 2)).toEqual(ids.slice(0, 2));
     expect(readdirSync(path.join(root, lib.TMP_DIR)).sort()).toEqual(ids.slice(2));
+  });
+
+  it("bundle scan env: the .env files a production build loads, in Next's precedence; the environment wins", () => {
+    const root = tmpRoot();
+    writeFileSync(path.join(root, ".env"), "A=from-env\nB=from-env\nC=from-env\n");
+    writeFileSync(path.join(root, ".env.local"), "B=from-local\nC=from-local\n");
+    writeFileSync(path.join(root, ".env.development.local"), "A=dev-only\n");
+    const { env, files } = lib.withEnvFiles(root, { C: "from-process" });
+    expect(files).toEqual([".env.local", ".env"]);
+    expect(env).toEqual({ A: "from-env", B: "from-local", C: "from-process" });
   });
 
   it("detects a port that something is already listening on", async () => {

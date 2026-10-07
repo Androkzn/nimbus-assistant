@@ -2,8 +2,10 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
+import models from "../../config/models.json";
 import golden from "../../evals/golden-set.json";
 import { checksFor, GROUPS, manifest, type Check, type Manifest, type Requirement } from "./manifest";
+import { PROBES } from "./probes";
 import { PROBE_IDS, type TestResult } from "./schema";
 
 /**
@@ -141,6 +143,15 @@ const asResult = ({ file, fullName }: { file: string; fullName: string }): TestR
   durationMs: 0,
   source: "live",
 });
+const evalResult = (caseId: string, modelId: string): TestResult => ({
+  id: `eval::${caseId}::${modelId}`,
+  stage: "live-eval",
+  file: "evals/reports/2026-10-07-21-16-33/results.json",
+  fullName: `${caseId} — ${GOLDEN.find((c) => c.id === caseId)?.question ?? ""}`,
+  status: "passed",
+  durationMs: 0,
+  source: "recorded",
+});
 const only = (check: Check): Manifest => ({ ...manifest, checks: [check] });
 const list = (items: string[]) => items.map((i) => `  - ${i}`).join("\n");
 
@@ -275,27 +286,44 @@ describe("traceability manifest (06_Readiness_Report.md §5)", () => {
     expect(unclaimed, `tooling test files no check claims — add a file-level check to src/readiness/manifest.ts:\n${list(unclaimed)}`).toEqual([]);
   });
 
-  it("RDY-004 (f): every golden case and every live probe has exactly one check", () => {
-    const evalClaims = GOLDEN.map((c) => {
-      const result: TestResult = {
-        id: `eval::${c.id}::claude-haiku`,
-        stage: "live-eval",
-        file: "evals/reports/2026-10-07-21-16-33/results.json",
-        fullName: `${c.id} — ${c.question}`,
-        status: "passed",
-        durationMs: 0,
-        source: "recorded",
-      };
-      return { id: c.id, claimedBy: checksFor(result).map((k) => k.id) };
-    });
-    expect(evalClaims.filter((c) => c.claimedBy.length !== 1)).toEqual([]);
-    expect(evalClaims.map((c) => c.claimedBy[0])).toEqual(GOLDEN.map((c) => `eval.${c.id}`));
+  it("RDY-004 (f): every golden case has exactly one case check, and every live probe exactly one check", () => {
+    const caseClaims = GOLDEN.map((c) => ({
+      id: c.id,
+      claimedBy: checksFor(evalResult(c.id, "claude-haiku"))
+        .map((k) => k.id)
+        .filter((id) => !id.startsWith("eval.provider.")),
+    }));
+    expect(caseClaims).toEqual(GOLDEN.map((c) => ({ id: c.id, claimedBy: [`eval.${c.id}`] })));
 
     const probeClaims = PROBE_IDS.map((id) => {
-      const result: TestResult = { id: `probe::${id}`, stage: "probes", file: "https://nimbus.example", fullName: id, status: "passed", durationMs: 0, source: "live" };
+      const probe = PROBES.find((p) => p.id === id);
+      const result: TestResult = { id: `probe::${id}`, stage: "probes", file: "https://nimbus.example", fullName: probe?.title ?? id, status: "passed", durationMs: 0, source: "live" };
       return checksFor(result).map((k) => k.id);
     });
     expect(probeClaims).toEqual(PROBE_IDS.map((id) => [`probe.${id}`]));
+  });
+
+  it("RDY-003: probe checks take their title and covers from PROBES, the probes' single source", () => {
+    const probeChecks = checks.filter((c) => c.stage === "probes");
+    expect(probeChecks.map((c) => ({ id: c.id, title: c.title, covers: c.covers }))).toEqual(
+      PROBES.map((p) => ({ id: `probe.${p.id}`, title: p.title, covers: p.covers })),
+    );
+    // The health probe passes with a single provider, so it is never evidence for "two providers" (D3).
+    expect(probeChecks.find((c) => c.id === "probe.health")?.covers).toEqual(["D1"]);
+  });
+
+  it("D3: each vendor in config/models.json has a live-eval check on one factual case, and only its own models count", () => {
+    const vendors = [...new Set(models.models.map((m) => m.provider))];
+    for (const provider of vendors) {
+      const own = models.models.filter((m) => m.provider === provider);
+      const check = checks.find((k) => k.id === `eval.provider.${provider}`);
+      expect(check?.covers).toEqual(["D3"]);
+      for (const m of models.models) {
+        const claimed = checksFor(evalResult("NKA-RET-005", m.id)).some((k) => k.id === check?.id);
+        expect(claimed, `${m.id} → eval.provider.${provider}`).toBe(own.includes(m));
+      }
+      expect(checksFor(evalResult("NKA-RET-004", own[0].id)).map((k) => k.id)).toEqual(["eval.NKA-RET-004"]);
+    }
   });
 
   it("RDY-004 (f): every golden case has curated reviewer text, not the generic fallback", () => {
@@ -337,7 +365,8 @@ describe("checksFor", () => {
   it("RDY-002: claims gate, recorded eval and live probe results by id", () => {
     const byId = (id: string, stage: TestResult["stage"]) => checksFor({ ...asResult({ file: "x", fullName: "x" }), id, stage }).map((c) => c.id);
     expect(byId("gate::bundle-scan", "bundle-scan")).toEqual(["gate.bundle-scan"]);
-    expect(byId("eval::NKA-RET-005::gemini-flash-lite", "live-eval")).toEqual(["eval.NKA-RET-005"]);
+    expect(byId("eval::NKA-RET-002::gemini-flash-lite", "live-eval")).toEqual(["eval.NKA-RET-002"]);
+    expect(byId("eval::NKA-RET-005::gemini-flash-lite", "live-eval")).toEqual(["eval.NKA-RET-005", "eval.provider.google"]);
     expect(byId("probe::grounded-answer", "probes")).toEqual(["probe.grounded-answer"]);
   });
 

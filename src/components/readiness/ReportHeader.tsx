@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { BrandLockup } from "@/components/BrandLockup";
 import type { RunMeta } from "@/readiness/schema";
 import type { RunSession } from "@/readiness/useReadinessRun";
-import styles from "./readiness.module.css";
 import { formatUtc, shortOrigin } from "./format";
 
 function speedLabel(speed: RunSession["speed"]): string {
@@ -13,7 +12,7 @@ function speedLabel(speed: RunSession["speed"]): string {
 function LivePill({ children = "Live" }: { children?: string }) {
   return (
     <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-md bg-[var(--rdy-pass-bg)] px-2 text-[11px] font-bold tracking-[0.08em] text-[var(--rdy-pass)] uppercase ring-1 ring-[var(--rdy-pass-line)] dark:bg-[rgb(46_160_67/0.22)]">
-      <span aria-hidden className={`h-1.5 w-1.5 rounded-full bg-current ${styles.pulse}`} />
+      <span aria-hidden className="rdy-pulse h-1.5 w-1.5 rounded-full bg-current" />
       {children}
     </span>
   );

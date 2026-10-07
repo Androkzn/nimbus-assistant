@@ -6,7 +6,6 @@ import { STAGE_IDS, STAGE_INFO, type Counts, type Source, type StageId, type Sta
 import type { RunSession } from "@/readiness/useReadinessRun";
 import { LayerBadge, SourceBadge, StatusIcon, StatusPill, TONE_TEXT, toneOf, type Tone } from "./badges";
 import { formatDuration } from "./format";
-import styles from "./readiness.module.css";
 
 /** Short chip titles; the full title is in the detail panel. */
 const CHIP_TITLE: Partial<Record<StageId, string>> = {
@@ -105,7 +104,7 @@ export function StagePipeline({
                 <span
                   aria-hidden
                   className={`absolute inset-x-0 top-0 h-[3px] transition-colors duration-300 ${
-                    d.tone === "idle" ? "bg-[var(--rdy-track)]" : d.tone === "run" ? styles.indeterminate : ""
+                    d.tone === "idle" ? "bg-[var(--rdy-track)]" : d.tone === "run" ? "rdy-indeterminate" : ""
                   } ${d.tone === "pass" ? "bg-[var(--rdy-pass)]" : d.tone === "fail" ? "bg-[var(--rdy-fail)]" : d.tone === "warn" ? "bg-[var(--rdy-warn)]" : ""}`}
                 />
                 <span className="flex items-center justify-between gap-2">
