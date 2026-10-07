@@ -125,6 +125,16 @@ describe("retrieval eval (golden cases)", () => {
     expect(result.unsupportedPricingTier).toBe(true);
   });
 
+  it("NKA-GRD-014: flags a release question that gives only a major version", () => {
+    const result = retrieve("What new features were released in v4?");
+    expect(result.ambiguousReleaseVersion).toBe(true);
+  });
+
+  it("NKA-GRD-015: flags an undocumented API status code", () => {
+    const result = retrieve("A client is getting a 500 on the API. What should they check first?");
+    expect(result.unsupportedTroubleshootingStatus).toBe(true);
+  });
+
   it("numbers passages 1..n in order", () => {
     const { passages } = retrieve("Relay pricing");
     expect(passages.map((p) => p.n)).toEqual(passages.map((_, i) => i + 1));

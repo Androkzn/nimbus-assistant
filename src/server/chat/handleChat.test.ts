@@ -154,7 +154,7 @@ describe("POST /api/chat", () => {
 });
 
 describe("deterministic grounding layers", () => {
-  it.each(["hi", "What's the weather in Paris tomorrow?", "Tell me about Nimbus Edge.", "What are the key differences between the Professional and Company pricing tiers?"])(
+  it.each(["hi", "What's the weather in Paris tomorrow?", "Tell me about Nimbus Edge.", "What are the key differences between the Professional and Company pricing tiers?", "What new features were released in v4?", "A client is getting a 500 on the API. What should they check first?"])(
     "NKA-GRD-011: off-topic %j is answered 'not in the knowledge base' without calling any model",
     async (question) => {
       const d = deps();

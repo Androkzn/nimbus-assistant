@@ -337,6 +337,20 @@
       "note": "Unsupported tier names must not be mapped to documented tiers or given invented prices; closest documented tiers may be named."
     },
     {
+      "id": "NKA-GRD-014",
+      "brief": "E2",
+      "question": "What new features were released in v4?",
+      "expectNotInKb": true,
+      "note": "A major-only release version is ambiguous; the assistant must ask for a product and exact version instead of combining different v4.x releases."
+    },
+    {
+      "id": "NKA-GRD-015",
+      "brief": "E2",
+      "question": "A client is getting a 500 on the API. What should they check first?",
+      "expectNotInKb": true,
+      "note": "The corpus documents 403 and 429 troubleshooting, not 500; the assistant must not reuse a different status checklist."
+    },
+    {
       "id": "NKA-RET-017",
       "brief": "Q5/E5",
       "question": "Does Pulse support SAML SSO?",

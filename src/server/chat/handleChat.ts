@@ -67,7 +67,11 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   const modelMessages = [...history.slice(-HISTORY_MESSAGES), { role: "user" as const, content: question }];
   // Guard questions the documents cannot answer deterministically: no meaningful match with no product
   // in scope, or pricing questions using tier labels absent from the corpus (brief E2, the one rule).
-  const guarded = (retrieval.noMatch && retrieval.products.length === 0) || retrieval.unsupportedPricingTier;
+  const guarded =
+    (retrieval.noMatch && retrieval.products.length === 0) ||
+    retrieval.unsupportedPricingTier ||
+    retrieval.ambiguousReleaseVersion ||
+    retrieval.unsupportedTroubleshootingStatus;
 
   const trace: AttemptTrace[] = [];
   let ttftMs: number | null = null;
@@ -88,7 +92,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
             : retrieval.passages.map((p) => ({ n: p.n, file: p.chunk.file, section: p.chunk.section, docDate: p.chunk.docDate, text: p.chunk.text })),
         });
         const events = guarded
-          ? guardAnswer(modelId)
+          ? guardAnswer(modelId, retrieval.ambiguousReleaseVersion ? AMBIGUOUS_VERSION_ANSWER : GUARD_ANSWER)
           : runWithFallback({
               requestedModelId: modelId,
               instructions,
@@ -163,10 +167,11 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
 }
 
 export const GUARD_ANSWER = `${NOT_IN_KB} I can answer questions about NimbusStack's products — Relay, Vault, Pulse and Ledger: pricing, features, integrations, release notes, troubleshooting and support SLAs.`;
+export const AMBIGUOUS_VERSION_ANSWER = `${NOT_IN_KB} Please specify a product and an exact release version.`;
 
 /** The deterministic off-topic answer, streamed like a model answer but with no model call and no cost. */
-async function* guardAnswer(requestedModel: string): AsyncGenerator<RunnerEvent> {
-  for (const word of GUARD_ANSWER.match(/\S+\s*/g) ?? []) yield { type: "delta", text: word };
+async function* guardAnswer(requestedModel: string, answer = GUARD_ANSWER): AsyncGenerator<RunnerEvent> {
+  for (const word of answer.match(/\S+\s*/g) ?? []) yield { type: "delta", text: word };
   yield {
     type: "done",
     answeredBy: KB_GUARD_ID,

@@ -27,6 +27,10 @@ export interface RetrievalResult {
   noMatch: boolean;
   /** True when a pricing question names tier labels the documents do not use. */
   unsupportedPricingTier: boolean;
+  /** True when a release question gives only a major version, such as "v4". */
+  ambiguousReleaseVersion: boolean;
+  /** True when an API troubleshooting question uses an HTTP status not documented in the corpus. */
+  unsupportedTroubleshootingStatus: boolean;
 }
 
 const MAX_PASSAGES = 10;
@@ -83,6 +87,9 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   const queryText = topic ? `${question} ${topic}` : question;
   const version = detectVersion(queryText);
   const unsupportedPricingTier = detectTopics(queryText).includes("pricing") && /\b(?:professional|company)\b/i.test(queryText);
+  const ambiguousReleaseVersion = detectTopics(queryText).includes("release") && /\bv\d+\b/i.test(queryText) && !version;
+  const status = queryText.match(/\b([1-5]\d{2})\b/)?.[1];
+  const unsupportedTroubleshootingStatus = Boolean(status && !/^(?:403|429)$/.test(status) && /\b(?:api|error|troubleshoot|check)\b/i.test(queryText));
   const queryTokens = [...expandQuery(queryText), ...products];
 
   const scored = idx.chunks.map((chunk, i) => {
@@ -129,7 +136,16 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   addConflictCompanions(picked, queryText, scored);
 
   const passages = picked.slice(0, MAX_PASSAGES).map((p, i) => ({ n: i + 1, chunk: p.chunk, score: p.score }));
-  return { passages, products, inheritedProducts: inherited, carriedTopic: topic, noMatch: best < NO_MATCH_SCORE, unsupportedPricingTier };
+  return {
+    passages,
+    products,
+    inheritedProducts: inherited,
+    carriedTopic: topic,
+    noMatch: best < NO_MATCH_SCORE,
+    unsupportedPricingTier,
+    ambiguousReleaseVersion,
+    unsupportedTroubleshootingStatus,
+  };
 }
 
 /**
