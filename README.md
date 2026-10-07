@@ -4,9 +4,10 @@
 
 An internal chatbot for NimbusStack's four products. Answers are grounded only in the supplied knowledge base, with source passages shown under every answer. Users can choose Claude, OpenAI, or Gemini; provider failures automatically fall back to another configured provider. Each completed answer shows the answering model, token usage, and estimated cost.
 
-Assessment deployment: https://nimbus-assistant-production.vercel.app
+Deployments:
 
-Optional developer deployment with the Readiness test: https://nimbus-assistant-dev.vercel.app
+- [Production assessment](https://nimbus-assistant-production.vercel.app) — customer-facing build without internal tooling
+- [Optional developer environment](https://nimbus-assistant-dev.vercel.app) — includes the Readiness test and live probes
 
 ## Run locally
 
