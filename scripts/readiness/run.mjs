@@ -142,7 +142,8 @@ function print(event) {
       break;
     case "stage-end": {
       const c = event.counts;
-      say(`  ${ICON[event.status]} ${bold(event.status)} ${dim(`${c.passed} passed · ${c.failed} failed · ${c.skipped} skipped · ${fmtMs(event.durationMs)}`)}`);
+      const tally = [c.passed && `${c.passed} passed`, c.failed && red(`${c.failed} failed`), c.skipped && `${c.skipped} skipped`].filter(Boolean).join(" · ");
+      say(`  ${ICON[event.status]} ${bold(`${STAGE_INFO[event.stage].title} ${event.status}`)}${tally ? ` — ${tally}` : ""} ${dim(`· ${fmtMs(event.durationMs)}`)}`);
       if (event.note) say(dim(`    ${event.note}`));
       break;
     }
@@ -473,7 +474,7 @@ function abort(reason) {
 /** Last-resort cleanup, synchronous: runs on every exit path, including a second Ctrl-C and uncaught errors. */
 function cleanupSync() {
   if (state.snapshot) restoreFiles(ROOT, state.snapshot).forEach((f) => state.restored.add(f));
-  state.lock?.ok && state.lock.release();
+  if (state.lock?.ok) state.lock.release();
 }
 
 for (const signal of /** @type {const} */ (["SIGINT", "SIGTERM", "SIGHUP"])) {

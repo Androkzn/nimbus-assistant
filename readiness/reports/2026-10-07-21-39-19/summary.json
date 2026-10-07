@@ -1,0 +1,66 @@
+{
+  "runId": "2026-10-07-21-39-19",
+  "status": "failed",
+  "interrupted": "SIGTERM",
+  "startedAt": "2026-10-07T21:39:19.138Z",
+  "endedAt": "2026-10-07T21:39:25.204Z",
+  "durationMs": 6066,
+  "meta": {
+    "runId": "2026-10-07-21-39-19",
+    "mode": "local",
+    "startedAt": "2026-10-07T21:39:19.138Z",
+    "platform": "node v22.15.0 · darwin arm64",
+    "environment": "local working tree",
+    "build": "4021a51+dirty",
+    "branch": "main",
+    "goldenVersion": "2026-10-07d",
+    "pricingVersion": "2026-10-07",
+    "corpusHash": "4259b258e6",
+    "promptHash": "a0c89054c9"
+  },
+  "stages": [
+    {
+      "id": "build",
+      "title": "Production build",
+      "status": "skipped",
+      "durationMs": 6026,
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live",
+      "note": "interrupted (SIGTERM) — partial results"
+    },
+    {
+      "id": "e2e",
+      "title": "Browser E2E",
+      "status": "skipped",
+      "durationMs": 0,
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0
+      },
+      "source": "live",
+      "note": "skipped: interrupted (SIGTERM) — partial results"
+    }
+  ],
+  "failures": [],
+  "isolation": {
+    "distDir": ".next-readiness",
+    "e2ePort": 3199,
+    "restoredFiles": [
+      "tsconfig.json",
+      "next-env.d.ts"
+    ],
+    "nextBuildIdBefore": "OZ3z6diLtbxRpQFZxY79n",
+    "nextBuildIdAfter": "OZ3z6diLtbxRpQFZxY79n",
+    "nextBuildIdUnchanged": true
+  },
+  "artifacts": {
+    "events": "readiness/reports/2026-10-07-21-39-19/events.ndjson",
+    "scratch": "readiness/tmp/2026-10-07-21-39-19",
+    "summary": "readiness/reports/2026-10-07-21-39-19/summary.json"
+  }
+}

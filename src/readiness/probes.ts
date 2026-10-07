@@ -25,7 +25,7 @@ export interface ProbeInfo {
   title: string;
   /** One plain-English sentence for the report: what passing proves. */
   verifies: string;
-  /** Brief items and acceptance ids (04_Acceptance_Matrix.md) this probe is evidence for. */
+  /** Brief items (ids as in manifest.ts) and acceptance ids (04_Acceptance_Matrix.md) this probe is evidence for. */
   covers: string[];
 }
 
@@ -44,14 +44,15 @@ export const PROBES: ProbeInfo[] = [
     title: "Health: knowledge base loaded, providers configured",
     verifies:
       "GET /api/health on this deployment reports ok, all 10 knowledge-base documents loaded into chunks, and at least one AI provider with a key configured; it lists the providers and the LLM mode, and notes when fewer than two are configured (the fallback needs a second provider).",
-    covers: ["R3", "NKA-OPS-002"],
+    // Not D3 / NKA-MDL-008 (two providers): this probe passes with one, so it cannot claim them.
+    covers: ["D1"],
   },
   {
     id: "models",
     title: "Model catalog: three vendors, priced, no secrets",
     verifies:
       "GET /api/models offers Anthropic, OpenAI and Google models, each with provider name, description, context window and per-token prices from config/models.json; the default model is one of them; and the public JSON contains nothing shaped like an API key.",
-    covers: ["R3", "R5", "NKA-MDL-001"],
+    covers: ["R3", "AF-KEY", "NKA-MDL-001"],
   },
   {
     id: "blank",
@@ -84,14 +85,14 @@ export const PROBES: ProbeInfo[] = [
     title: "Chat reply is an uncached NDJSON stream",
     verifies:
       "The chat reply (the off-topic request above, no extra call) is a streamed response: content-type application/x-ndjson, cache-control no-store, an x-request-id header equal to the stream's meta.requestId (the id the server logs carry), and the answer arrives as at least two delta events before done.",
-    covers: ["R1", "NKA-CHAT-001"],
+    covers: ["R1", "R5", "NKA-CHAT-001"],
   },
   {
     id: "bundle-keys",
     title: "Served JavaScript contains no API key",
     verifies:
       "Downloads the HTML of / and /readiness and every /_next/static script they load, as a browser would, and scans all of it for Anthropic, OpenAI, Google and Sentry auth-token key shapes. Complements the CI scan of the whole build, which also checks the real key values (a browser cannot know them).",
-    covers: ["R5", "NKA-SEC-001"],
+    covers: ["AF-KEY", "NKA-SEC-001"],
   },
   {
     id: "grounded-answer",

@@ -1,0 +1,8 @@
+{"type":"run-start","meta":{"runId":"2026-10-07-21-39-19","mode":"local","startedAt":"2026-10-07T21:39:19.138Z","platform":"node v22.15.0 · darwin arm64","environment":"local working tree","build":"4021a51+dirty","branch":"main","goldenVersion":"2026-10-07d","pricingVersion":"2026-10-07","corpusHash":"4259b258e6","promptHash":"a0c89054c9"},"stages":[{"id":"build","title":"Production build","command":"next build","layer":"static","description":"The app compiles for production exactly as it is deployed."},{"id":"e2e","title":"Browser E2E","command":"npm run e2e","layer":"e2e","description":"Playwright drives the production build with the deterministic mock model: streaming, sources, fallback, usage, export."}]}
+{"type":"stage-start","stage":"build","at":"2026-10-07T21:39:19.177Z"}
+{"type":"test-start","stage":"build","id":"gate::build","file":"NEXT_DIST_DIR=.next-readiness npx next build","fullName":"Production build"}
+{"type":"log","stage":"build","line":"restored tsconfig.json, next-env.d.ts byte-for-byte (rewritten by Next for .next-readiness)"}
+{"type":"stage-end","stage":"build","status":"skipped","durationMs":6026,"counts":{"passed":0,"failed":0,"skipped":0},"source":"live","at":"2026-10-07T21:39:25.203Z","note":"interrupted (SIGTERM) — partial results"}
+{"type":"stage-start","stage":"e2e","at":"2026-10-07T21:39:25.204Z"}
+{"type":"stage-end","stage":"e2e","status":"skipped","durationMs":0,"counts":{"passed":0,"failed":0,"skipped":0},"source":"live","at":"2026-10-07T21:39:25.204Z","note":"skipped: interrupted (SIGTERM) — partial results"}
+{"type":"run-end","status":"failed","durationMs":6066,"at":"2026-10-07T21:39:25.204Z"}

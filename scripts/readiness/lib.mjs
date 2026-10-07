@@ -112,7 +112,6 @@ const KEY_SHAPE = /\b(sk-[A-Za-z0-9_*.-]{6,}|AIza[0-9A-Za-z_*.-]{6,}|sntrys_[A-Z
 const JWT_SHAPE = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
 /** Env var names whose values are treated as secrets: redacted literally from output, withheld from offline gates. */
 export const SECRET_NAME = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|DSN/i;
-// eslint-disable-next-line no-control-regex -- matching terminal escape sequences is the point
 const ANSI = /\u001b\[[0-9;?]*[ -/]*[@-~]|\u001b\][^\u0007]*\u0007/g;
 
 /**
@@ -240,7 +239,7 @@ export const repoPath = (root, file) => path.relative(root, file).split(path.sep
 /**
  * Vitest TestCase → { id, file, fullName }. Walks the parent chain itself rather than using
  * `testCase.fullName`, which joins with ">" — a character test titles may contain.
- * @param {{ name: string, parent?: any, module: { moduleId: string } }} testCase
+ * @param {{ name: string, type?: string, parent?: any, module: { moduleId: string } }} testCase
  * @param {string} root
  */
 export function vitestIdentity(testCase, root) {
@@ -444,7 +443,8 @@ export function recordedEval(report, reportPath) {
   const rows = Array.isArray(report?.results) ? report.results : [];
   const counts = emptyCounts();
   let durationMs = 0;
-  const events = rows.map((r) => {
+  /** @type {ReadinessEvent[]} */
+  const events = rows.map((/** @type {any} */ r) => {
     const status = VERDICT_STATUS[/** @type {keyof typeof VERDICT_STATUS} */ (r.verdict)] ?? "failed";
     counts[status] += 1;
     durationMs += ms(r.totalMs ?? 0);
