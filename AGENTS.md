@@ -24,13 +24,15 @@ Rules for any AI agent (Claude Code, Cursor, Codex, Kiro) or human working in th
 | Concern | Path |
 |---|---|
 | Corpus loading + chunking | `src/server/kb/corpus.ts` |
-| Retrieval (BM25 + synonyms + per-product coverage + conflict companions) | `src/server/retrieval/` |
-| Answer contract (system prompt) | `src/server/prompt/build.ts` |
+| Retrieval (BM25 + synonyms + nicknames + per-product coverage + conflict companions + topic carry-over) | `src/server/retrieval/` |
+| Answer contract (system prompt) + comparison hints | `src/server/prompt/build.ts` |
+| Deterministic grounding: figure check, SLA qualifier | `src/server/verify/` |
+| Error monitoring (Sentry, no message text) | `src/shared/sentry.ts`, `src/server/observability/`, `src/instrumentation*.ts` |
 | Providers, fallback state machine, error classes, fault injection | `src/server/llm/` |
 | Model catalog + invariants | `config/models.json`, `src/server/config/models.ts` |
-| HTTP: chat handler, rate limit | `src/server/chat/handleChat.ts`, `src/server/http/` |
+| HTTP: chat handler (incl. off-topic guard), rate limit | `src/server/chat/handleChat.ts`, `src/server/http/` |
 | Wire contract shared by server and browser | `src/shared/contracts.ts`, `src/shared/answer.ts` |
-| UI | `src/components/`, `src/client/` |
+| UI (incl. suggestion bubbles — each tied to a brief item and a golden case) | `src/components/`, `src/client/` |
 | Tests: unit/integration (Vitest) · E2E (Playwright, mock LLM) · live eval | `src/**/*.test.ts` · `e2e/` · `scripts/eval-live.mjs` + `evals/golden-set.json` |
 
 ## Commands

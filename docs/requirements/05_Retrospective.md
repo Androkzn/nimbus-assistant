@@ -39,16 +39,25 @@ The answer key in the discovery doc became three test layers: the offline **retr
 | 13 | Independent review | v1.1 relaxed the 403-checklist and release-notes checks after seeing model output — fitting the requirement to the results | Reversed (BRD A9 v1.2); checks required again; prompt rules G10–G11 name and forbid the literal-answer shortcut |
 | 14 | Review of the Sentry integration | Provider error summaries sent to Sentry can echo a partly masked key (OpenAI 401 "Incorrect API key provided: sk-proj-…"); the bundle scan only knew the 3 provider keys | `redactSecrets()` before any Sentry context (+ test); scanner also checks `SENTRY_AUTH_TOKEN` and `AI_GATEWAY_API_KEY` values |
 | 15 | Process | Two tools wrote to the same working tree; a `git add -A` swept a half-finished dependency (`@sentry/nextjs`) into commit `012ebd3`, whose message only mentions the CI fix | One writer at a time; stage explicit paths; every file read before it is published |
+| 16 | Independent review (external) | Integration answers announced a disagreement that does not exist (Pulse + Salesforce "OIDC vs OIDC"): the synonym "connect" matched "OpenID **Connect**". The eval passed because it only checked that real conflicts are flagged, never that agreements are *not* | Removed "connect"; disagreement only on different values; 15 non-conflict cases now fail on "disagree" |
+| 17 | Independent review | Grounding was prompt-only — no deterministic guard against an off-topic or invented answer | Off-topic guard (no model call) + figure check on every answer (TRD §4.6–4.7) |
+| 18 | Independent review | "API gateway"/"secrets manager" not recognised; "And for Vault?" lost the topic; "SAML 2.0" parsed as a release version | Product nicknames, topic carry-over, protocol versions excluded (+ tests) |
+| 19 | Live eval r5 (stricter set) | A blanket "compare documents" hint fixed one model's missed conflict but made two others raise false ones; a "changed workspace" bug-fix line was read as a changed fact | Hints only for release notes whose *New* section announces a change, quoting that line |
+| 20 | Live eval r6 | Gemini Flash-Lite read Vault/Pulse/Ledger **Pro** prices as "Custom" — a table misread no figure check can catch, intermittent across runs | Default switched to Claude Haiku 5.5 (no table misreads across runs); Flash-Lite thinking `minimal` → `low` |
+| 21 | User review of live answers | SLA answers dropped "response time to first human reply" — a misquote risk on a customer call; conflict answers didn't say what applies today | Deterministic SLA qualifier from the cited table; rule 4 adds "what applies today and to whom" |
+| 22 | Concurrent writers | Another session started features and doc passes in the same tree four times; it also reused acceptance id NKA-CHAT-007 | Watched for quiet before every write, edits that refuse to apply to changed text, explicit-path commits, ids checked unique |
 
 **Eval trend (54 graded answers per run):** 12 failures → 6 → 3 → 1 → 0. The 3 → 1 step was partly false progress: the full-checklist and retry-fix checks had been demoted to nice-to-have. They were restored as required (answer key Q3/Q4), which exposed 6 failures. Explicit prompt rules G10–G11 brought it to 0. Lesson: low-effort models (Gemini thinking `minimal`, GPT effort `low`) answer the literal question ("what to check *first*", "new *features*") unless the prompt names the shortcut they take and forbids it.
+
+**After the independent review (stricter golden set × 3 models, from the committed reports):** 61/75 → 72/75 → 73/75 → 75/75 on the 25-case set (9 of the first 14 "failures" were the grader not yet knowing the off-topic guard); 76/81 when the SLA-definition and what-applies-today checks and two bubble cases were added (27 cases); **90/90** on the final 30-case set ([`2026-10-07-21-03-28`](../../evals/reports/2026-10-07-21-03-28/index.html)).
 
 ## 3. Model selection — by measurement, not preference
 
 | Model | Golden set | p50 first word | Cost / 18 answers |
 |-------|-----------|----------------|-------------------|
-| **Gemini 3.1 Flash-Lite** (default) | **18/18** | ~1.1 s | $0.009 |
-| Claude Haiku 5.5 | 18/18 | ~1.2 s | $0.007 |
-| GPT-5.6 Luna | 18/18 | ~1.8 s | $0.007 |
+| **Claude Haiku 5.5** (default) | **30/30** | ~1.5 s | $0.011 |
+| Gemini 3.1 Flash-Lite (thinking low) | 30/30 (one intermittent Pro-price misread at thinking `minimal`) | ~1.3 s | $0.021 |
+| GPT-5.6 Luna (reasoning medium) | 30/30 | ~2.6 s | $0.013 |
 | Gemini 3.5 Flash (thinking low) | spot-checked: most thorough | ~3.6–4.9 s | ~$0.012 / answer |
 
 Fallback order alternates vendors (Google → OpenAI → Anthropic → …) so a single vendor outage never takes the assistant down.

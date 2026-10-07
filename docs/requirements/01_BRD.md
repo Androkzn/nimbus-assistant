@@ -8,8 +8,8 @@
 | **Doc type** | Feature BRD |
 | **Feature id** | `product-knowledge-chat` |
 | **Client** | NimbusStack |
-| **Status** | approved for build (assumptions in §9 to be confirmed with the client) |
-| **Version** | `v1.0` |
+| **Status** | shipped (assumptions in §9 to be confirmed with the client) |
+| **Version** | `v1.3` |
 | **Created** | 2026-10-07 |
 | **Author** | Andrei Tekhtelev |
 | **Inputs** | Client brief, [00_KB_Discovery.md](00_KB_Discovery.md) |
@@ -45,6 +45,7 @@ Rules:
 | v1.0 | 2026-10-07 | Accepted for build; open product questions converted to logged assumptions (§9) |
 | v1.1 | 2026-10-07 | Added A9 from live-eval evidence (see [05_Retrospective.md](05_Retrospective.md)) |
 | v1.2 | 2026-10-07 | A9 reversed to "complete" to match the answer key and acceptance matrix; TRD rules G10–G11 |
+| v1.3 | 2026-10-07 | After independent review: BR-27 suggestion bubbles (each demonstrates one brief item); assumptions A10–A13 (product nicknames, topic carry-over, off-topic guard, "what applies today" in conflict answers); BR-01 also enforced by deterministic layers (TRD §4.6–4.7) |
 
 ---
 
@@ -140,7 +141,7 @@ Priority: **P0** = release blocker: product unusable or unsafe without it · **P
 | BR-24 | The public repo runs by following its README on a fresh machine. | P0 | Deliverables |
 | BR-25 | A live deployment URL is available for the client to test. | P0 | Deliverables |
 | BR-26 | The public, login-free URL is protected from abuse that would burn the client's API budget (request rate and message size limits). | P2 | Derived risk (§8) |
-| BR-27 | Suggested next questions appear as tappable bubbles above the composer: one per product on the empty screen, follow-ups on the products of the last answer afterwards. Each is a fixed question the knowledge base answers; a tap sends it. | P2 | Client feedback 2026-10-07 |
+| BR-27 | Suggested next questions appear as tappable bubbles above the composer: one per product on the empty screen, follow-ups on the products of the last answer afterwards (first: "What about its SLA?", brief E1). Each is a fixed question that demonstrates one brief item (Q1–Q6, E1–E6) — E2 bubbles ask what the documents don't cover and get the honest "not in the knowledge base"; every bubble has a golden-set case with the same brief id. A tap sends it. | P2 | Client feedback 2026-10-07 |
 
 ---
 
@@ -187,7 +188,7 @@ Acceptance criteria are written so QA can execute them without interpretation. T
 | Layout | Single page: header (title, model menu, context meter, session totals, export, New Conversation) · message list · composer. Works at laptop and phone widths. |
 | Answer card | Streamed markdown answer · "Answered by ‹model›" badge (+ fallback note) · usage line `in 1,234 · out 210 · est. $0.0004` · collapsible **Sources** with file, section and passage text. |
 | Answer style | Lead with the direct answer; bullets or a compact table for comparisons; per-product sections when several products apply; citations as `[n]`. |
-| Empty state | Short intro + 4 example questions (one per persona need) as clickable chips. |
+| Empty state | Short intro + the brief's six representative questions (Q1–Q6) as clickable examples, plus one suggestion bubble per product. |
 | Suggestion bubbles | "Ask more" row above the composer (BR-27); hidden while an answer streams; one line that scrolls sideways on phones. |
 | Loading | Typing indicator until the first word; then streaming text. Send disabled while streaming; Stop available. |
 | Error copy — rate limit | "‹Provider› is rate-limited right now. Wait about ‹N› seconds and try again, or choose another model." ‹N› counts down live with the Try again button. |
@@ -261,6 +262,10 @@ Each open question has a documented default so the build is not blocked. All are
 | A7 | Default model / fallback order | Configurable; default = fast low-cost model with a working key | Free tiers are fine per brief; cost-aware default |
 | A8 | Access control on the public link | No login (brief); abuse limits instead (BR-26) | Brief says login not required |
 | A9 | "What should they check first?" / "What new features…?" — literal or complete? | Complete: the full ordered checklist per product with step 1 marked as "check first"; every item of the version's release notes, grouped New / Fixed as the notes group them | Matches the answer key (00 §3 Q3–Q4) and acceptance rows NKA-RET-009/010; a rep on a live call needs step 2 the moment step 1 checks out. v1.1 chose "literal" from model output, which fitted the requirement to the results; reversed in v1.2 |
+| A10 | Do staff say "the API gateway" instead of "Relay"? | Yes: nicknames from each product doc's own description resolve to the product (API gateway → Relay, secrets manager → Vault, product analytics → Pulse, billing → Ledger) | Brief: plain-English questions from non-technical staff; confirm the list with Sales |
+| A11 | "And for Vault?" after an SLA question — the same question for another product? | Yes: a follow-up that names only a product keeps the previous question's topic | Brief E1: right product **and topic** |
+| A12 | Off-topic questions ("hi", weather, other companies) | Deterministic "not in the knowledge base" plus what the assistant covers, with **no model call** | No model can invent an answer to a question the knowledge base cannot match at all; zero cost |
+| A13 | When documents disagree, should the answer say which value applies? | Yes — after citing both sides, one line on what applies today and to whom (e.g. Relay Pro: $59 for new contracts since 1 August 2026, $49 for existing contracts until renewal) | Sarah needs "what do I tell the customer"; still never silently picks one (E4) |
 
 ---
 
