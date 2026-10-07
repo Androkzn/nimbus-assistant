@@ -2,6 +2,9 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The readiness runner (scripts/readiness/run.mjs) builds into its own directory so it never
+  // touches the .next/ another server may be serving. Unset = the default.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // The knowledge base is read from disk at runtime; make sure serverless
   // bundles of the API routes ship with it.
   outputFileTracingIncludes: {

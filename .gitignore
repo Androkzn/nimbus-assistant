@@ -46,3 +46,8 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# readiness runner: isolated build, run lock, per-run scratch (logs, Playwright report)
+/.next-readiness/
+/readiness/.run.lock
+/readiness/tmp/

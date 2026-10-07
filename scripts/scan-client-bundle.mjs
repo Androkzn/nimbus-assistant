@@ -55,7 +55,8 @@ if (process.argv.includes("--self-test")) {
   process.exit(0);
 }
 
-const target = path.join(process.cwd(), ".next", "static");
+// NEXT_DIST_DIR: same override as next.config.ts (the readiness runner builds into .next-readiness).
+const target = path.join(process.cwd(), process.env.NEXT_DIST_DIR || ".next", "static");
 try {
   statSync(target);
 } catch {
