@@ -132,7 +132,7 @@ export function VerdictPanel({
 
   return (
     <section aria-labelledby="verdict-heading" className="rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgb(15_23_42/0.05)]">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-border px-5 py-3.5 sm:px-6">
+      <div className="flex flex-col gap-3 border-b border-border px-5 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-6 sm:px-6">
         <div className="min-w-0">
           <h2 id="verdict-heading" className="text-[11px] font-semibold tracking-[0.16em] text-muted uppercase">
             Verdict

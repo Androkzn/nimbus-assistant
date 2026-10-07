@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import { ArrowDownIcon } from "@/components/icons";
 import type { Layer, StageId, TestResult } from "@/readiness/schema";
 import { IdChip, LayerBadge, SourceBadge, StatusPill } from "./badges";
@@ -10,6 +10,8 @@ export interface ResultContext {
   verifies?: string;
   layer: Layer;
   requirementIds: string[];
+  /** False when no manifest check claims the result. */
+  claimed: boolean;
 }
 
 export interface RunningTest {
@@ -21,7 +23,8 @@ export interface RunningTest {
 
 const FEED_CAP = 200;
 
-function FeedItem({ result, ctx }: { result: TestResult; ctx: ResultContext }) {
+/** Memoized: props are the immutable result and its cached context, so streamed frames re-render only new rows. */
+const FeedItem = memo(function FeedItem({ result, ctx }: { result: TestResult; ctx: ResultContext }) {
   const parent = parentName(result.fullName);
   return (
     <li
@@ -45,7 +48,7 @@ function FeedItem({ result, ctx }: { result: TestResult; ctx: ResultContext }) {
         <span className="font-semibold">{leafName(result.fullName)}</span>
         {parent && <span className="block truncate text-[11.5px] text-muted">{parent}</span>}
       </p>
-      {ctx.verifies ? (
+      {ctx.claimed && ctx.verifies ? (
         <p className="mt-1 line-clamp-2 text-[12.5px] leading-relaxed text-muted">{ctx.verifies}</p>
       ) : (
         <p className="mt-1 text-[12.5px] text-[var(--rdy-warn)]">Not claimed by any check in the manifest.</p>
@@ -62,7 +65,7 @@ function FeedItem({ result, ctx }: { result: TestResult; ctx: ResultContext }) {
       )}
     </li>
   );
-}
+});
 
 export function LiveFeed({
   results,

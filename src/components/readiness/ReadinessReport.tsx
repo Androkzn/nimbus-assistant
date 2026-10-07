@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { computeCoverage, summarize, unclaimedResults } from "@/readiness/coverage";
+import { computeCoverage, initialRunState, summarize } from "@/readiness/coverage";
 import { checksFor, manifest } from "@/readiness/manifest";
 import { STAGE_INFO, type TestResult } from "@/readiness/schema";
 import { useReadinessRun, type ReadinessOptions } from "@/readiness/useReadinessRun";
@@ -32,6 +32,34 @@ function useNow(active: boolean, intervalMs = 250): number {
   return now;
 }
 
+/** check id → the requirement ids it covers. Static for a manifest, so computed once with the coverage rules. */
+const CHECK_REQUIREMENTS: ReadonlyMap<string, string[]> = (() => {
+  const map = new Map<string, string[]>();
+  for (const view of computeCoverage(manifest, initialRunState())) {
+    for (const c of view.checks) map.set(c.check.id, [...(map.get(c.check.id) ?? []), view.requirement.id]);
+  }
+  return map;
+})();
+
+/**
+ * What a result proves, per result object. Results are immutable (a retry is a new object), so each one is
+ * matched against the manifest once, not on every streamed frame.
+ */
+const contextCache = new WeakMap<TestResult, ResultContext>();
+function contextOf(r: TestResult): ResultContext {
+  const hit = contextCache.get(r);
+  if (hit) return hit;
+  const checks = checksFor(r, manifest);
+  const ctx: ResultContext = {
+    verifies: checks[0]?.verifies,
+    layer: checks[0]?.layer ?? STAGE_INFO[r.stage].layer,
+    requirementIds: [...new Set(checks.flatMap((c) => CHECK_REQUIREMENTS.get(c.id) ?? []))],
+    claimed: checks.length > 0,
+  };
+  contextCache.set(r, ctx);
+  return ctx;
+}
+
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "failed", label: "Failed" },
@@ -52,7 +80,6 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
   // One coverage pass per published state (at most one per animation frame while streaming).
   const coverage = useMemo(() => computeCoverage(manifest, state), [state]);
   const summary = useMemo(() => summarize(manifest, state), [state]);
-  const unclaimed = useMemo(() => unclaimedResults(manifest, state), [state]);
   const verdict = verdictOf(summary, session, coverage);
   const groupStats = useMemo(() => {
     const out: GroupStat[] = [];
@@ -66,38 +93,12 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
     return out;
   }, [coverage]);
 
-  // check id → requirement ids, as the coverage computed it.
-  const checkRequirements = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const view of coverage) {
-      for (const c of view.checks) {
-        const list = map.get(c.check.id) ?? [];
-        if (!list.includes(view.requirement.id)) list.push(view.requirement.id);
-        map.set(c.check.id, list);
-      }
-    }
-    return map;
-  }, [coverage]);
-
-  const contexts = useMemo(() => {
-    const map = new Map<string, ResultContext>();
-    for (const id of state.resultOrder) {
-      const r = state.results[id];
-      if (!r) continue;
-      const checks = checksFor(r, manifest);
-      const reqIds = [...new Set(checks.flatMap((c) => checkRequirements.get(c.id) ?? []))];
-      map.set(id, { verifies: checks[0]?.verifies, layer: checks[0]?.layer ?? STAGE_INFO[r.stage].layer, requirementIds: reqIds });
-    }
-    return map;
-  }, [state.resultOrder, state.results, checkRequirements]);
-
-  const contextFor = (r: TestResult): ResultContext =>
-    contexts.get(r.id) ?? { layer: STAGE_INFO[r.stage].layer, requirementIds: [] };
-
   const allResults = useMemo(
     () => state.resultOrder.map((id) => state.results[id]).filter((r): r is TestResult => Boolean(r)),
     [state.resultOrder, state.results],
   );
+  // Results no check claims (spec §5: no orphan tests) — normally none.
+  const unclaimed = useMemo(() => allResults.filter((r) => !contextOf(r).claimed), [allResults]);
 
   const terms = tokens(deferredQuery);
   const feedResults = useMemo(() => {
@@ -105,11 +106,11 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
     return allResults.filter((r) => {
       if (!resultPasses(r, filter)) return false;
       if (t.length === 0) return true;
-      const ctx = contexts.get(r.id);
-      const hay = resultText(r, [ctx?.verifies ?? "", ...(ctx?.requirementIds ?? [])]).toLowerCase();
+      const ctx = contextOf(r);
+      const hay = resultText(r, [ctx.verifies ?? "", ...ctx.requirementIds]).toLowerCase();
       return t.every((x) => hay.includes(x));
     });
-  }, [allResults, filter, deferredQuery, contexts]);
+  }, [allResults, filter, deferredQuery]);
 
   const matrixItems = useMemo(() => filterCoverage(coverage, filter, deferredQuery), [coverage, filter, deferredQuery]);
   const filterCounts = useMemo(
@@ -231,7 +232,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
                 results={feedResults}
                 totalResults={allResults.length}
                 running={running}
-                contextFor={contextFor}
+                contextFor={contextOf}
                 active={active}
                 filtered={filter !== "all" || terms.length > 0}
               />

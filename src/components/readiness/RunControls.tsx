@@ -52,7 +52,7 @@ export function RunControls({
   const answerRelevant = mode === "probes" || probes;
 
   return (
-    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-3 sm:justify-end">
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-x-5 gap-y-3 sm:w-auto sm:flex-1 sm:justify-end">
       {replayRelevant && (
         <fieldset className="flex min-w-0 items-center gap-2" disabled={active}>
           <legend className="sr-only">Replay speed</legend>
@@ -143,7 +143,7 @@ export function RunHint({
 }) {
   const active = session.phase === "connecting" || session.phase === "running";
   return (
-    <p className="text-[12.5px] text-muted">
+    <p className="text-[12.5px] text-muted max-sm:hidden">
       {active ? "Stop aborts everything in flight; a local run stops on the server too." : startHint(mode, availability, probes)}
     </p>
   );
