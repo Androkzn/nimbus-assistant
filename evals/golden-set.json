@@ -332,9 +332,9 @@
     {
       "id": "NKA-GRD-013",
       "brief": "E2",
-      "question": "What are the key differences between the Professional and Company pricing tiers?",
+      "question": "What are the key differences between the Profeccional and Company pricing tiers?",
       "expectNotInKb": true,
-      "note": "Unsupported tier names must not be mapped to documented tiers or given invented prices; closest documented tiers may be named."
+      "note": "Misspelled and unsupported tier names must not be mapped to documented tiers or given invented prices."
     },
     {
       "id": "NKA-GRD-014",

@@ -41,6 +41,21 @@ export function tokenize(text: string): string[] {
     .filter((t) => (t.length > 1 || /\d/.test(t)) && !STOPWORDS.has(t));
 }
 
+/** Conservative typo support: only short, unique one-edit matches are eligible for normalization. */
+function editDistance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) next[j] = Math.min(next[j - 1] + 1, prev[j] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    for (let j = 0; j <= b.length; j++) prev[j] = next[j];
+  }
+  return prev[b.length];
+}
+
+export function hasNearMatch(text: string, candidates: string[], maxEdits = 1): boolean {
+  return tokenize(text).some((token) => token.length >= 4 && candidates.some((candidate) => editDistance(token, candidate) <= maxEdits));
+}
+
 /** Normalise phrasings the corpus writes differently ("priority 1" → "p1", "v4.2" → "4.2"). */
 export function normalize(question: string): string {
   return question
@@ -64,7 +79,10 @@ export function expandQuery(question: string): string[] {
 
 export function detectProducts(text: string): Product[] {
   const lower = text.toLowerCase();
-  return PRODUCTS.filter((p) => [p, ...PRODUCT_ALIASES[p]].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(lower)));
+  const exact = PRODUCTS.filter((p) => [p, ...PRODUCT_ALIASES[p]].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(lower)));
+  const tokens = tokenize(text);
+  const fuzzy = PRODUCTS.filter((p) => !exact.includes(p) && tokens.some((token) => token.length >= 4 && editDistance(token, p) <= 1));
+  return [...exact, ...fuzzy];
 }
 
 /** A product release asked about ("v4.2", "4.2"). Protocol versions ("SAML 2.0", "TLS 1.2") are not releases. */

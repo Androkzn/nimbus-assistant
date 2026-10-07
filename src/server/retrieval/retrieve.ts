@@ -6,6 +6,7 @@ import {
   expandQuery,
   isCrossProduct,
   isElliptical,
+  hasNearMatch,
   productsInScope,
   tokenize,
   type HistoryMessage,
@@ -88,7 +89,7 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   const topic = isElliptical(question) ? carriedTopic(history) : null;
   const queryText = topic ? `${question} ${topic}` : question;
   const version = detectVersion(queryText);
-  const unsupportedPricingTier = detectTopics(queryText).includes("pricing") && /\b(?:professional|company)\b/i.test(queryText);
+  const unsupportedPricingTier = detectTopics(queryText).includes("pricing") && hasNearMatch(queryText, ["professional", "company"]);
   const ambiguousReleaseVersion = detectTopics(queryText).includes("release") && /\bv\d+\b/i.test(queryText) && !version;
   const status = queryText.match(/\b([1-5]\d{2})\b/)?.[1];
   const unsupportedTroubleshootingStatus = Boolean(status && !/^(?:403|429)$/.test(status) && /\b(?:api|error|troubleshoot|check)\b/i.test(queryText));

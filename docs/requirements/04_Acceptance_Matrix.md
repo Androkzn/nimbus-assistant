@@ -28,7 +28,7 @@ Layers: **U** unit · **I** integration (mock LLM) · **R** retrieval eval (offl
 | NKA-GRD-010 | Rule | BR-01 | Figure check | Every number in an answer appears in its passages, question or conversation; otherwise `unverifiedFigures` lists it, the UI warns, the eval fails | U, I, E, L |
 | NKA-GRD-011 | E2 | BR-02 | Off-topic guard | "hi", weather, unknown product → "not in the knowledge base" with no model call (`kb-guard`, 0 tokens) | I, E, L |
 | NKA-GRD-012 | E6 | BR-07 | SLA definition | SLA answers say "response time to first human reply" (appended from the cited table when missing) | U, L |
-| NKA-GRD-013 | E2 | BR-02 | Unsupported pricing tier names | "Professional" and "Company" are not mapped to documented tiers or given invented prices | I, R, L |
+| NKA-GRD-013 | E2 | BR-02 | Unsupported/misspelled pricing tier names | "Profeccional" and "Company" are not mapped to documented tiers or given invented prices | I, R, L |
 | NKA-GRD-014 | E2 | BR-02 | Incomplete release version | Major-only "v4" asks for a product and exact version; it does not combine unrelated v4.x notes | I, R, L |
 | NKA-GRD-015 | E2 | BR-02 | Unsupported API status | "500" is not answered with the documented 403/429 checklists | I, R, L |
 | NKA-GRD-016 | E2 | BR-02 | Unsupported SLA priority | "Priority 12" is not mapped to a P1–P4 SLA row | I, R, L |

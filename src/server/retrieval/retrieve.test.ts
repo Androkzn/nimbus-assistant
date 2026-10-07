@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { retrieve } from "./retrieve";
-import { detectVersion, type HistoryMessage } from "./query";
+import { detectProducts, detectVersion, type HistoryMessage } from "./query";
 
 /**
  * Retrieval eval — the offline CI gate (TRD §9). Each case is taken from the discovery answer key
@@ -121,7 +121,7 @@ describe("retrieval eval (golden cases)", () => {
   });
 
   it("NKA-GRD-013: flags pricing questions that use unsupported tier names", () => {
-    const result = retrieve("What are the key differences between the Professional and Company pricing tiers?");
+    const result = retrieve("What are the key differences between the Profeccional and Company pricing tiers?");
     expect(result.unsupportedPricingTier).toBe(true);
   });
 
@@ -151,6 +151,7 @@ describe("retrieval eval (golden cases)", () => {
     const followUp = retrieve("what about its SLA?", [{ role: "user", content: "Does the API gateway integrate with Salesforce?" }]);
     expect(followUp.products).toEqual(["relay"]);
     expect(followUp.passages[0].chunk.id).toBe("relay.md#support-sla");
+    expect(detectProducts("Does Relai integrate with Salesforce?")).toEqual(["relay"]);
   });
 
   it("NKA-GRD-009: an integration question does not pull in sign-on passages (no false disagreement)", () => {
