@@ -36,6 +36,36 @@ npm run ci
 
 This runs typechecking, linting, unit/integration/retrieval tests, a production build, the client-bundle secret scan, and Playwright browser tests with the deterministic mock model.
 
+## CI/CD approach
+
+The delivery pipeline is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) and keeps promotion evidence attached to the commit being deployed:
+
+```text
+pull request / push to main
+        │
+        ▼
+offline quality gates
+typecheck → lint → unit/integration/retrieval tests → build
+          → bundle secret scan → Playwright E2E
+        │
+        ├── pull request: report checks and artifacts only
+        └── push to main: deploy the tested commit to production
+                              → /api/health
+                              → /api/models
+                              → production /readiness is 404
+```
+
+The workflow also supports an explicit manual live-evaluation run. It is opt-in because it uses real provider tokens and is gated behind `EVAL_BYPASS_TOKEN` and a supplied evaluation URL. Failed quality runs upload the browser report for diagnosis.
+
+Production deployment uses the protected GitHub `production` environment. Configure these encrypted environment secrets before enabling automatic promotion:
+
+- `VERCEL_TOKEN` — deployment token
+- `VERCEL_ORG_ID` — Vercel team identifier
+- `VERCEL_PROJECT_ID` — Vercel project identifier
+- `EVAL_BYPASS_TOKEN` — optional, only for manual live evaluation
+
+The production deployment is intentionally customer-facing and excludes the internal Readiness tooling. The optional developer deployment is promoted separately to `nimbus-assistant-dev.vercel.app`, where the Readiness report runs recorded evidence plus live probes against the deployed environment.
+
 ## Optional internal tooling
 
 The developer deployment includes the internal Readiness report. It is intentionally separate from the assessment deployment: the production link stays focused on the customer-facing assistant, while the optional link shows how the implementation is verified against the brief.
