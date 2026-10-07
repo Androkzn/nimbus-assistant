@@ -14,7 +14,7 @@ Rules for any AI agent (Claude Code, Cursor, Codex, Kiro) or human working in th
 
 1. `knowledge-base/` is client data: **read-only**. Never edit, never "fix" a conflict in it — the bot surfaces conflicts.
 2. Answers come **only** from retrieved passages. Any change to retrieval or the prompt (`src/server/prompt/build.ts`) must be followed by `npm test` (retrieval eval) **and** `npm run eval:live`, with the report committed under `evals/reports/`.
-3. API keys live only in server env vars. Never `NEXT_PUBLIC_*`, never in logs, never in the browser. `npm run scan:bundle` must stay green.
+3. API keys live only in server env vars. Never `NEXT_PUBLIC_*`, never in logs, never in the browser. `npm run scan:bundle` must stay green. (The one allowed `NEXT_PUBLIC_` value is the Sentry DSN — a public, send-only ingest key; see TRD §7. Sentry follows rule 5 too: `src/shared/sentry.ts` turns off every channel that could carry message text.)
 4. Model IDs, prices, context windows and fallback order live in `config/models.json` only. Tests read expectations from the config instead of hard-coding them.
 5. Logs carry ids, models, tokens, latency and error classes — never message text.
 6. Do not weaken a failing test or eval check to make it pass. If the check is wrong, say why in the golden set (`note`) or the test, and keep the evidence.

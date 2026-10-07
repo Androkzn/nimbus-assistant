@@ -1,3 +1,5 @@
+import Image from "next/image";
+import logoLockup from "@/assets/logo-lockup.png";
 import { ChevronRightIcon } from "./icons";
 
 /** The brief's six representative questions — one click runs each against the knowledge base. */
@@ -20,9 +22,13 @@ export function EmptyState({ onAsk, disabled, providerCount }: { onAsk: (q: stri
   return (
     <div className="space-y-10 pb-2">
       <section className="brand-glow overflow-hidden rounded-3xl border border-navy-3 bg-navy px-6 py-8 text-on-navy shadow-[0_24px_48px_-24px_rgb(15_23_42/0.45)] sm:px-10 sm:py-10">
-        <p className="inline-block border-b border-orange pb-2 text-[11px] font-bold tracking-[0.2em] text-orange uppercase">
-          NimbusStack · Product knowledge
-        </p>
+        <Image
+          src={logoLockup}
+          alt="NimbusStack, product knowledge assistant"
+          className="h-14 w-auto sm:h-16"
+          priority
+          unoptimized
+        />
         <h1 className="mt-5 font-display text-[2.1rem] leading-[1.06] font-extrabold tracking-tight sm:text-5xl">
           Product answers, <br className="hidden sm:block" />
           straight from the docs<span className="text-orange">.</span>

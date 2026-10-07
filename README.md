@@ -2,7 +2,7 @@
 
 An internal chatbot that answers questions about NimbusStack's four products — **only** from the supplied knowledge base, with the source passages shown under every answer. Users pick Claude, OpenAI or Gemini; a backup provider takes over automatically; every answer shows tokens and estimated cost.
 
-**Live:** _see the submission email_ · **Specs:** [`docs/requirements/`](docs/requirements/) · **Latest eval report:** [`evals/reports/`](evals/reports/)
+**Live:** https://nimbus-assistant-coral.vercel.app · **Specs:** [`docs/requirements/`](docs/requirements/) · **Latest eval report:** [`evals/reports/`](evals/reports/)
 
 ---
 

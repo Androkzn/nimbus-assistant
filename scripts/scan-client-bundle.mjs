@@ -16,7 +16,8 @@ const PATTERNS = [
   { name: "OpenAI key", re: /sk-(?!ant-)(proj-)?[A-Za-z0-9_-]{32,}/ },
   { name: "Google API key", re: /AIza[0-9A-Za-z_-]{35}/ },
 ];
-const ENV_VARS = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"];
+// Every server-only secret. (NEXT_PUBLIC_SENTRY_DSN is deliberately absent: a DSN is a public, send-only key.)
+const ENV_VARS = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "SENTRY_AUTH_TOKEN", "AI_GATEWAY_API_KEY"];
 
 function* walk(dir) {
   for (const entry of readdirSync(dir)) {

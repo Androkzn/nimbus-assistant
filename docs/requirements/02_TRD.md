@@ -37,6 +37,7 @@ Rules:
 | v0.2 | 2026-10-07 | Self-review cycle 1 (cross-section consistency pass, per `create-implementation-plan` retrospective FM-2.4): aligned event names between §5 and §6; added `reset` event for mid-stream fallback; tagged model IDs/prices ⚠️ Unverified; added arithmetic check for cost formula (§4.3) |
 | v1.0 | 2026-10-07 | Accepted for build |
 | v1.1 | 2026-10-07 | As built: T1 resolved (IDs/prices verified against vendor docs, `pricingVersion` 2026-10-07); default model `gemini-flash-lite` chosen by measured eval (18/18, ~1 s first word), fallback order alternates vendors; `maxOutputTokens` 4,000 after reasoning tokens truncated an answer; `finishReason=length` appends a visible "cut off" note; billing/credit errors classified as `auth`; prompt rules for stale company-wide docs and full table rows; eval bypass token for the limiter |
+| v1.2 | 2026-10-07 | Sentry error monitoring (`@sentry/nextjs` 11.5, project `andrei-tekhtelev/nimbus-assistant`): §7 privacy contract, §8 signals |
 
 ---
 
@@ -268,6 +269,7 @@ Client state: `messages[]`, `usageRows[]` (one per answered turn), `selectedMode
 - **Bundle scan (CI gate)**: after `next build`, scan `.next/static/**` for key prefixes (`sk-ant-`, `sk-proj-`, `sk-`, `AIza`) and for the literal values of the three env vars when present; any hit fails the build.
 - **Logging**: structured JSON per request — `requestId, requestedModel, answeredBy, attempts[{model, errorClass}], ttftMs, totalMs, inputTokens, outputTokens, costUSD, passageIds` — **no message text, no keys**.
 - **Error hygiene**: vendor error bodies are never forwarded to the client; only `{code, message}` from §4.4.
+- **Error monitoring (Sentry)**: same rule as logging — errors, ids, models, tokens, latency; **no message text, no keys**. SDK v11 collects request/response bodies, headers, gen-AI inputs/outputs and stack-frame variables by default; all are switched off explicitly in `src/shared/sentry.ts`, plus `beforeSend` / `beforeSendSpan` scrubs (v11 streams spans, so `beforeSendTransaction` would be ignored). The DSN (`NEXT_PUBLIC_SENTRY_DSN`) is a public, send-only ingest key — the one `NEXT_PUBLIC_*` value allowed; unset → Sentry off (CI, fresh clones); `LLM_MODE=mock` → off (injected faults are not incidents).
 - **Prompt injection**: user text is data; rule G8; passages delimited; no tools exposed to the model.
 - **Abuse**: §5 rate limit + size caps + `maxOutputTokens` per model. In-memory limiter is per-instance (documented limitation; production → Redis/Upstash).
 
@@ -281,6 +283,9 @@ Client state: `messages[]`, `usageRows[]` (one per answered turn), `selectedMode
 | `ttftMs` | route | Sarah's "fast on a live call" KPI |
 | `attempts[].errorClass` | FallbackRunner | Provider health; fallback frequency |
 | `/api/health` | route | Deploy smoke; demo which providers are live |
+| Sentry issue `LLMProviderFailure: <model> failed (<class>)` | `src/server/observability/report.ts` | Handled provider failures the fallback hides from users (bad key, billing, rate limit, outage); one issue per model × class; `warning` if a backup answered, `error` if none did |
+| Sentry errors | `onRequestError`, `global-error.tsx`, browser SDK, `chat.unhandled` | Unhandled server/client errors; events tunnelled via `/monitoring` past ad-blockers |
+| Sentry traces + `gen_ai` spans | SDK auto-instrumentation | Latency per route and per provider call (model, tokens; prompts/outputs not recorded) |
 
 ---
 

@@ -4,6 +4,7 @@ import { getModel, type Env, type ModelEntry } from "../config/models";
 import { createRateLimiter, type RateLimiter } from "../http/rateLimit";
 import { runWithFallback, type AttemptTrace } from "../llm/fallback";
 import { extractFaults } from "../llm/faults";
+import { sentryChatMonitor, type ChatMonitor } from "../observability/report";
 import { buildInstructions } from "../prompt/build";
 import { retrieve } from "../retrieval/retrieve";
 
@@ -16,6 +17,8 @@ export interface ChatDeps {
   modelFactory?: (entry: ModelEntry) => LanguageModel;
   today?: () => string;
   log?: (record: Record<string, unknown>) => void;
+  /** Error monitoring (Sentry); tests inject their own. */
+  monitor?: ChatMonitor;
 }
 
 const defaultLimiter = createRateLimiter({
@@ -31,6 +34,7 @@ function json(status: number, body: unknown, headers: Record<string, string> = {
 export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Response> {
   const env = deps.env ?? process.env;
   const log = deps.log ?? ((r) => console.log(JSON.stringify(r)));
+  const monitor = deps.monitor ?? sentryChatMonitor;
   const requestId = crypto.randomUUID();
   const started = Date.now();
 
@@ -95,6 +99,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
         final = { type: "error", code: "unavailable", message };
         send(final);
         log({ event: "chat.unhandled", requestId, error: String(err).slice(0, 200) });
+        monitor.unhandled(err, requestId);
       } finally {
         controller.close();
         // Structured log: no message text, no keys (TRD §7).
@@ -116,6 +121,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
           historyTurns: history.length,
           faults,
         });
+        monitor.providerFailures({ requestId, requestedModel: modelId, outcome: done?.type ?? "aborted", attempts: trace, injectedFaults: faults.length });
       }
     },
   });

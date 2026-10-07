@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import logoMark from "@/assets/logo-mark.png";
 import { readEvents } from "@/client/stream";
 import { toCSV, toJSON, totals, type UsageRow } from "@/client/usage";
 import { applyEvent, emptyAnswer, type AnswerState } from "@/shared/answer";
@@ -9,7 +11,7 @@ import { MAX_MESSAGE_CHARS, type ChatMessage, type ModelsResponse } from "@/shar
 import { formatUSD } from "@/shared/cost";
 import { AnswerCard } from "./AnswerCard";
 import { EmptyState } from "./EmptyState";
-import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, ChevronDownIcon, CloudMark, PlusIcon, StopIcon } from "./icons";
+import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, ChevronDownIcon, PlusIcon, StopIcon } from "./icons";
 import { SessionPanel } from "./SessionPanel";
 
 interface Turn {
@@ -193,8 +195,9 @@ export function ChatApp() {
     <div className="flex h-dvh w-full flex-col overflow-hidden">
       <header className="brand-glow relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-navy-3 bg-navy px-4 text-on-navy sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-navy-3 bg-navy-2 text-xl text-orange">
-            <CloudMark />
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-navy-3 bg-navy-2">
+            {/* Decorative: the wordmark next to it names the brand. Unoptimized keeps the logo's edges crisp. */}
+            <Image src={logoMark} alt="" className="h-6 w-auto" priority unoptimized />
           </span>
           <div className="min-w-0 leading-tight">
             <p className="font-display text-[15px] font-extrabold tracking-tight">

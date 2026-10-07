@@ -20,12 +20,6 @@ function Icon({ children, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
-export const CloudMark = (p: SVGProps<SVGSVGElement>) => (
-  <svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden {...p}>
-    <path d="M7.5 18.5a4.5 4.5 0 0 1-.6-8.96 6 6 0 0 1 11.5-1.4 5.2 5.2 0 0 1 .6 10.36z" fill="currentColor" />
-  </svg>
-);
-
 export const PlusIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <path d="M12 5v14M5 12h14" />
