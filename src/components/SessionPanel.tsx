@@ -159,13 +159,6 @@ export function SessionPanel({
             {!canExport && <p className="mt-2 text-xs text-on-navy-muted">Available after the first answer.</p>}
           </PanelSection>
 
-          <div className="mt-auto rounded-xl border-l-2 border-orange bg-navy-2 px-4 py-3.5">
-            <p className="text-[11px] font-bold tracking-[0.18em] text-orange uppercase">The one rule</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-on-navy-muted">
-              Every answer comes from NimbusStack&apos;s documents. If something isn&apos;t covered, the assistant says so instead of
-              guessing.
-            </p>
-          </div>
         </div>
       </aside>
     </>
