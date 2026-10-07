@@ -2,15 +2,17 @@
 
 An internal chatbot for NimbusStack's four products. Answers are grounded only in the supplied knowledge base, with source passages shown under every answer. Users can choose Claude, OpenAI, or Gemini; provider failures automatically fall back to another configured provider. Each completed answer shows the answering model, token usage, and estimated cost.
 
-Live deployment: https://nimbus-assistant-coral.vercel.app
+Assessment deployment: https://nimbus-assistant-production.vercel.app
+
+Optional developer deployment with the Readiness test: https://nimbus-assistant-dev.vercel.app
 
 ## Run locally
 
 Requirements: Node.js 22.12+ and npm.
 
 ```bash
-git clone https://github.com/Androkzn/nimbus-assistant-demo.git
-cd nimbus-assistant-demo
+git clone https://github.com/Androkzn/nimbus-assistant.git
+cd nimbus-assistant
 npm ci
 cp .env.example .env.local
 # Add at least one provider key to .env.local:
@@ -32,7 +34,7 @@ npm run ci
 
 This runs typechecking, linting, unit/integration/retrieval tests, a production build, the client-bundle secret scan, and Playwright browser tests with the deterministic mock model.
 
-Pushes to `main` run these gates in GitHub Actions and deploy production only after they pass. Configure the protected `production` environment with `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets to enable the deployment job. The developer-only readiness environment is intentionally maintained outside this assessment repository.
+Pushes to `main` run these gates in GitHub Actions and deploy the assessment build only after they pass. Configure the protected `production` environment with `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets to enable the deployment job. The optional developer deployment at `nimbus-assistant-dev.vercel.app` includes the Readiness test; the assessment deployment intentionally does not expose that internal tooling.
 
 To run the individual checks:
 
