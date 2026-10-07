@@ -27,6 +27,7 @@ const BASE_PROMPT_TOKENS = 1500;
 
 /** How close to the bottom (px) still counts as "following" the conversation. */
 const FOLLOW_THRESHOLD = 96;
+const isProductionDeployment = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
 
 export function ChatApp() {
   const [catalog, setCatalog] = useState<ModelsResponse | null>(null);
@@ -217,21 +218,23 @@ export function ChatApp() {
       <header className="brand-glow relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-navy-3 bg-navy px-4 text-on-navy sm:px-6">
         <BrandLockup size="header" />
         <div className="flex items-center gap-2">
-          <a
-            href="/readiness?autostart=1"
-            target="nimbus-readiness"
-            data-testid="readiness-link"
-            title="Readiness test: every quality gate, run live and mapped to the brief"
-            onClick={(e) => {
-              // Its own window, so the report runs beside the chat instead of replacing it (spec 06, RDY-001).
-              // If popups are blocked, the link's target still opens it in a tab.
-              if (window.open("/readiness?autostart=1", "nimbus-readiness", "popup,width=1440,height=900")) e.preventDefault();
-            }}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold transition-colors hover:border-orange hover:text-orange"
-          >
-            <CheckIcon className="text-orange" />
-            <span className="max-sm:sr-only">Readiness test</span>
-          </a>
+          {!isProductionDeployment && (
+            <a
+              href="/readiness?autostart=1"
+              target="nimbus-readiness"
+              data-testid="readiness-link"
+              title="Readiness test: every quality gate, run live and mapped to the brief"
+              onClick={(e) => {
+                // Its own window, so the report runs beside the chat instead of replacing it (spec 06, RDY-001).
+                // If popups are blocked, the link's target still opens it in a tab.
+                if (window.open("/readiness?autostart=1", "nimbus-readiness", "popup,width=1440,height=900")) e.preventDefault();
+              }}
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold transition-colors hover:border-orange hover:text-orange"
+            >
+              <CheckIcon className="text-orange" />
+              <span className="max-sm:sr-only">Readiness test</span>
+            </a>
+          )}
           <button
             type="button"
             onClick={() => setPanelOpen(true)}

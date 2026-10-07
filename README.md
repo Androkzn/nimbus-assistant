@@ -54,7 +54,7 @@ Run locally with `ALLOW_FAULT_INJECTION=1 npm run dev` (or `LLM_MODE=mock`) and 
 
 ### Readiness report — every requirement, verified live
 
-The **Readiness test** button in the app header opens `/readiness` in its own window and shows, brief item by brief item (the one rule, R1–R5, E1–E10, Q1–Q6, deliverables), which automated check proves it and whether it passed.
+The **Readiness test** button in the app header opens `/readiness` in its own window and shows, brief item by brief item (the one rule, R1–R5, E1–E10, Q1–Q6, deliverables), which automated check proves it and whether it passed. The button is shown in local and preview environments only; production keeps this internal tooling out of the customer-facing header.
 
 - **Locally** (`npm run dev`, then click the button): the page runs the CI gates live and streams each test as it finishes. The gates are typecheck, lint, unit/integration/retrieval eval, build, bundle secret scan and browser E2E. Next come the latest complete live-eval report (labelled *recorded*) and live probes against the running app. The same run from a terminal: `npm run readiness` (`-- --stream` for NDJSON, `-- --publish` to refresh the recorded run shown in production).
 - **In production**: the page replays the last published run, labelled *recorded* with its date and build, then runs the live probes for real against the deployed app.
