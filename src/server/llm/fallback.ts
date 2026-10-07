@@ -25,6 +25,11 @@ export interface RunOptions {
   faults?: Fault[];
   env?: Env;
   firstTokenTimeoutMs?: number;
+  /**
+   * Total time to keep trying models before giving up with a clean error. Must stay below the
+   * platform's function limit (route maxDuration = 60 s), or a slow chain is killed mid-answer.
+   */
+  budgetMs?: number;
   /** Injection point for tests; defaults to the real provider factory. */
   modelFactory?: (entry: ModelEntry) => LanguageModel;
   /** Filled in as attempts run — for structured logs. */
@@ -52,18 +57,24 @@ export async function* runWithFallback(opts: RunOptions): AsyncGenerator<RunnerE
   }
 
   let firstFailure: { code: ErrorCode; retryAfterSec?: number } | null = null;
+  const deadline = Date.now() + (opts.budgetMs ?? 45_000);
 
   for (let i = 0; i < attempts.length; i++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break; // out of time budget: stop starting new attempts, report cleanly below
     const model = attempts[i];
     const fault = faultForAttempt(opts.faults ?? [], i);
     const controller = new AbortController();
     const onClientAbort = () => controller.abort();
     opts.signal?.addEventListener("abort", onClientAbort);
     let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, opts.firstTokenTimeoutMs ?? 20_000);
+    const timer = setTimeout(
+      () => {
+        timedOut = true;
+        controller.abort();
+      },
+      Math.min(opts.firstTokenTimeoutMs ?? 20_000, remaining),
+    );
     let emitted = 0;
 
     try {
@@ -126,7 +137,7 @@ export async function* runWithFallback(opts: RunOptions): AsyncGenerator<RunnerE
       firstFailure ??= failure;
       if (emitted > 0) yield { type: "reset", reason: failure.code };
       const next = attempts[i + 1];
-      if (next) yield { type: "fallback", from: model.id, to: next.id, reason: failure.code };
+      if (next && Date.now() < deadline) yield { type: "fallback", from: model.id, to: next.id, reason: failure.code };
     } finally {
       clearTimeout(timer);
       opts.signal?.removeEventListener("abort", onClientAbort);

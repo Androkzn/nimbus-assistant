@@ -67,7 +67,7 @@ export function SessionPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const ratio = usedTokens / contextWindow;
+  const ratio = contextWindow > 0 ? usedTokens / contextWindow : 0;
   const canExport = rows.length > 0;
   const exportButton =
     "inline-flex items-center justify-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 py-2 text-sm font-semibold transition-colors hover:border-orange hover:text-orange disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-navy-3 disabled:hover:text-on-navy";
@@ -89,7 +89,7 @@ export function SessionPanel({
             type="button"
             onClick={onClose}
             aria-label="Close session panel"
-            className="grid h-9 w-9 place-items-center rounded-lg text-lg text-on-navy-muted hover:bg-navy-2 hover:text-on-navy"
+            className="grid h-9 w-9 place-items-center rounded-lg text-lg text-on-navy-muted transition-colors hover:bg-navy-2 hover:text-orange"
           >
             <CloseIcon />
           </button>
@@ -135,7 +135,9 @@ export function SessionPanel({
                 <div className={`h-full rounded-full transition-[width] duration-500 ${LEVEL_BAR[level]}`} style={{ width: `${Math.max(2, Math.min(100, ratio * 100))}%` }} />
               </div>
               <p className="mt-2 text-xs text-on-navy-muted tabular-nums">
-                {(ratio * 100).toFixed(ratio < 0.01 ? 2 : 0)}% of {contextWindow.toLocaleString()} tokens
+                {contextWindow > 0
+                  ? `${(ratio * 100).toFixed(ratio < 0.01 ? 2 : 0)}% of ${contextWindow.toLocaleString()} tokens`
+                  : "Loading model…"}
               </p>
               {level !== "ok" && (
                 <p className={`mt-2 text-xs font-semibold ${level === "red" ? "text-[#f87171]" : "text-[#f5b14a]"}`}>

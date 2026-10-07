@@ -7,6 +7,8 @@ import { z } from "zod";
 
 export const MAX_MESSAGE_CHARS = 2000;
 export const MAX_MESSAGES = 40;
+/** Prior messages the server forwards to the model (retrieval runs fresh every turn). The UI's context meter counts the same window. */
+export const HISTORY_MESSAGES = 12;
 
 export const ChatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),

@@ -16,6 +16,9 @@ export function buildInstructions(retrieval: RetrievalResult, today: string): st
         : `The question is about ${names}.`,
     );
   }
+  if (retrieval.carriedTopic) {
+    hints.push(`The question only names a product, so it continues the previous question ("${retrieval.carriedTopic}"): answer that same question for the product named now.`);
+  }
   if (retrieval.noMatch) hints.push("Retrieval found no strong match; the knowledge base may not cover this question.");
 
   const passages = retrieval.passages

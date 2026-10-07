@@ -1,5 +1,5 @@
 import type { LanguageModel } from "ai";
-import { ChatRequestSchema, type StreamEvent } from "@/shared/contracts";
+import { ChatRequestSchema, HISTORY_MESSAGES, type StreamEvent } from "@/shared/contracts";
 import { getModel, type Env, type ModelEntry } from "../config/models";
 import { createRateLimiter, type RateLimiter } from "../http/rateLimit";
 import { runWithFallback, type AttemptTrace } from "../llm/fallback";
@@ -7,9 +7,6 @@ import { extractFaults } from "../llm/faults";
 import { sentryChatMonitor, type ChatMonitor } from "../observability/report";
 import { buildInstructions } from "../prompt/build";
 import { retrieve } from "../retrieval/retrieve";
-
-/** Prior turns forwarded to the model; retrieval runs fresh every turn anyway. */
-const HISTORY_TURNS = 12;
 
 export interface ChatDeps {
   env?: Env;
@@ -64,7 +61,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
 
   const retrieval = retrieve(question, history);
   const instructions = buildInstructions(retrieval, (deps.today ?? (() => new Date().toISOString().slice(0, 10)))());
-  const modelMessages = [...history.slice(-HISTORY_TURNS), { role: "user" as const, content: question }];
+  const modelMessages = [...history.slice(-HISTORY_MESSAGES), { role: "user" as const, content: question }];
 
   const trace: AttemptTrace[] = [];
   let ttftMs: number | null = null;

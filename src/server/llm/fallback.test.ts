@@ -136,6 +136,30 @@ describe("fallback runner", () => {
     expect(shown.text).toContain("cut off at the length limit");
   });
 
+  it("stops within its time budget when providers hang, with one clean error (no platform timeout)", async () => {
+    const hanging = new MockLanguageModelV4({
+      doStream: ({ abortSignal }) =>
+        new Promise((_, reject) => abortSignal?.addEventListener("abort", () => reject(new Error("aborted")))),
+    });
+    const started = Date.now();
+    const events: StreamEvent[] = [];
+    const trace: AttemptTrace[] = [];
+    for await (const ev of runWithFallback({
+      requestedModelId: PRIMARY,
+      instructions: "x",
+      messages: [{ role: "user", content: "q" }],
+      env: ENV,
+      modelFactory: () => hanging,
+      firstTokenTimeoutMs: 60,
+      budgetMs: 150,
+      trace,
+    })) events.push(ev);
+    expect(Date.now() - started).toBeLessThan(600);
+    expect(trace.length).toBeLessThan(catalog.models.length); // gave up before trying all 5
+    expect(events.at(-1)).toMatchObject({ type: "error", code: "unavailable" });
+    expect(events.filter((e) => e.type === "fallback").length).toBe(trace.length - 1); // never announces a switch it won't make
+  });
+
   it("skips models whose provider has no key", async () => {
     const env = { GOOGLE_GENERATIVE_AI_API_KEY: "g" };
     const used: string[] = [];

@@ -1,9 +1,11 @@
 import { loadCorpus, PRODUCTS, type Chunk, type Product } from "../kb/corpus";
 import {
+  carriedTopic,
   detectTopics,
   detectVersion,
   expandQuery,
   isCrossProduct,
+  isElliptical,
   productsInScope,
   tokenize,
   type HistoryMessage,
@@ -19,6 +21,8 @@ export interface RetrievalResult {
   passages: Passage[];
   products: Product[];
   inheritedProducts: boolean;
+  /** Topic carried from the previous question when this one only names a product ("And for Vault?"). */
+  carriedTopic: string | null;
   /** True when nothing in the corpus scores meaningfully — a hint to the prompt, not a refusal. */
   noMatch: boolean;
 }
@@ -73,8 +77,10 @@ function bm25(queryTokens: string[], docTokens: string[], idx: Index): number {
 export function retrieve(question: string, history: HistoryMessage[] = []): RetrievalResult {
   const idx = getIndex();
   const { products, inherited } = productsInScope(question, history);
-  const version = detectVersion(question);
-  const queryTokens = [...expandQuery(question), ...products];
+  const topic = isElliptical(question) ? carriedTopic(history) : null;
+  const queryText = topic ? `${question} ${topic}` : question;
+  const version = detectVersion(queryText);
+  const queryTokens = [...expandQuery(queryText), ...products];
 
   const scored = idx.chunks.map((chunk, i) => {
     let score = bm25(queryTokens, idx.docTokens[i], idx);
@@ -105,10 +111,10 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
     if (section) for (const p of scope) add(relevant.find((r) => r.chunk.product === p && r.chunk.section === section));
   }
 
-  addConflictCompanions(picked, question, scored);
+  addConflictCompanions(picked, queryText, scored);
 
   const passages = picked.slice(0, MAX_PASSAGES).map((p, i) => ({ n: i + 1, chunk: p.chunk, score: p.score }));
-  return { passages, products, inheritedProducts: inherited, noMatch: best < NO_MATCH_SCORE };
+  return { passages, products, inheritedProducts: inherited, carriedTopic: topic, noMatch: best < NO_MATCH_SCORE };
 }
 
 /**

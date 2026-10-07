@@ -66,6 +66,27 @@ const cases: Case[] = [
     first: "pulse.md#support-sla",
   },
   {
+    id: "NKA-CHAT-007 E1 'And for Vault?' keeps the topic (P1 SLA) of the previous question",
+    question: "And for Vault?",
+    history: [
+      { role: "user", content: "What's the P1 SLA for Relay Enterprise?" },
+      { role: "assistant", content: "Relay · Enterprise · P1: 15 minutes, 24x7 [1]" },
+    ],
+    first: "vault.md#support-sla",
+  },
+  {
+    id: "NKA-CHAT-007 E1 'What about Pulse?' keeps the topic (Salesforce integration)",
+    question: "What about Pulse?",
+    history: [{ role: "user", content: "Does Vault integrate with Salesforce? What version is required?" }],
+    first: "pulse.md#integrations",
+  },
+  {
+    id: "NKA-CHAT-007 E1 'and Ledger?' keeps the topic (pricing)",
+    question: "and Ledger?",
+    history: [{ role: "user", content: "How much is Vault Pro?" }],
+    first: "ledger.md#pricing",
+  },
+  {
     id: "NKA-GRD-005 C1 Vault SAML tiers → both sides of the conflict",
     question: "Which Vault tiers support SAML?",
     all: ["vault.md#pricing", "vault-release-notes.md#3-1-2026-04-14", "security-overview.md#identity"],
@@ -102,6 +123,13 @@ describe("retrieval eval (golden cases)", () => {
   it("numbers passages 1..n in order", () => {
     const { passages } = retrieve("Relay pricing");
     expect(passages.map((p) => p.n)).toEqual(passages.map((_, i) => i + 1));
+  });
+
+  it("carries the topic only when the follow-up has none of its own", () => {
+    const history = [{ role: "user" as const, content: "Does Pulse integrate with Salesforce?" }];
+    expect(retrieve("what about its SLA?", history).carriedTopic).toBeNull(); // has its own topic
+    expect(retrieve("Vault pricing", history).carriedTopic).toBeNull(); // a new, complete question
+    expect(retrieve("And for Vault?", history).carriedTopic).toBe("Does integrate with Salesforce?");
   });
 
   it("does not inherit a product for an explicit cross-product question", () => {

@@ -85,6 +85,27 @@ export function productsInScope(question: string, history: HistoryMessage[]): { 
   return { products: [], inherited: false };
 }
 
+const FOLLOW_UP = /^\s*(and|what about|how about|same for|what of)\b/i;
+const PRODUCT_WORDS = /\b(nimbus\s+)?(relay|vault|pulse|ledger)\b/gi;
+
+/**
+ * "And for Vault?" / "What about Pulse?" — names a product but no topic of its own, so the topic
+ * comes from the previous question (brief E1: right product AND topic).
+ */
+export function isElliptical(question: string): boolean {
+  const content = tokenize(question.replace(PRODUCT_WORDS, " "));
+  if (content.length === 0) return true;
+  return FOLLOW_UP.test(question) && detectTopics(question).length === 0 && content.length <= 2;
+}
+
+/** Previous user question with product names removed — the topic to carry into an elliptical follow-up. */
+export function carriedTopic(history: HistoryMessage[]): string | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === "user") return history[i].content.replace(PRODUCT_WORDS, " ").replace(/\s{2,}/g, " ").trim() || null;
+  }
+  return null;
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

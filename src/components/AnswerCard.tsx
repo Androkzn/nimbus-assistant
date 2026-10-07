@@ -82,7 +82,7 @@ export function AnswerCard({
           disabled={!source}
           title={source ? `${source.file} · ${source.section}` : undefined}
           aria-label={source ? `Source ${n}: ${source.file}, ${source.section}` : `Source ${n}`}
-          className="cite mx-[2px] inline-flex h-[1.2rem] min-w-[1.2rem] -translate-y-px items-center justify-center rounded-md border border-orange-line bg-orange-soft px-1 align-middle text-[0.68rem] font-bold leading-none text-orange-ink transition-colors hover:border-orange-strong hover:bg-orange-strong hover:text-white disabled:cursor-default disabled:hover:border-orange-line disabled:hover:bg-orange-soft disabled:hover:text-orange-ink"
+          className="cite mx-[2px] inline-flex h-[1.2rem] min-w-[1.2rem] -translate-y-px items-center justify-center rounded-md border border-orange-line bg-orange-soft px-1 align-middle text-[0.68rem] font-bold leading-none text-orange-ink transition-colors hover:border-orange-deep hover:bg-orange-deep hover:text-white disabled:cursor-default disabled:hover:border-orange-line disabled:hover:bg-orange-soft disabled:hover:text-orange-ink"
         >
           <span className="sr-only" aria-hidden>
             [
@@ -160,7 +160,7 @@ export function AnswerCard({
           onToggle={(e) => setSourcesOpen(e.currentTarget.open)}
           className="group/src border-t border-border"
         >
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm select-none transition-colors hover:bg-surface-2 sm:px-6 [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm select-none transition-colors hover:bg-orange-soft hover:text-orange-ink sm:px-6 [&::-webkit-details-marker]:hidden">
             <DocIcon className="shrink-0 text-orange-ink" />
             <span className="font-semibold">Sources</span>
             <span className="rounded-full border border-border bg-surface-2 px-1.5 text-xs font-medium tabular-nums text-muted">
@@ -217,7 +217,7 @@ export function AnswerCard({
           <button
             type="button"
             onClick={copy}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-medium transition-colors hover:bg-surface hover:text-text"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-medium transition-colors hover:bg-orange-soft hover:text-orange-ink"
           >
             {copied ? <CheckIcon className="text-ok" /> : <CopyIcon />}
             {copied ? "Copied" : "Copy"}
@@ -243,7 +243,7 @@ function RetryButton({ seconds, onRetry }: { seconds: number; onRetry: () => voi
       type="button"
       onClick={onRetry}
       disabled={left > 0}
-      className="mt-3 inline-flex items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text transition-colors hover:border-orange-strong disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border"
+      className="mt-3 inline-flex items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text transition-colors hover:border-orange-strong hover:bg-orange-soft hover:text-orange-ink disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-surface disabled:hover:text-text"
     >
       {left > 0 ? `Try again in ${left}s` : "Try again"}
     </button>

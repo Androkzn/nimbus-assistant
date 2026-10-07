@@ -3,6 +3,12 @@
 /*
  * Brand: deep navy chrome, warm orange accent, light reading surface — the CodeShip brief's look.
  * Orange text on light backgrounds uses --orange-ink (AA contrast); --orange is for navy surfaces.
+ *
+ * Hover, one rule per surface:
+ * - navy surfaces: border and text go --orange;
+ * - light surfaces: border --orange-strong, fill --orange-soft, text --orange-ink;
+ * - orange fills darken: white content (send, citation chips) to --orange-deep, which keeps it at 5.2:1;
+ *   navy content (New conversation) from --orange to --orange-strong, 7.3:1 then 5.0:1.
  */
 :root {
   --navy: #0f1729;
@@ -23,6 +29,10 @@
   --orange-ink: #c2410c;
   --orange-soft: #fff4ea;
   --orange-line: #f8c9a0;
+  --orange-deep: #c2410c;
+  --orange-ink-hover: #9a3412;
+  /* The logo's own orange (src/assets/logo-full.png wordmark); navy surfaces only. */
+  --logo-orange: #ff6b00;
 
   --ok: #15803d;
   --amber: #b45309;
@@ -47,6 +57,7 @@
     --border: #253150;
 
     --orange-ink: #f6a35f;
+    --orange-ink-hover: #fbc08f;
     --orange-soft: #2b1b10;
     --orange-line: #6e3c19;
 
@@ -75,6 +86,9 @@
   --color-orange-ink: var(--orange-ink);
   --color-orange-soft: var(--orange-soft);
   --color-orange-line: var(--orange-line);
+  --color-orange-deep: var(--orange-deep);
+  --color-orange-ink-hover: var(--orange-ink-hover);
+  --color-logo-orange: var(--logo-orange);
   --color-ok: var(--ok);
   --color-amber: var(--amber);
   --color-amber-soft: var(--amber-soft);
@@ -83,6 +97,7 @@
   --font-sans: var(--font-inter);
   --font-display: var(--font-jakarta);
   --font-mono: var(--font-geist-mono);
+  --font-brand: var(--font-open-sans);
 }
 
 body {
@@ -90,9 +105,13 @@ body {
   color: var(--text);
 }
 
-:focus-visible {
-  outline: 2px solid var(--orange-strong);
-  outline-offset: 2px;
+/* In the base layer so utilities can override it: unlayered CSS beats Tailwind's utilities layer,
+   which made the composer draw a square outline inside its own rounded focus ring. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--orange-strong);
+    outline-offset: 2px;
+  }
 }
 
 /* Warm glow in the top-right corner, as on the brief's cover. */
@@ -121,6 +140,7 @@ body {
 .answer-md h3, .answer-md h4 { font-size: 0.98rem; }
 .answer-md strong { font-weight: 650; }
 .answer-md a:not(.cite) { color: var(--orange-ink); text-decoration: underline; text-underline-offset: 2px; }
+.answer-md a:not(.cite):hover { color: var(--orange-ink-hover); text-decoration-thickness: 2px; }
 .answer-md code {
   font-family: var(--font-geist-mono);
   font-size: 0.85em;

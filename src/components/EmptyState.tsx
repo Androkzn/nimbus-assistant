@@ -1,5 +1,4 @@
-import Image from "next/image";
-import logoLockup from "@/assets/logo-lockup.png";
+import { BrandLockup } from "./BrandLockup";
 import { ChevronRightIcon } from "./icons";
 
 /** The brief's six representative questions — one click runs each against the knowledge base. */
@@ -22,13 +21,7 @@ export function EmptyState({ onAsk, disabled, providerCount }: { onAsk: (q: stri
   return (
     <div className="space-y-10 pb-2">
       <section className="brand-glow overflow-hidden rounded-3xl border border-navy-3 bg-navy px-6 py-8 text-on-navy shadow-[0_24px_48px_-24px_rgb(15_23_42/0.45)] sm:px-10 sm:py-10">
-        <Image
-          src={logoLockup}
-          alt="NimbusStack, product knowledge assistant"
-          className="h-14 w-auto sm:h-16"
-          priority
-          unoptimized
-        />
+        <BrandLockup size="hero" />
         <h1 className="mt-5 font-display text-[2.1rem] leading-[1.06] font-extrabold tracking-tight sm:text-5xl">
           Product answers, <br className="hidden sm:block" />
           straight from the docs<span className="text-orange">.</span>
@@ -72,7 +65,7 @@ export function EmptyState({ onAsk, disabled, providerCount }: { onAsk: (q: stri
                 type="button"
                 onClick={() => onAsk(ex.q)}
                 disabled={disabled}
-                className="group flex w-full items-center gap-4 px-4 py-3.5 text-left transition-colors hover:bg-orange-soft/70 focus-visible:-outline-offset-2 disabled:cursor-wait disabled:opacity-60 sm:px-5"
+                className="group flex w-full items-center gap-4 px-4 py-3.5 text-left transition-colors hover:bg-orange-soft focus-visible:-outline-offset-2 disabled:cursor-wait disabled:opacity-60 sm:px-5"
               >
                 <span className="shrink-0 rounded-md border border-orange-line bg-orange-soft px-1.5 py-0.5 text-[11px] font-bold text-orange-ink tabular-nums">
                   Q{i + 1}

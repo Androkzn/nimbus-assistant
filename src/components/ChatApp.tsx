@@ -1,15 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import logoMark from "@/assets/logo-mark.png";
 import { readEvents } from "@/client/stream";
 import { toCSV, toJSON, totals, type UsageRow } from "@/client/usage";
 import { applyEvent, emptyAnswer, type AnswerState } from "@/shared/answer";
 import { contextLevel, estimateTokens } from "@/shared/context";
-import { MAX_MESSAGE_CHARS, type ChatMessage, type ModelsResponse } from "@/shared/contracts";
+import { HISTORY_MESSAGES, MAX_MESSAGE_CHARS, type ChatMessage, type ModelsResponse } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
 import { AnswerCard } from "./AnswerCard";
+import { BrandLockup } from "./BrandLockup";
 import { EmptyState } from "./EmptyState";
 import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, ChevronDownIcon, PlusIcon, StopIcon } from "./icons";
 import { SessionPanel } from "./SessionPanel";
@@ -74,11 +73,15 @@ export function ChatApp() {
   // Context meter (BRD BR-18): size of the next request vs the *selected* model's window.
   // Derived state, so switching models re-rates it immediately (brief E7).
   const lastMeasured = [...turns].reverse().find((t) => t.answer.usage)?.answer.usage;
-  const historyEstimate = turns.reduce((sum, t) => sum + estimateTokens(t.question) + estimateTokens(t.answer.text), 0);
+  // Count only the history the server actually forwards (last HISTORY_MESSAGES messages = half as many turns).
+  const historyEstimate = turns
+    .slice(-(HISTORY_MESSAGES / 2))
+    .reduce((sum, t) => sum + estimateTokens(t.question) + estimateTokens(t.answer.text), 0);
   const usedTokens =
     Math.max(lastMeasured ? lastMeasured.inputTokens + lastMeasured.outputTokens : 0, BASE_PROMPT_TOKENS + historyEstimate) + estimateTokens(draft);
-  const contextWindow = selected?.contextWindow ?? 1;
-  const level = contextLevel(usedTokens, contextWindow);
+  // 0 until /api/models answers, so no context-limit warning flashes before the real window is known.
+  const contextWindow = selected?.contextWindow ?? 0;
+  const level = contextWindow > 0 ? contextLevel(usedTokens, contextWindow) : "ok";
   const sessionTotals = totals(usage);
 
   function onScroll() {
@@ -194,27 +197,14 @@ export function ChatApp() {
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
       <header className="brand-glow relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-navy-3 bg-navy px-4 text-on-navy sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-navy-3 bg-navy-2">
-            {/* Decorative: the wordmark next to it names the brand. Unoptimized keeps the logo's edges crisp. */}
-            <Image src={logoMark} alt="" className="h-6 w-auto" priority unoptimized />
-          </span>
-          <div className="min-w-0 leading-tight">
-            <p className="font-display text-[15px] font-extrabold tracking-tight">
-              NimbusStack<span className="text-orange">.</span>
-            </p>
-            <p className="truncate text-[10px] font-semibold tracking-[0.18em] text-on-navy-muted uppercase max-sm:hidden">
-              Product knowledge assistant
-            </p>
-          </div>
-        </div>
+        <BrandLockup size="header" />
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setPanelOpen(true)}
             aria-controls="session-panel"
             aria-expanded={panelOpen}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold tabular-nums transition-colors hover:border-orange lg:hidden"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold tabular-nums transition-colors hover:border-orange hover:text-orange lg:hidden"
           >
             <ChartIcon className="text-orange" />
             <span className="sr-only">Session usage:</span>
@@ -224,7 +214,7 @@ export function ChatApp() {
             type="button"
             data-testid="new-conversation"
             onClick={newConversation}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold transition-colors hover:border-orange hover:text-orange"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-orange bg-orange px-3 text-sm font-semibold text-navy transition-colors hover:border-orange-strong hover:bg-orange-strong"
           >
             <PlusIcon />
             <span className="max-sm:sr-only">New conversation</span>
@@ -275,7 +265,7 @@ export function ChatApp() {
               <button
                 type="button"
                 onClick={jumpToLatest}
-                className="absolute -top-11 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold shadow-md transition-colors hover:border-orange-strong"
+                className="absolute -top-11 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold shadow-md transition-colors hover:border-orange-strong hover:bg-orange-soft hover:text-orange-ink"
               >
                 <ArrowDownIcon /> Jump to latest
               </button>
@@ -325,7 +315,7 @@ export function ChatApp() {
                       data-testid="model-select"
                       value={modelId}
                       onChange={(e) => setModelId(e.target.value)}
-                      className="h-9 max-w-[16rem] cursor-pointer sm:max-w-none appearance-none truncate rounded-full border border-border bg-surface-2 pr-8 pl-3.5 text-[13px] font-semibold text-text transition-colors hover:border-orange-line"
+                      className="h-9 max-w-[16rem] cursor-pointer sm:max-w-none appearance-none truncate rounded-full border border-border bg-surface-2 pr-8 pl-3.5 text-[13px] font-semibold text-text transition-colors hover:border-orange-strong hover:bg-orange-soft"
                     >
                       {catalog?.models.map((m) => (
                         <option key={m.id} value={m.id} disabled={!m.available}>
@@ -356,7 +346,7 @@ export function ChatApp() {
                         onClick={() => abortRef.current?.abort()}
                         aria-label="Stop answering"
                         title="Stop"
-                        className="grid h-9 w-9 place-items-center rounded-full bg-text text-sm text-surface transition-transform active:scale-95"
+                        className="grid h-9 w-9 place-items-center rounded-full bg-text text-sm text-surface transition hover:bg-orange-deep hover:text-white active:scale-95"
                       >
                         <StopIcon />
                       </button>
@@ -367,7 +357,7 @@ export function ChatApp() {
                         disabled={!canSend}
                         aria-label="Send question"
                         title="Send (Enter)"
-                        className="grid h-9 w-9 place-items-center rounded-full bg-orange-strong text-lg text-white shadow-sm shadow-orange-strong/30 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:bg-border disabled:text-muted disabled:shadow-none disabled:hover:brightness-100"
+                        className="grid h-9 w-9 place-items-center rounded-full bg-orange-strong text-lg text-white shadow-sm shadow-orange-strong/30 transition hover:bg-orange-deep active:scale-95 disabled:cursor-not-allowed disabled:bg-border disabled:text-muted disabled:shadow-none"
                       >
                         <ArrowUpIcon />
                       </button>
