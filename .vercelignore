@@ -1,0 +1,12 @@
+# Never upload local secrets or build/test output with a CLI deploy.
+.env*
+!.env.example
+node_modules
+.next
+.vercel
+test-results
+playwright-report
+*.tsbuildinfo
+.next-readiness
+readiness/tmp
+readiness/.run.lock
