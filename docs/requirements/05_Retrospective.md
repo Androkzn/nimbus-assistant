@@ -35,6 +35,8 @@ The answer key in the discovery doc became three test layers: the offline **retr
 | 9 | Live eval r1 | Cross-product SAML answer didn't flag the Vault conflict (2 of 3 models) | Prompt: company-wide docs may be stale — compare value by value |
 | 10 | Live eval r1 | Integration answer dropped "read-only" from the partner requirement | Prompt: include every relevant column of the row |
 | 11 | Live eval r2 | Grader too strict: correct "not in KB" paraphrases and uncited refusals marked as failures | Grader accepts clear paraphrases; no citation required on a refusal (documented in golden-set notes) |
+| 12 | CI on clean checkout | `tsc` failed on a fresh clone: `LayoutProps` is generated into `.next/types`, which only existed locally — a reviewer following the README would have hit it | `typecheck` = `next typegen && tsc --noEmit`; verified by running `npm run ci` in a fresh clone |
+| 13 | Independent review | v1.1 relaxed the 403-checklist and release-notes checks after seeing model output — fitting the requirement to the results | Reversed (BRD A9 v1.2); checks required again; prompt rules G10–G11 name and forbid the literal-answer shortcut |
 
 **Eval trend (54 graded answers per run):** 12 failures → 6 → 3 → 1 → 0. The 3 → 1 step was partly false progress: the full-checklist and retry-fix checks had been demoted to nice-to-have. They were restored as required (answer key Q3/Q4), which exposed 6 failures. Explicit prompt rules G10–G11 brought it to 0. Lesson: low-effort models (Gemini thinking `minimal`, GPT effort `low`) answer the literal question ("what to check *first*", "new *features*") unless the prompt names the shortcut they take and forbids it.
 
