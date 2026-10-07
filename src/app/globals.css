@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/*
+ * Brand: deep navy chrome, warm orange accent, light reading surface.
+ * Orange text on light backgrounds uses --orange-ink (AA contrast); --orange is for navy surfaces.
+ *
+ * Hover, one rule per surface:
+ * - navy surfaces: border and text go --orange;
+ * - light surfaces: border --orange-strong, fill --orange-soft, text --orange-ink;
+ * - orange fills darken: white content (send, citation chips) to --orange-deep, which keeps it at 5.2:1;
+ *   navy content (New conversation) from --orange to --orange-strong, 7.3:1 then 5.0:1.
+ */
+:root {
+  --navy: #0f1729;
+  --navy-2: #172036;
+  --navy-3: #26314d;
+  --on-navy: #f1f5f9;
+  --on-navy-muted: #97a3b8;
+
+  --canvas: #f5f6fa;
+  --surface: #ffffff;
+  --surface-2: #f7f8fb;
+  --text: #0f172a;
+  --muted: #5a6477;
+  --border: #e3e7ee;
+
+  --orange: #f28c38;
+  --orange-strong: #ea580c;
+  --orange-ink: #c2410c;
+  --orange-soft: #fff4ea;
+  --orange-line: #f8c9a0;
+  --orange-deep: #c2410c;
+  --orange-ink-hover: #9a3412;
+  /* The logo's own orange (src/assets/logo-full.png wordmark); navy surfaces only. */
+  --logo-orange: #ff6b00;
+
+  --ok: #15803d;
+  --amber: #b45309;
+  --amber-soft: #fff7e6;
+  --red: #b91c1c;
+  --red-soft: #fef2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --navy: #0a1020;
+    --navy-2: #131b2f;
+    --navy-3: #222d48;
+    --on-navy: #eef2f7;
+    --on-navy-muted: #97a3b8;
+
+    --canvas: #0d1424;
+    --surface: #141c2f;
+    --surface-2: #10182a;
+    --text: #e7ebf2;
+    --muted: #9ba6ba;
+    --border: #253150;
+
+    --orange-ink: #f6a35f;
+    --orange-ink-hover: #fbc08f;
+    --orange-soft: #2b1b10;
+    --orange-line: #6e3c19;
+
+    --ok: #4ade80;
+    --amber: #f5b14a;
+    --amber-soft: #2b2110;
+    --red: #f87171;
+    --red-soft: #2d1515;
+  }
+}
+
+@theme inline {
+  --color-navy: var(--navy);
+  --color-navy-2: var(--navy-2);
+  --color-navy-3: var(--navy-3);
+  --color-on-navy: var(--on-navy);
+  --color-on-navy-muted: var(--on-navy-muted);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-orange: var(--orange);
+  --color-orange-strong: var(--orange-strong);
+  --color-orange-ink: var(--orange-ink);
+  --color-orange-soft: var(--orange-soft);
+  --color-orange-line: var(--orange-line);
+  --color-orange-deep: var(--orange-deep);
+  --color-orange-ink-hover: var(--orange-ink-hover);
+  --color-logo-orange: var(--logo-orange);
+  --color-ok: var(--ok);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-jakarta);
+  --font-mono: var(--font-geist-mono);
+  --font-brand: var(--font-open-sans);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--text);
+}
+
+/* In the base layer so utilities can override it: unlayered CSS beats Tailwind's utilities layer,
+   which made the composer draw a square outline inside its own rounded focus ring. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--orange-strong);
+    outline-offset: 2px;
+  }
+}
+
+/* Warm glow in the top-right corner. */
+.brand-glow {
+  background-image: radial-gradient(520px 220px at 100% 0%, rgb(242 140 56 / 0.22), transparent 70%);
+}
+
+/* Model answers are markdown: keep tables and lists readable. */
+.answer-md { overflow-wrap: anywhere; }
+.answer-md > :first-child { margin-top: 0; }
+.answer-md > :last-child { margin-bottom: 0; }
+.answer-md p { margin: 0.55rem 0; }
+.answer-md ul, .answer-md ol { margin: 0.55rem 0; padding-left: 1.3rem; }
+.answer-md ul { list-style: disc; }
+.answer-md ol { list-style: decimal; }
+.answer-md li { margin: 0.25rem 0; padding-left: 0.15rem; }
+.answer-md li::marker { color: var(--orange-ink); }
+.answer-md h1, .answer-md h2, .answer-md h3, .answer-md h4 {
+  font-family: var(--font-jakarta);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 1.1rem 0 0.35rem;
+}
+.answer-md h1 { font-size: 1.15rem; }
+.answer-md h2 { font-size: 1.05rem; }
+.answer-md h3, .answer-md h4 { font-size: 0.98rem; }
+.answer-md strong { font-weight: 650; }
+.answer-md a:not(.cite) { color: var(--orange-ink); text-decoration: underline; text-underline-offset: 2px; }
+.answer-md a:not(.cite):hover { color: var(--orange-ink-hover); text-decoration-thickness: 2px; }
+.answer-md code {
+  font-family: var(--font-geist-mono);
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.05rem 0.3rem;
+  border-radius: 5px;
+}
+.answer-md blockquote { border-left: 3px solid var(--orange); padding-left: 0.8rem; color: var(--muted); }
+.answer-md hr { border: 0; border-top: 1px solid var(--border); margin: 1rem 0; }
+.answer-md table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0.75rem 0;
+  font-size: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.answer-md th, .answer-md td { padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.answer-md tr:last-child td { border-bottom: 0; }
+.answer-md th {
+  background: var(--surface-2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Source passages reuse the answer styles, one step smaller. */
+.passage-md p, .passage-md ul, .passage-md ol { margin: 0.3rem 0; }
+.passage-md h1, .passage-md h2, .passage-md h3, .passage-md h4 { font-size: 0.85rem; margin: 0.6rem 0 0.2rem; color: var(--text); }
+.passage-md strong { color: var(--text); }
+.passage-md table { font-size: 0.78rem; margin: 0.45rem 0; background: var(--surface); }
+.passage-md th, .passage-md td { padding: 0.35rem 0.6rem; }
+.passage-md th { font-size: 0.64rem; }
+
+/* Blinking caret at the end of a streaming answer. */
+.answer-md.is-streaming > :is(p, h1, h2, h3, h4):last-child::after,
+.answer-md.is-streaming > :is(ul, ol):last-child > li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.45em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.17em;
+  border-radius: 1px;
+  background: var(--orange-strong);
+  animation: caret 1s steps(2, start) infinite;
+}
+@keyframes caret { to { visibility: hidden; } }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--border) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
