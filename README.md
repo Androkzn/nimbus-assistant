@@ -66,6 +66,31 @@ Production deployment uses the protected GitHub `production` environment. Config
 
 The production deployment is intentionally customer-facing and excludes the internal Readiness tooling. The optional developer deployment is promoted separately to `nimbus-assistant-dev.vercel.app`, where the Readiness report runs recorded evidence plus live probes against the deployed environment.
 
+### CI/CD evidence
+
+These screenshots are included to make the delivery approach inspectable: the first shows the workflow as code, and the second shows the quality-gate job that runs before production promotion.
+
+![CI/CD workflow definition](docs/screenshots/ci-workflow.png)
+
+*Workflow definition: pull requests and pushes to `main` share the same offline quality gates, while only a passing `main` push can promote production.*
+
+![CI quality gates](docs/screenshots/ci-quality-gates.png)
+
+*Quality-gate evidence: typecheck, lint, tests, build, bundle scanning, and browser E2E are recorded against the commit.*
+
+## Agentic delivery approach
+
+The project is organized as a set of reusable engineering workflows rather than a single implementation pass. Each workflow produces an artifact that the next one can verify:
+
+1. **Requirements and traceability** — turn the brief into explicit behavioral rules, edge cases, acceptance checks, and a golden evaluation set.
+2. **Architecture and documentation** — record the retrieval, prompt, provider, streaming, security, and deployment decisions together with their trade-offs.
+3. **Implementation by bounded concern** — keep configuration, retrieval, fallback, API contracts, UI state, and observability separated so each area can be tested independently.
+4. **Verification** — combine unit and integration tests, deterministic retrieval evaluation, mock-provider failure simulation, browser E2E, bundle scanning, and optional live evaluation.
+5. **Security and operations** — keep provider credentials server-side, redact sensitive telemetry, scan the client bundle, enforce rate limits, and expose deployment health checks.
+6. **Promotion and feedback** — run the same gates in CI, deploy only the tested commit, smoke-test the public routes, and retain evidence for review.
+
+Reusable skills/workflows applied across the project include requirements analysis, technical documentation, test design, security review, observability, and deployment orchestration. The result is a traceable path from brief → design decision → implementation → automated evidence → deployed behavior.
+
 ## Optional internal tooling
 
 The developer deployment includes the internal Readiness report. It is intentionally separate from the assessment deployment: the production link stays focused on the customer-facing assistant, while the optional link shows how the implementation is verified against the brief.
