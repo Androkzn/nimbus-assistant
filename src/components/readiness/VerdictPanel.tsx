@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Summary } from "@/readiness/coverage";
+import type { Summary, UsageSummary } from "@/readiness/coverage";
 import type { RunSession } from "@/readiness/useReadinessRun";
 import { TONE_CLASS, TONE_TEXT } from "./badges";
 import { formatDuration, slug, splitParenthetical } from "./format";
@@ -52,6 +52,14 @@ function Stat({ label, value, sub, testId }: { label: string; value: ReactNode; 
       {sub && <p className="mt-0.5 text-[12.5px] leading-snug text-muted tabular-nums">{sub}</p>}
     </div>
   );
+}
+
+function formatTokens(value: number): string {
+  return value.toLocaleString();
+}
+
+function formatCost(value: number): string {
+  return value === 0 ? "$0.00" : value < 0.01 ? `$${value.toFixed(5)}` : `$${value.toFixed(4)}`;
 }
 
 export interface GroupStat {
@@ -107,6 +115,7 @@ export function VerdictPanel({
   controls,
   hint,
   groups,
+  usage,
 }: {
   verdict: Verdict;
   summary: Summary;
@@ -115,12 +124,14 @@ export function VerdictPanel({
   controls: ReactNode;
   hint: ReactNode;
   groups: GroupStat[];
+  usage: UsageSummary;
 }) {
   const { requirements, checks, tests } = summary;
   const done = Math.max(0, checks.total - checks.pending);
   const pct = checks.total > 0 ? Math.round((done / checks.total) * 100) : 0;
   const running = verdict.kind === "running";
   const testsTotal = tests.passed + tests.failed + tests.skipped;
+  const tokensUsed = usage.inputTokens + usage.outputTokens;
   const recordedNote =
     session.mode === "replay" && session.recorded?.durationMs !== undefined
       ? `recorded run took ${formatDuration(session.recorded.durationMs)}`
@@ -254,6 +265,18 @@ export function VerdictPanel({
                 </>
               }
             />
+            <Stat
+              testId="stat-usage"
+              label="Tokens used"
+              value={formatTokens(tokensUsed)}
+              sub={
+                <>
+                  {formatTokens(usage.inputTokens)} in · {formatTokens(usage.outputTokens)} out
+                  {running && <span className="text-[var(--rdy-run)]"> · updating live</span>}
+                </>
+              }
+            />
+            <Stat testId="stat-cost" label="Estimated cost" value={formatCost(usage.costUSD)} sub={`${usage.answers} measured ${usage.answers === 1 ? "answer" : "answers"}`} />
             <Stat testId="stat-time" label="Total time" value={formatDuration(session.phase === "idle" ? undefined : elapsedMs)} sub={recordedNote} />
           </div>
         </div>

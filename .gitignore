@@ -51,3 +51,4 @@ next-env.d.ts
 /.next-readiness/
 /readiness/.run.lock
 /readiness/tmp/
+/readiness/reports/

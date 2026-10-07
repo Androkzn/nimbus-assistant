@@ -1,17 +1,23 @@
-# NimbusStack Knowledge Base — Discovery Audit
+# NimbusStack Knowledge Base — Source Baseline & Discovery Audit
 
-> Phase 0 of the delivery pipeline: **understand the client's source of truth before writing requirements.**
+> Phase 0 of the delivery pipeline: establish the client’s source of truth before writing requirements.
 > Discovery → BRD → TRD → Implementation Plan → Build → Verify → Retrospective.
 
 | Field | Value |
 |-------|-------|
 | **Doc type** | Discovery / source audit |
 | **Feature id** | `product-knowledge-chat` |
-| **Status** | approved |
+| **Client** | NimbusStack |
+| **Status** | baselined for release candidate |
 | **Version** | `v1.0` |
 | **Created** | 2026-10-07 |
 | **Author** | Andrei Tekhtelev |
-| **Consumers** | [01_BRD.md](01_BRD.md) (requirements), [04_Acceptance_Matrix.md](04_Acceptance_Matrix.md) and `evals/golden-set.json` (answer key) |
+| **Source location** | `knowledge-base/` (read-only; supplied client data) |
+| **Consumers** | [01_BRD.md](01_BRD.md), [02_TRD.md](02_TRD.md), [04_Acceptance_Matrix.md](04_Acceptance_Matrix.md), and `evals/golden-set.json` |
+
+## Executive finding
+
+The supplied material is sufficient to build a grounded product-information assistant, but it is not a single normalized database. Facts are distributed across product pages, release notes, and company-wide policy. Two material conflicts and several deliberate knowledge gaps must remain visible in the product. The requirements therefore treat source selection, source dates, table integrity, conflict presentation, and “not in the knowledge base” behavior as first-class product capabilities.
 
 ---
 
@@ -36,7 +42,7 @@ Every product doc has the same shape: Features → Pricing table → Integration
 
 ---
 
-## 2. Conflicts between documents (brief E4)
+## 2. Conflicts between documents
 
 The bot must **surface both sides with citations and dates** — never silently pick one.
 
@@ -100,7 +106,7 @@ Pitfalls (brief E6): Pulse's entry tier is **Growth**, not Starter; Relay and Le
 
 ---
 
-## 4. Known gaps — questions the KB cannot answer (brief E2 / E3)
+## 4. Known gaps — questions the KB cannot answer
 
 The bot must say "not in the knowledge base" for these. Users will ask them, and any confident answer would be invented.
 

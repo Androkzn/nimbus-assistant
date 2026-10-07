@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { computeCoverage, initialRunState, summarize } from "@/readiness/coverage";
+import { computeCoverage, initialRunState, summarize, usageSummary } from "@/readiness/coverage";
 import { checksFor, manifest } from "@/readiness/manifest";
 import { STAGE_INFO, type TestResult } from "@/readiness/schema";
 import { useReadinessRun, type ReadinessOptions } from "@/readiness/useReadinessRun";
@@ -11,6 +11,7 @@ import { MetaRow } from "./MetaRow";
 import { MethodPanel } from "./MethodPanel";
 import { ReportHeader } from "./ReportHeader";
 import { RunControls, RunHint } from "./RunControls";
+import { SavedAssessments } from "./SavedAssessments";
 import { StagePipeline } from "./StagePipeline";
 import { TraceabilityMatrix } from "./TraceabilityMatrix";
 import { verdictOf } from "./verdict";
@@ -80,6 +81,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
   // One coverage pass per published state (at most one per animation frame while streaming).
   const coverage = useMemo(() => computeCoverage(manifest, state), [state]);
   const summary = useMemo(() => summarize(manifest, state), [state]);
+  const usage = useMemo(() => usageSummary(state), [state]);
   const verdict = verdictOf(summary, session, coverage);
   const groupStats = useMemo(() => {
     const out: GroupStat[] = [];
@@ -134,6 +136,8 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
       <main className="mx-auto w-full max-w-[1440px] flex-1 space-y-6 px-4 py-5 sm:px-6 sm:py-6 lg:space-y-7 lg:px-8 lg:py-7">
         <MetaRow meta={state.meta} session={session} elapsedMs={elapsedMs} />
 
+        <SavedAssessments runs={run.savedRuns} onReview={run.reviewSavedRun} onDelete={run.removeSavedRun} />
+
         {session.notice && (
           <p role="status" className="rounded-xl border border-[var(--rdy-warn-line)] bg-[var(--rdy-warn-bg)] px-4 py-2.5 text-[13.5px] text-text">
             {session.notice}
@@ -152,6 +156,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
           session={session}
           elapsedMs={elapsedMs}
           groups={groupStats}
+          usage={usage}
           hint={<RunHint session={session} mode={options.mode} probes={options.probes} availability={run.availability} />}
           controls={
             <RunControls

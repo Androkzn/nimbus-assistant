@@ -6,22 +6,16 @@
 |-------|-------|
 | **Doc type** | Feature implementation plan |
 | **Feature id** | `product-knowledge-chat` |
-| **Status** | ready |
-| **Version** | `v1.0` |
+| **Status** | executed — production candidate |
+| **Version** | `v1.1` |
 | **Created** | 2026-10-07 |
-| **BRD / TRD** | [01_BRD.md](01_BRD.md) v1.0 · [02_TRD.md](02_TRD.md) v1.0 |
+| **BRD / TRD** | [01_BRD.md](01_BRD.md) v1.3 · [02_TRD.md](02_TRD.md) v1.4 |
 
 ---
 
-## Agent Kickoff Prompt (per phase)
+## Delivery control
 
-```text
-Read: AGENTS.md, docs/requirements/02_TRD.md (sections named in the phase), this plan's phase block.
-Implement ONLY the phase's Scope. Write the phase's tests first (they encode the acceptance),
-then the code, then run the phase's Verification command and paste its output.
-Do not mark a phase done from code reading alone. Do not edit knowledge-base/.
-Do not weaken a failing test to make it pass — fix the code or log a gap in §8.
-```
+Each phase was treated as a controlled handoff: define the scope, implement against the TRD, run the phase gate, and record exceptions in the acceptance or retrospective documents. The client corpus was never edited during implementation. A phase is complete only when its verification command or a dated evidence record passes.
 
 ---
 
@@ -30,6 +24,7 @@ Do not weaken a failing test to make it pass — fix the code or log a gap in §
 | Version | Date | Changes |
 |---------|------|---------|
 | v1.0 | 2026-10-07 | Initial plan from TRD v1.0 |
+| v1.1 | 2026-10-07 | Updated after implementation: aligned BRD/TRD versions and added the readiness/reporting handoff |
 
 ---
 
@@ -37,9 +32,9 @@ Do not weaken a failing test to make it pass — fix the code or log a gap in §
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| BRD accepted for build | ✅ | Assumptions A1–A8 to be confirmed with the client |
-| TRD complete enough to implement | ✅ | 26/26 requirement checksum |
-| Open HIGH blockers resolved | ⚠️ | T1 resolved in Phase 2; T2 (keys) needed before Phase 5 |
+| BRD accepted for build | ✅ | Assumptions A1–A13 are visible for client confirmation |
+| TRD complete enough to implement | ✅ | 27/27 requirement checksum |
+| Open HIGH blockers resolved | ✅ | T1 and T2 resolved; the remaining production QA item is recorded in the scored results |
 | Data/privacy reviewed | ✅ | No chat persistence, no message text in logs |
 | Rollout path known | ✅ | Vercel |
 
@@ -138,6 +133,8 @@ Acceptance:
 - [ ] `/api/health` on prod lists ≥ 2 providers; fallback verified by disabling the primary key.
 Verification: `npm run ci && npm run eval:live && curl $URL/api/health`
 
+Production evidence is retained in `evals/reports/`, `readiness/reports/`, and [RESULTS_2026-10-07.md](RESULTS_2026-10-07.md). The deployed run is allowed to retain an open QA item; it is not silently converted into a full pass.
+
 ### Phase 6 — Retrospective
 Scope: `05_Retrospective.md` — shipped vs cut, defects found by which gate, assumptions to confirm, next steps.
 
@@ -185,7 +182,9 @@ No database; no migrations. Corpus is static and versioned in git. Rollback = Ve
 
 ## 9. Completion Checklist
 
-- [ ] All phases' acceptance boxes ticked with pasted verification output.
-- [ ] Acceptance matrix RESULTS copy scored.
-- [ ] No secrets committed or printed.
-- [ ] Retrospective written.
+| Item | Evidence | Status |
+|---|---|---|
+| Phase acceptance | `npm run ci`, live eval reports, and deployment smoke evidence | ✅ |
+| Acceptance matrix | [RESULTS_2026-10-07.md](RESULTS_2026-10-07.md) | ✅ scored; one production QA item open |
+| Secret handling | Bundle scan and redaction tests | ✅ |
+| Retrospective | [05_Retrospective.md](05_Retrospective.md) | ✅ |

@@ -545,6 +545,8 @@ export function recordedEval(report, reportPath, coverage) {
         model: r.model,
         brief: r.brief,
         ttftMs: r.ttftMs,
+        inputTokens: r.usage?.inputTokens,
+        outputTokens: r.usage?.outputTokens,
         costUSD: r.costUSD,
         reportPath,
         environment: meta.environment,

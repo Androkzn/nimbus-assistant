@@ -1,6 +1,6 @@
 # NimbusStack Product Knowledge Assistant — Business Requirements Document
 
-> Defines **what** we are building and **why**, in language a non-engineer can sign off.
+> Defines what NimbusStack is approving for delivery and why, in language a non-engineer can sign off.
 > Technical contracts live in the [TRD](02_TRD.md); build sequencing in the [Implementation Plan](03_Implementation_Plan.md).
 
 | Field | Value |
@@ -8,7 +8,7 @@
 | **Doc type** | Feature BRD |
 | **Feature id** | `product-knowledge-chat` |
 | **Client** | NimbusStack |
-| **Status** | shipped (assumptions in §9 to be confirmed with the client) |
+| **Status** | production candidate — client review |
 | **Version** | `v1.3` |
 | **Created** | 2026-10-07 |
 | **Author** | Andrei Tekhtelev |
@@ -17,22 +17,9 @@
 
 ---
 
-## Agent Kickoff Prompt
+## Business-to-technical handoff
 
-```text
-Read first:
-1. AGENTS.md
-2. docs/requirements/00_KB_Discovery.md
-3. docs/requirements/01_BRD.md (this file)
-
-Create or update: docs/requirements/02_TRD.md
-
-Rules:
-- Every BR-xx below must map to a technical contract in the TRD (§1 inventory).
-- Do not invent product scope. Unresolved product questions go to §9 as assumptions.
-- The knowledge base in knowledge-base/ is read-only client data. Never edit it.
-- No secrets in any document.
-```
+The approved business baseline is handed to engineering through [02_TRD.md](02_TRD.md). Every BR-xx requirement is expected to have a technical contract, test path, and acceptance row. Client source files remain read-only; unresolved product decisions remain visible in §9 rather than being inferred during implementation.
 
 ---
 
@@ -47,6 +34,10 @@ Rules:
 | v1.2 | 2026-10-07 | A9 reversed to "complete" to match the answer key and acceptance matrix; TRD rules G10–G11 |
 | v1.3 | 2026-10-07 | After independent review: BR-27 suggestion bubbles (each demonstrates one brief item); assumptions A10–A13 (product nicknames, topic carry-over, off-topic guard, "what applies today" in conflict answers); BR-01 also enforced by deterministic layers (TRD §4.6–4.7) |
 
+### Approval intent
+
+This BRD is the business baseline for a production candidate. NimbusStack stakeholders should confirm the assumptions in §9, particularly the treatment of unnamed-product questions, source conflicts, and the absence of login and chat persistence. The implementation and verification artifacts support review; they do not change the business scope in this document.
+
 ---
 
 ## 1. Overview
@@ -59,6 +50,10 @@ Rules:
 | Objective | Cut a 10–20 minute product-research task to seconds, and stop customer-facing staff from giving inaccurate product information on live calls, by answering plain-English questions **only** from NimbusStack's own documents — with the evidence attached. |
 | Primary users | Sales (Sarah), Support (James), Enablement (Nina) — see §1.2 |
 | Business value | Faster, consistent, verifiable answers; visible AI cost per answer; no lock-in to one AI vendor. |
+
+### 1.1.1 Current-state problem
+
+NimbusStack’s product information is spread across product pages, release notes, and company-wide policy. The supplied data contains pricing and SLA tables, release-specific changes, terminology that varies by document (for example, Ledger uses “Federated login” rather than “SSO”), and two known conflicts. A user who searches manually can miss the relevant row or use a stale value. A generic chatbot can fill gaps with unsupported facts. The product must solve both problems while making the evidence visible.
 
 ### 1.2 Personas and what "good" means to each
 
@@ -90,7 +85,7 @@ Rules:
 - Per-answer and per-session token usage and estimated cost; context-window warning; usage export.
 - Public deployment and a public repository that runs from its README on a fresh machine.
 
-### 2.2 Out of scope (brief §6 + explicit exclusions)
+### 2.2 Out of scope
 
 - Login / SSO for the app itself; per-user history; saving chats between sessions.
 - Editing the knowledge base from the UI; admin analytics dashboards.
@@ -98,7 +93,7 @@ Rules:
 - Answering from the open web or model general knowledge — **forbidden**, not merely out of scope.
 - Languages other than English.
 
-### 2.3 Dependencies
+### 2.3 Dependencies and client inputs
 
 | Dependency | Type | Notes |
 |------------|------|-------|

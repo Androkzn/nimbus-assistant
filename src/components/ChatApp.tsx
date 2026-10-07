@@ -81,7 +81,6 @@ export function ChatApp() {
   const providerGroups = Object.entries(
     (catalog?.models ?? []).reduce<Record<string, PublicModel[]>>((groups, m) => ({ ...groups, [m.providerName]: [...(groups[m.providerName] ?? []), m] }), {}),
   );
-  const providerCount = new Set(catalog?.models.map((m) => m.providerName)).size;
 
   // Context meter (BRD BR-18): size of the next request vs the *selected* model's window.
   // Derived state, so switching models re-rates it immediately (brief E7).
@@ -220,7 +219,6 @@ export function ChatApp() {
     lastQuestion: lastTurn?.question,
     lastAnswer: lastTurn?.answer.text,
   });
-
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
       <header className="brand-glow relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-navy-3 bg-navy px-4 text-on-navy sm:px-6">
@@ -275,9 +273,9 @@ export function ChatApp() {
                 </p>
               )}
               {turns.length === 0 ? (
-                <EmptyState onAsk={(q) => void send(q)} disabled={!modelId || busy || cooling} providerCount={providerCount} />
+                <EmptyState />
               ) : (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   {turns.map((t) => (
                     <div key={t.id} className="space-y-3">
                       <div className="flex justify-end">
@@ -314,7 +312,7 @@ export function ChatApp() {
             )}
             <div className="mx-auto max-w-3xl">
               {/* Hidden while an answer streams: follow-ups belong to the finished answer. */}
-              {!busy && modelId && <SuggestionChips questions={suggestions} onAsk={(q) => void send(q)} disabled={busy || cooling} />}
+              {turns.length > 0 && !busy && modelId && <SuggestionChips questions={suggestions} onAsk={(q) => void send(q)} disabled={busy || cooling} />}
               {cooling && (
                 <p
                   role="status"

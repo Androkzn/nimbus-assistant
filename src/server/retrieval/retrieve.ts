@@ -98,6 +98,18 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   };
 
   const singleProduct = products.length === 1 && !isCrossProduct(question);
+  const signOnQuestion = detectTopics(question).includes("signOn");
+  const topicScope = products.length > 0 ? products : isCrossProduct(question) && signOnQuestion ? PRODUCTS : [];
+
+  // Cross-product identity questions must not be allowed to select a generic pricing chunk as the
+  // representative passage for a product. Seed one sign-on passage per product before the normal
+  // BM25 expansion; this keeps every product's answer evidence in the prompt even after a long chat
+  // history has mentioned other topics repeatedly.
+  if (signOnQuestion && topicScope.length > 0) {
+    const signOn = /saml|single\s+sign|oidc|openid|federated|identity|access[- ]and[- ]sign/i;
+    for (const product of topicScope) add(scored.find((r) => r.chunk.product === product && signOn.test(r.chunk.text)));
+  }
+
   if (singleProduct) {
     relevant.filter((r) => r.chunk.product === products[0]).slice(0, 4).forEach(add);
     relevant.filter((r) => !picked.includes(r)).slice(0, 2).forEach(add);

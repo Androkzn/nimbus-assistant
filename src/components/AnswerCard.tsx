@@ -29,6 +29,11 @@ const ERROR_TITLE: Partial<Record<ErrorCode, string>> = {
 /** Passage body without its first line, which repeats the file and section shown in the header. */
 const passageBody = (s: PassageDTO) => s.text.split("\n").slice(1).join("\n");
 
+/** Keep provider/preamble leakage out of the customer-facing answer when a model ignores rule 14. */
+function presentationText(text: string): string {
+  return text.replace(/^\s*(?:\([^\n()]{1,80}\)\s*)?(?:according to the knowledge base\s*:\s*)/i, "").trimStart();
+}
+
 export function AnswerCard({
   answer,
   modelName,
@@ -50,9 +55,10 @@ export function AnswerCard({
   const waiting = streaming && answer.text.length === 0;
   const lastFallback = answer.fallbacks.at(-1);
   const guarded = answer.answeredBy === KB_GUARD_ID;
+  const displayText = useMemo(() => presentationText(answer.text), [answer.text]);
   // R2: which retrieved passages the answer actually came from. Cited ones are always visible and
   // listed first; the rest stay available but marked, so nobody mistakes them for the answer's basis.
-  const cited = useMemo(() => citedNumbers(answer.text), [answer.text]);
+  const cited = useMemo(() => citedNumbers(displayText), [displayText]);
   const citedSources = answer.sources.filter((s) => cited.has(s.n));
   const orderedSources = [...citedSources, ...answer.sources.filter((s) => !cited.has(s.n))];
 
@@ -66,7 +72,7 @@ export function AnswerCard({
 
   async function copy() {
     const refs = answer.sources.map((s) => `[${s.n}] ${s.file} · ${s.section}`).join("\n");
-    await navigator.clipboard?.writeText(refs ? `${answer.text}\n\nSources:\n${refs}` : answer.text);
+    await navigator.clipboard?.writeText(refs ? `${displayText}\n\nSources:\n${refs}` : displayText);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -136,25 +142,25 @@ export function AnswerCard({
           </div>
         )}
 
-        {answer.text && (
+        {displayText && (
           <div className={`answer-md text-[15px] leading-relaxed ${streaming ? "is-streaming" : ""}`} data-testid="answer-text">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdown}>
-              {linkCitations(answer.text)}
+              {linkCitations(displayText)}
             </ReactMarkdown>
           </div>
         )}
 
         {answer.status === "done" && citedSources.length > 0 && (
           <div data-testid="cited-sources" className="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="mr-1 font-semibold text-muted">Sources used:</span>
+            <span className="mr-1 font-semibold text-muted">Cited sources:</span>
             {citedSources.map((s) => (
               <button
                 key={s.n}
                 type="button"
                 onClick={() => showSource(s.n)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-orange-line bg-orange-soft px-2 py-0.5 text-orange-ink transition-colors hover:border-orange-strong"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-text transition-colors hover:border-orange-strong hover:bg-orange-soft hover:text-orange-ink"
               >
-                <b className="tabular-nums">{s.n}</b>
+                <b className="grid h-4 min-w-4 place-items-center rounded-full bg-orange-soft px-1 text-[11px] tabular-nums text-orange-ink">{s.n}</b>
                 {s.file} · {s.section}
               </button>
             ))}
@@ -176,14 +182,14 @@ export function AnswerCard({
         )}
       </div>
 
-      {answer.sources.length > 0 && answer.text && (
+      {answer.sources.length > 0 && displayText && (
         <details
           data-testid="sources"
           open={sourcesOpen}
           onToggle={(e) => setSourcesOpen(e.currentTarget.open)}
           className="group/src border-t border-border"
         >
-          <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm select-none transition-colors hover:bg-orange-soft hover:text-orange-ink sm:px-6 [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-2.5 text-sm select-none transition-colors hover:bg-orange-soft hover:text-orange-ink sm:px-6 [&::-webkit-details-marker]:hidden">
             <DocIcon className="shrink-0 text-orange-ink" />
             <span className="font-semibold">Passages</span>
             <span className="min-w-0 flex-1 truncate text-xs text-muted tabular-nums">
@@ -240,7 +246,7 @@ export function AnswerCard({
             >
               {answer.unverifiedFigures.length === 0 ? (
                 <>
-                  <CheckIcon className="shrink-0" /> Figures match sources
+                  <CheckIcon className="shrink-0" /> Numbers match cited sources
                 </>
               ) : (
                 <>

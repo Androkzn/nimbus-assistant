@@ -1,13 +1,14 @@
 # Readiness Report — live verification showcase
 
-> A page that runs the project's quality gates live and shows, requirement by requirement, what was verified and how.
+> A page that runs the project’s quality gates live and shows, requirement by requirement, what was verified and how.
 > Showcase tooling: it reads the product; the product never imports it.
 
 | Field | Value |
 |-------|-------|
 | **Doc type** | Feature spec (BRD + TRD, short form) |
 | **Feature id** | `readiness-report` |
-| **Status** | approved for build |
+| **Client** | NimbusStack |
+| **Status** | implemented — production verification surface |
 | **Version** | `v1.0` |
 | **Created** | 2026-10-07 |
 | **Author** | Andrei Tekhtelev |

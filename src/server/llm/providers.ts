@@ -45,7 +45,7 @@ export function mockModel(entry: ModelEntry): LanguageModel {
           .map((l) => l.trim())
           .find((l) => l.length > 0 && !/^\|?\s*:?-{3}/.test(l)) ?? "";
       const answer = evidence
-        ? `According to the knowledge base: ${evidence} [1]`
+        ? `Direct answer: ${evidence} [1]`
         : "I couldn't find this in the NimbusStack knowledge base.";
       // Prefixed with the model id (no digits, so the figure check stays clean) to prove which model answered.
       const words = `(${entry.id}) ${answer}`.match(/\S+\s*/g) ?? [];

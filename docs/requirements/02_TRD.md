@@ -6,26 +6,18 @@
 |-------|-------|
 | **Doc type** | Feature TRD |
 | **Feature id** | `product-knowledge-chat` |
-| **Status** | as built |
-| **Version** | `v1.3` |
+| **Status** | production candidate — implementation aligned |
+| **Version** | `v1.4` |
 | **Created** | 2026-10-07 |
 | **Author** | Andrei Tekhtelev |
-| **BRD** | [01_BRD.md](01_BRD.md) v1.0 |
+| **BRD** | [01_BRD.md](01_BRD.md) v1.3 |
 | **Implementation** | [03_Implementation_Plan.md](03_Implementation_Plan.md) |
 
 ---
 
-## Agent Kickoff Prompt
+## Engineering handoff
 
-```text
-Read first: AGENTS.md, docs/requirements/00_KB_Discovery.md, 01_BRD.md, 02_TRD.md.
-Create or update: docs/requirements/03_Implementation_Plan.md
-Rules:
-- Every TRD contract below maps to at least one task and one test.
-- External facts (model IDs, prices, SDK APIs) are ⚠️ Unverified until checked against
-  vendor docs or installed package types, and the check is recorded.
-- Never edit knowledge-base/. Never put a key in client code, logs or docs.
-```
+This TRD is the technical contract for the BRD. A change to behavior, security, source handling, or production operations must update the relevant BRD/TRD requirement and its acceptance evidence. Client source files remain read-only, and external model facts are versioned in `config/models.json` with their pricing sources.
 
 ---
 
@@ -39,6 +31,7 @@ Rules:
 | v1.1 | 2026-10-07 | As built: T1 resolved (IDs/prices verified against vendor docs, `pricingVersion` 2026-10-07); default model `gemini-flash-lite` chosen by measured eval (18/18, ~1 s first word), fallback order alternates vendors; `maxOutputTokens` 4,000 after reasoning tokens truncated an answer; `finishReason=length` appends a visible "cut off" note; billing/credit errors classified as `auth`; prompt rules for stale company-wide docs and full table rows; eval bypass token for the limiter |
 | v1.2 | 2026-10-07 | Sentry error monitoring (`@sentry/nextjs` 11.5): §7 privacy contract, §8 signals |
 | v1.3 | 2026-10-07 | After independent review: product nicknames, topic carry-over and change-language comparison hints (§4.1); disagreement only on different values, "what applies today", SLA definitions (§4.2); fallback time budget (§4.4); figure check and SLA qualifier (§4.6); off-topic guard (§4.7); `done.unverifiedFigures` (§5); "connect" removed from synonyms (false conflicts); default model Claude Haiku 5.5 after a Flash-Lite table misread (measured) |
+| v1.4 | 2026-10-07 | Client-facing cleanup: aligned BRD version, added BR-27 coverage, and documented the production operating model |
 
 ---
 
@@ -70,8 +63,9 @@ Rules:
 | BR-24 | README works | §10 CI clean-checkout job | CI |
 | BR-25 | Live URL | §10 deploy | Smoke |
 | BR-26 | Abuse guard | §7 per-IP limiter, size caps | Unit |
+| BR-27 | Suggested next questions | §6 suggestion state and fixed catalog | Unit; live eval |
 
-**Coverage checksum:** 26 BRD requirements → 26 rows above. No BRD requirement without a contract; no contract without a BRD requirement.
+**Coverage checksum:** 27 BRD requirements → 27 rows above. No BRD requirement without a contract; no contract without a BRD requirement.
 
 ---
 
@@ -111,6 +105,19 @@ Browser (React, client component)            Server (Next.js route handler, Node
 | Stream protocol | Own NDJSON event protocol (zod-typed) | AI SDK UI message stream | Need first-class `sources`, `fallback`, `reset`, `usage` events and a contract we can test independently of a UI library |
 | Tests | Vitest (unit/integration), Playwright (E2E, mock LLM), eval runner | Jest, Cypress | Fast TS-native; Playwright is the industry default |
 | Hosting | Vercel (Node runtime, streaming) | Render, Railway | Native Next.js streaming, env-var secrets, preview deploys |
+
+## 2.1 Production operating model
+
+| Area | Production decision | Evidence / control |
+|---|---|---|
+| Runtime | Next.js App Router on Vercel; the server route handles provider calls and streaming | `GET /api/health`; deployment smoke test |
+| Environments | Local development, CI with deterministic mock providers, and production with encrypted Vercel environment variables | `.env.example`, GitHub Actions, deployment checklist |
+| Knowledge data | Static, versioned, read-only corpus shipped with the application | `knowledge-base/`; corpus tests |
+| State | Conversation and usage totals live in the browser tab; no database or user history | BRD scope; client-state tests |
+| Provider resilience | Configured multi-vendor fallback with an explicit reset before switching after a mid-stream error | Fallback unit/integration tests; live smoke |
+| Budget protection | Per-IP sliding-window limiter, input/output caps, provider-console spend limits; Redis/Upstash is the scale-up path | §5 and §7; documented limitation |
+| Monitoring | Structured request/model/latency/usage/error-class signals; Sentry receives redacted operational errors only | §7–§8; redaction tests |
+| Release gate | Typecheck, lint, unit/integration, retrieval eval, build, bundle scan, E2E, live eval, health and readiness probes | [06_Readiness_Report.md](06_Readiness_Report.md) |
 
 ---
 
@@ -364,7 +371,7 @@ Anti-"coverage theater" rules: tests assert on concrete values from the KB (e.g.
 
 ## 13. Acceptance
 
-- [x] Every BRD requirement maps to a technical contract (§1 checksum 26/26).
+- [x] Every BRD requirement maps to a technical contract (§1 checksum 27/27).
 - [x] Testing and rollout gates are explicit (§9, §10).
-- [x] External facts flagged ⚠️ Unverified where not yet checked (T1).
+- [x] External facts are versioned with vendor sources and pricing date (T1 resolved).
 - [x] T2/T3 resolved before Phase 5 (deploy).

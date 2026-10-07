@@ -64,6 +64,14 @@ export interface Summary {
   tests: { passed: number; failed: number; skipped: number; live: number; recorded: number };
 }
 
+export interface UsageSummary {
+  /** Number of measured model/guard answers represented by result details. */
+  answers: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUSD: number;
+}
+
 export const LOG_LIMIT = 200;
 
 const ENDED: ReadonlySet<Status> = new Set<Status>(["passed", "failed", "skipped"]);
@@ -238,6 +246,26 @@ export function summarize(m: Manifest, state: RunState): Summary {
       recorded: count(results, (r) => r.source === "recorded"),
     },
   };
+}
+
+/** Adds usage emitted by probes and recorded live-eval results, without double-counting retries. */
+export function usageSummary(state: RunState): UsageSummary {
+  return state.resultOrder.reduce<UsageSummary>(
+    (total, id) => {
+      const detail = state.results[id]?.detail;
+      const inputTokens = typeof detail?.inputTokens === "number" ? detail.inputTokens : 0;
+      const outputTokens = typeof detail?.outputTokens === "number" ? detail.outputTokens : 0;
+      const costUSD = typeof detail?.costUSD === "number" ? detail.costUSD : 0;
+      const measured = detail?.inputTokens !== undefined || detail?.outputTokens !== undefined || detail?.costUSD !== undefined;
+      return {
+        answers: total.answers + (measured ? 1 : 0),
+        inputTokens: total.inputTokens + inputTokens,
+        outputTokens: total.outputTokens + outputTokens,
+        costUSD: total.costUSD + costUSD,
+      };
+    },
+    { answers: 0, inputTokens: 0, outputTokens: 0, costUSD: 0 },
+  );
 }
 
 /** Results no check claims, in arrival order: evidence that proves nothing yet (spec §5, no orphan tests). */

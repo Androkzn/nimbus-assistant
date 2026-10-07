@@ -3,20 +3,25 @@
 | Field | Value |
 |-------|-------|
 | **Doc type** | Delivery retrospective |
+| **Client** | NimbusStack |
 | **Date** | 2026-10-07 |
 | **Author** | Andrei Tekhtelev |
 | **Scored results** | [RESULTS_2026-10-07.md](RESULTS_2026-10-07.md) |
+
+## Executive outcome
+
+The project is a production candidate with a complete local verification story and a deployed URL. The local final live evaluation scored 90/90 across three configured models, while the production default-model run scored 29/30 because one false-disagreement response remains intermittent. The correct release posture is therefore “ready for targeted QA hardening,” not “all production checks green.”
 
 ## 1. How the work was run
 
 | Phase | Output | Gate |
 |-------|--------|------|
 | 0 Discovery | [00_KB_Discovery.md](00_KB_Discovery.md): inventory, 2 conflicts, pitfalls per question, gap probes, answer key | — |
-| 1 BRD | [01_BRD.md](01_BRD.md): 26 requirements traced to brief ids, user stories with Given/When/Then, assumptions A1–A9 | self-review cycle (v0.2) |
-| 2 TRD | [02_TRD.md](02_TRD.md): contracts for 26/26 requirements, ADRs, fallback state machine, test strategy | coverage checksum |
+| 1 BRD | [01_BRD.md](01_BRD.md): 27 requirements traced to client goals, user stories with Given/When/Then, assumptions A1–A13 | self-review cycle and client-review queue |
+| 2 TRD | [02_TRD.md](02_TRD.md): contracts for 27/27 requirements, ADRs, fallback state machine, production controls, and test strategy | coverage checksum |
 | 3 Plan | [03_Implementation_Plan.md](03_Implementation_Plan.md): phases with acceptance + verification commands | readiness gate |
 | 4 Build | Phase-by-phase, tests first | each phase's verification command |
-| 5 Verify | 66 unit/integration · 10 E2E · bundle scan · live eval on 3 vendors | CI + committed eval reports |
+| 5 Verify | 129 unit/integration · 12 E2E · bundle scan · live eval on 3 vendors · deployment smoke | CI + committed eval reports |
 
 The answer key in the discovery doc became three test layers: the offline **retrieval eval** (CI gate), the **mock-LLM E2E** suite, and the **live answer eval** against real providers.
 

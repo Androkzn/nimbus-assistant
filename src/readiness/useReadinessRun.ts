@@ -6,6 +6,7 @@ import { readReadinessEvents } from "./ndjson";
 import { runProbes } from "./probes";
 import { parseNdjson, replay } from "./replay";
 import { STAGE_INFO, type ReadinessEvent, type RunMeta, type StageId } from "./schema";
+import { deleteSavedAssessment, loadSavedAssessments, saveAssessment, type SavedAssessment } from "./storage";
 
 /**
  * Orchestrates the readiness page's evidence sources (docs/requirements/06_Readiness_Report.md §3):
@@ -149,12 +150,41 @@ export function useReadinessRun(options: ReadinessOptions) {
   const [speed, setSpeed] = useState<ReplaySpeed>(options.speed);
   const [includeAnswer, setIncludeAnswer] = useState(options.includeAnswer);
   const [availability, setAvailability] = useState<RunnerAvailability | null>(null);
+  const [savedRuns, setSavedRuns] = useState<SavedAssessment[]>([]);
 
   const stateRef = useRef<RunState>(state);
   const clockRef = useRef<Partial<Record<StageId, number>>>({});
   const controllerRef = useRef<AbortController | null>(null);
   const tokenRef = useRef(0);
   const frameRef = useRef<{ raf?: number; timer?: ReturnType<typeof setTimeout> }>({});
+  const savedEventsRef = useRef<ReadinessEvent[]>([]);
+  const savedIdRef = useRef<string | null>(null);
+
+  const persistSaved = useCallback(
+    (phase: SavedAssessment["phase"], endedAtMs?: number) => {
+      const id = savedIdRef.current;
+      if (!id || savedEventsRef.current.length === 0) return;
+      const record: SavedAssessment = {
+        id,
+        savedAt: new Date().toISOString(),
+        phase,
+        startedAtMs: sessionStartedAtRef.current,
+        endedAtMs,
+        includeAnswer: includeAnswerRef.current,
+        events: savedEventsRef.current,
+      };
+      const saved = saveAssessment(record);
+      // Storage is updated for every event; the history list only needs occasional refreshes while a run is hot.
+      if (phase !== "running" || savedEventsRef.current.length === 1 || savedEventsRef.current.length % 10 === 0) setSavedRuns(saved);
+    },
+    [],
+  );
+
+  const sessionStartedAtRef = useRef<number | undefined>(undefined);
+  const includeAnswerRef = useRef(options.includeAnswer);
+  useEffect(() => {
+    includeAnswerRef.current = includeAnswer;
+  }, [includeAnswer]);
 
   /** Publish the ref state to React; the rAF path keeps renders to one per frame, the timer covers hidden tabs. */
   const flush = useCallback(() => {
@@ -174,6 +204,14 @@ export function useReadinessRun(options: ReadinessOptions) {
     f.timer = setTimeout(flush, 150);
   }, [flush]);
 
+  const saveEvent = useCallback(
+    (event: ReadinessEvent) => {
+      savedEventsRef.current = [...savedEventsRef.current, event];
+      persistSaved("running");
+    },
+    [persistSaved],
+  );
+
   const stop = useCallback(() => {
     const ctrl = controllerRef.current;
     if (!ctrl) return;
@@ -181,12 +219,14 @@ export function useReadinessRun(options: ReadinessOptions) {
     tokenRef.current += 1;
     ctrl.abort();
     flush();
+    persistSaved("stopped", Date.now());
     setSession((s) =>
       s.phase === "connecting" || s.phase === "running" ? { ...s, phase: "stopped", endedAtMs: Date.now() } : s,
     );
-  }, [flush]);
+  }, [flush, persistSaved]);
 
   const start = useCallback(async () => {
+    if (controllerRef.current) persistSaved("stopped", Date.now());
     controllerRef.current?.abort();
     const ctrl = new AbortController();
     controllerRef.current = ctrl;
@@ -199,6 +239,9 @@ export function useReadinessRun(options: ReadinessOptions) {
     const runAnswer = includeAnswer;
     stateRef.current = initialRunState();
     clockRef.current = {};
+    savedIdRef.current = `${runId(new Date(t0))}-${t0}`;
+    savedEventsRef.current = [];
+    sessionStartedAtRef.current = t0;
     setState(stateRef.current);
     setSession({ ...idleSession(runSpeed, runAnswer), phase: "connecting", startedAtMs: t0 });
 
@@ -210,6 +253,7 @@ export function useReadinessRun(options: ReadinessOptions) {
         held.end = e;
         return;
       }
+      saveEvent(e);
       if (e.type === "stage-start") clockRef.current = { ...clockRef.current, [e.stage]: Date.now() };
       stateRef.current = reduceRun(stateRef.current, e);
       schedule();
@@ -306,18 +350,64 @@ export function useReadinessRun(options: ReadinessOptions) {
         durationMs: ended - t0,
         at: new Date(ended).toISOString(),
       });
+      const finalEvent: ReadinessEvent = {
+        type: "run-end",
+        status: failed ? "failed" : "passed",
+        durationMs: ended - t0,
+        at: new Date(ended).toISOString(),
+      };
+      saveEvent(finalEvent);
       flush();
+      persistSaved("finished", ended);
       setSession((s) => ({ ...s, phase: "finished", endedAtMs: ended }));
       if (controllerRef.current === ctrl) controllerRef.current = null;
     } catch (err) {
       if (isAbort(err) || !live()) return;
       flush();
-      setSession((s) => ({ ...s, phase: "error", error: errorText(err), endedAtMs: Date.now() }));
+      const ended = Date.now();
+      persistSaved("error", ended);
+      setSession((s) => ({ ...s, phase: "error", error: errorText(err), endedAtMs: ended }));
       if (controllerRef.current === ctrl) controllerRef.current = null;
     }
-  }, [flush, includeAnswer, options.mode, options.probes, schedule, speed]);
+  }, [flush, includeAnswer, options.mode, options.probes, persistSaved, saveEvent, schedule, speed]);
+
+  const reviewSavedRun = useCallback(
+    (record: SavedAssessment) => {
+      controllerRef.current?.abort();
+      tokenRef.current += 1;
+      const next = record.events.reduce(reduceRun, initialRunState());
+      const meta = record.events.find((event): event is Extract<ReadinessEvent, { type: "run-start" }> => event.type === "run-start")?.meta;
+      const reviewPhase: Phase = record.phase === "running" ? "stopped" : record.phase;
+      stateRef.current = next;
+      savedEventsRef.current = record.events;
+      savedIdRef.current = record.id;
+      sessionStartedAtRef.current = record.startedAtMs;
+      setState(next);
+      setSession({
+        ...idleSession("instant", record.includeAnswer),
+        phase: reviewPhase,
+        mode: meta?.mode ?? null,
+        startedAtMs: record.startedAtMs,
+        endedAtMs: record.endedAtMs,
+        recorded: meta
+          ? {
+              meta,
+              status: next.status === "passed" || next.status === "failed" ? next.status : undefined,
+              durationMs: next.durationMs,
+            }
+          : undefined,
+      });
+    },
+    [],
+  );
+
+  const removeSavedRun = useCallback((id: string) => setSavedRuns(deleteSavedAssessment(id)), []);
 
   // Without a run on load, label the Start button with what it will do. GET never spawns anything.
+  useEffect(() => {
+    setSavedRuns(loadSavedAssessments());
+  }, []);
+
   useEffect(() => {
     if (options.mode || options.autostart) return;
     const ctrl = new AbortController();
@@ -350,5 +440,5 @@ export function useReadinessRun(options: ReadinessOptions) {
     [],
   );
 
-  return { state, session, start, stop, speed, setSpeed, includeAnswer, setIncludeAnswer, availability };
+  return { state, session, start, stop, speed, setSpeed, includeAnswer, setIncludeAnswer, availability, savedRuns, reviewSavedRun, removeSavedRun };
 }

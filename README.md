@@ -4,6 +4,8 @@ An internal chatbot that answers questions about NimbusStack's four products —
 
 **Live:** https://nimbus-assistant-coral.vercel.app · **Specs:** [`docs/requirements/`](docs/requirements/) · **Latest eval report:** [`evals/reports/`](evals/reports/)
 
+The requirements pack is the production story for the project: it starts with an audit of the 10 supplied NimbusStack documents, carries their pricing/SLA/release-note conflicts into the BRD and TRD, and closes the loop with implementation phases, acceptance evidence, live evaluation, deployment smoke checks, and a readiness report. See [`docs/requirements/README.md`](docs/requirements/README.md) for the client-facing document map and current release posture.
+
 ---
 
 ## Run it locally

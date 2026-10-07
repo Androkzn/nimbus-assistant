@@ -4,6 +4,14 @@
 > This file stays unscored; each verification run scores a dated copy: `RESULTS_YYYY-MM-DD.md`.
 > A row is **Pass** only with evidence (automated test path or recorded live run) — never from code reading.
 
+| Field | Value |
+|---|---|
+| Client | NimbusStack |
+| Release | `product-knowledge-chat` production candidate |
+| BRD / TRD | [01_BRD.md](01_BRD.md) v1.3 · [02_TRD.md](02_TRD.md) v1.4 |
+| Owner | Andrei Tekhtelev |
+| Review rule | Any failed production or security criterion blocks full acceptance; an open item must name its owner and next action |
+
 Layers: **U** unit · **I** integration (mock LLM) · **R** retrieval eval (offline) · **E** E2E Playwright (mock LLM) · **L** live eval (real providers) · **S** security scan · **M** manual on deployed URL.
 
 | ID | Brief | BRD | Criterion | Expected | Layer |
