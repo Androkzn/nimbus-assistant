@@ -2,16 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readEvents } from "@/client/stream";
+import { deadlineIn, formatWait } from "@/client/cooldown";
+import { nextQuestions } from "@/client/suggestions";
+import { useCountdown } from "@/client/useCountdown";
 import { toCSV, toJSON, totals, type UsageRow } from "@/client/usage";
 import { applyEvent, emptyAnswer, type AnswerState } from "@/shared/answer";
 import { contextLevel, estimateTokens } from "@/shared/context";
-import { HISTORY_MESSAGES, MAX_MESSAGE_CHARS, type ChatMessage, type ModelsResponse } from "@/shared/contracts";
+import { HISTORY_MESSAGES, KB_GUARD_ID, MAX_MESSAGE_CHARS, type ChatMessage, type ModelsResponse, type PublicModel } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
 import { AnswerCard } from "./AnswerCard";
 import { BrandLockup } from "./BrandLockup";
 import { EmptyState } from "./EmptyState";
 import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, ChevronDownIcon, PlusIcon, StopIcon } from "./icons";
 import { SessionPanel } from "./SessionPanel";
+import { SuggestionChips } from "./SuggestionChips";
 
 interface Turn {
   id: string;
@@ -33,6 +37,10 @@ export function ChatApp() {
   const [usage, setUsage] = useState<UsageRow[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  // This app's own rate limit (BR-26): until it lifts, asking is off and one notice counts down.
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const cooldownLeft = useCountdown(cooldownUntil);
+  const cooling = cooldownLeft > 0;
   const [panelOpen, setPanelOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -67,7 +75,12 @@ export function ChatApp() {
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
   const selected = catalog?.models.find((m) => m.id === modelId);
-  const modelName = (id: string) => catalog?.models.find((m) => m.id === id)?.displayName ?? id;
+  const modelName = (id: string) =>
+    id === KB_GUARD_ID ? "Knowledge-base check (no AI call)" : (catalog?.models.find((m) => m.id === id)?.displayName ?? id);
+  // R3: every option shows its provider (group label) and its short description, not only the selected one.
+  const providerGroups = Object.entries(
+    (catalog?.models ?? []).reduce<Record<string, PublicModel[]>>((groups, m) => ({ ...groups, [m.providerName]: [...(groups[m.providerName] ?? []), m] }), {}),
+  );
   const providerCount = new Set(catalog?.models.map((m) => m.providerName)).size;
 
   // Context meter (BRD BR-18): size of the next request vs the *selected* model's window.
@@ -99,7 +112,7 @@ export function ChatApp() {
 
   async function send(text: string) {
     const question = text.trim();
-    if (!question || busy || !modelId) return; // brief E10: blank never reaches the server
+    if (!question || busy || !modelId || cooling) return; // brief E10: blank never reaches the server
 
     const history: ChatMessage[] = turns.flatMap((t) =>
       t.answer.status === "done" ? [{ role: "user" as const, content: t.question }, { role: "assistant" as const, content: t.answer.text }] : [],
@@ -123,6 +136,14 @@ export function ChatApp() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
+        if (res.status === 429 && body?.error?.code === "rate_limited") {
+          // This app's limit, not a model's: no error card. The question goes back into the composer and one
+          // countdown notice replaces it; asking stays off until the wait is over.
+          setTurns((ts) => ts.filter((t) => t.id !== id));
+          setDraft(question);
+          setCooldownUntil(deadlineIn(body.error.retryAfterSec ?? 30));
+          return;
+        }
         update({
           ...state,
           status: "error",
@@ -192,7 +213,13 @@ export function ChatApp() {
     URL.revokeObjectURL(url);
   }
 
-  const canSend = draft.trim().length > 0 && !busy && Boolean(modelId);
+  const canSend = draft.trim().length > 0 && !busy && !cooling && Boolean(modelId);
+  const lastTurn = turns.at(-1);
+  const suggestions = nextQuestions({
+    asked: turns.map((t) => t.question),
+    lastQuestion: lastTurn?.question,
+    lastAnswer: lastTurn?.answer.text,
+  });
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
@@ -233,7 +260,7 @@ export function ChatApp() {
                 </p>
               )}
               {turns.length === 0 ? (
-                <EmptyState onAsk={(q) => void send(q)} disabled={!modelId || busy} providerCount={providerCount} />
+                <EmptyState onAsk={(q) => void send(q)} disabled={!modelId || busy || cooling} providerCount={providerCount} />
               ) : (
                 <div className="space-y-8">
                   {turns.map((t) => (
@@ -246,7 +273,7 @@ export function ChatApp() {
                           {t.question}
                         </p>
                       </div>
-                      <AnswerCard answer={t.answer} modelName={modelName} onRetry={busy ? undefined : () => retry(t)} />
+                      <AnswerCard answer={t.answer} modelName={modelName} onRetry={busy || cooling ? undefined : () => retry(t)} />
                     </div>
                   ))}
                 </div>
@@ -271,6 +298,21 @@ export function ChatApp() {
               </button>
             )}
             <div className="mx-auto max-w-3xl">
+              {/* Hidden while an answer streams: follow-ups belong to the finished answer. */}
+              {!busy && modelId && <SuggestionChips questions={suggestions} onAsk={(q) => void send(q)} disabled={busy || cooling} />}
+              {cooling && (
+                <p
+                  role="status"
+                  data-testid="cooldown"
+                  className="mb-2 flex items-center gap-2 rounded-xl border border-amber/30 bg-amber-soft px-3 py-2 text-xs font-medium text-amber"
+                >
+                  <AlertIcon className="shrink-0" />
+                  <span>
+                    Too many questions in a short time. You can ask again in{" "}
+                    <span className="font-semibold tabular-nums">{formatWait(cooldownLeft)}</span>.
+                  </span>
+                </p>
+              )}
               {level !== "ok" && (
                 <p
                   role="status"
@@ -315,23 +357,27 @@ export function ChatApp() {
                       data-testid="model-select"
                       value={modelId}
                       onChange={(e) => setModelId(e.target.value)}
-                      className="h-9 max-w-[16rem] cursor-pointer sm:max-w-none appearance-none truncate rounded-full border border-border bg-surface-2 pr-8 pl-3.5 text-[13px] font-semibold text-text transition-colors hover:border-orange-strong hover:bg-orange-soft"
+                      className="h-9 max-w-[15rem] cursor-pointer sm:max-w-[17rem] appearance-none truncate rounded-full border border-border bg-surface-2 pr-8 pl-3.5 text-[13px] font-semibold text-text transition-colors hover:border-orange-strong hover:bg-orange-soft"
                     >
-                      {catalog?.models.map((m) => (
-                        <option key={m.id} value={m.id} disabled={!m.available}>
-                          {m.providerName} — {m.displayName}
-                          {m.available ? "" : " (not configured)"}
-                        </option>
+                      {providerGroups.map(([provider, models]) => (
+                        <optgroup key={provider} label={provider}>
+                          {models.map((m) => (
+                            <option key={m.id} value={m.id} disabled={!m.available}>
+                              {m.displayName} — {m.description}
+                              {m.available ? "" : " (not configured)"}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                     <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted" />
                   </div>
                   <p
                     data-testid="model-description"
-                    title={selected?.description}
+                    title={selected ? `${selected.providerName} · ${selected.description}` : undefined}
                     className="min-w-0 flex-1 text-xs leading-snug text-muted max-sm:order-last max-sm:basis-full max-sm:px-1 sm:truncate"
                   >
-                    {selected?.description}
+                    {selected ? `${selected.providerName} · ${selected.description}` : ""}
                   </p>
                   <div className="ml-auto flex items-center gap-2">
                     {draft.length > MAX_MESSAGE_CHARS * 0.9 && (

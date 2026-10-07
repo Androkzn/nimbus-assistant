@@ -37,11 +37,11 @@ Do not weaken a failing test to make it pass — fix the code or log a gap in §
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| BRD accepted for build | ✅ | Assumptions A1–A8 to confirm on the call |
+| BRD accepted for build | ✅ | Assumptions A1–A8 to be confirmed with the client |
 | TRD complete enough to implement | ✅ | 26/26 requirement checksum |
 | Open HIGH blockers resolved | ⚠️ | T1 resolved in Phase 2; T2 (keys) needed before Phase 5 |
 | Data/privacy reviewed | ✅ | No chat persistence, no message text in logs |
-| Rollout path known | ✅ | Vercel; Netlify fallback |
+| Rollout path known | ✅ | Vercel |
 
 ---
 
@@ -135,7 +135,7 @@ Acceptance:
 - [ ] CI green on a clean checkout (proves README commands).
 - [ ] Bundle scan fails on a planted fake key (tested), passes on real build.
 - [ ] Live eval report: Q1–Q6 + gap probes + C1/C2 per available model, results committed under `evals/reports/`.
-- [ ] `/api/health` on prod lists ≥ 2 providers; fallback demonstrated by disabling the primary key.
+- [ ] `/api/health` on prod lists ≥ 2 providers; fallback verified by disabling the primary key.
 Verification: `npm run ci && npm run eval:live && curl $URL/api/health`
 
 ### Phase 6 — Retrospective
@@ -178,8 +178,8 @@ No database; no migrations. Corpus is static and versioned in git. Rollback = Ve
 
 | # | Gap | Severity | Owner | Status |
 |---|-----|----------|-------|--------|
-| G1 | Provider keys for the live link (T2) | high | Andrei | open |
-| G2 | Vercel login (T3) — else Netlify | medium | Andrei | open |
+| G1 | Provider keys for the live link (T2) | high | Andrei | ✅ resolved |
+| G2 | Hosting for the live link (T3) | medium | Andrei | ✅ resolved — Vercel |
 
 ---
 

@@ -11,6 +11,8 @@ export interface AnswerState {
   fallbacks: { from: string; to: string; reason: ErrorCode }[];
   usage: { inputTokens: number; outputTokens: number } | null;
   costUSD: number | null;
+  /** Figure check result: [] = every number found in the passages; null = not checked. */
+  unverifiedFigures: string[] | null;
   error: { code: ErrorCode; message: string; retryAfterSec?: number } | null;
 }
 
@@ -23,6 +25,7 @@ export const emptyAnswer = (): AnswerState => ({
   fallbacks: [],
   usage: null,
   costUSD: null,
+  unverifiedFigures: null,
   error: null,
 });
 
@@ -50,6 +53,7 @@ export function applyEvent(state: AnswerState, event: StreamEvent): AnswerState 
         requestedModel: event.requestedModel,
         usage: event.usage,
         costUSD: event.costUSD,
+        unverifiedFigures: event.unverifiedFigures ?? null,
       };
     case "error":
       return { ...state, status: "error", text: "", error: { code: event.code, message: event.message, retryAfterSec: event.retryAfterSec } };

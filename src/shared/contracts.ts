@@ -7,6 +7,8 @@ import { z } from "zod";
 
 export const MAX_MESSAGE_CHARS = 2000;
 export const MAX_MESSAGES = 40;
+/** `answeredBy` when the off-topic guard answered without calling any model (no tokens, no cost). */
+export const KB_GUARD_ID = "kb-guard";
 /** Prior messages the server forwards to the model (retrieval runs fresh every turn). The UI's context meter counts the same window. */
 export const HISTORY_MESSAGES = 12;
 
@@ -63,6 +65,8 @@ export const StreamEventSchema = z.discriminatedUnion("type", [
     usage: UsageSchema,
     costUSD: z.number().nonnegative(),
     pricingVersion: z.string(),
+    /** Figures in the answer found in no passage (figure check, TRD §4.6). Empty = all figures sourced. */
+    unverifiedFigures: z.array(z.string()).optional(),
   }),
   z.object({
     type: z.literal("error"),

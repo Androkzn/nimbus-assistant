@@ -47,7 +47,8 @@ export function mockModel(entry: ModelEntry): LanguageModel {
       const answer = evidence
         ? `According to the knowledge base: ${evidence} [1]`
         : "I couldn't find this in the NimbusStack knowledge base.";
-      const words = `(${entry.displayName}) ${answer}`.match(/\S+\s*/g) ?? [];
+      // Prefixed with the model id (no digits, so the figure check stays clean) to prove which model answered.
+      const words = `(${entry.id}) ${answer}`.match(/\S+\s*/g) ?? [];
       const promptChars = JSON.stringify(prompt).length;
       return {
         stream: simulateReadableStream({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { citationNumber, linkCitations } from "./citations";
+import { citationNumber, citedNumbers, linkCitations } from "./citations";
 
 describe("citation chips (NKA-GRD-001: every [n] maps to a shown passage)", () => {
   it("links single and adjacent markers", () => {
@@ -15,6 +15,12 @@ describe("citation chips (NKA-GRD-001: every [n] maps to a shown passage)", () =
     expect(linkCitations("see [1](https://example.com)")).toBe("see [1](https://example.com)");
     expect(linkCitations("[1]: https://example.com")).toBe("[1]: https://example.com");
     expect(linkCitations("tier [Pro] and v[4.2]")).toBe("tier [Pro] and v[4.2]");
+  });
+
+  it("collects the passages an answer actually cites (NKA-GRD-001 / R2)", () => {
+    expect([...citedNumbers("P1 is 30 minutes [1]. Relay differs [3, 4][3].")].sort()).toEqual([1, 3, 4]);
+    expect(citedNumbers("I couldn't find this in the NimbusStack knowledge base.").size).toBe(0);
+    expect(citedNumbers("see [1](https://example.com)").size).toBe(0);
   });
 
   it("reads the source number back from a link", () => {

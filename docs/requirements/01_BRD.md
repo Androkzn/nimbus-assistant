@@ -7,12 +7,12 @@
 |-------|-------|
 | **Doc type** | Feature BRD |
 | **Feature id** | `product-knowledge-chat` |
-| **Client** | NimbusStack (fictional) — via CodeShip brief |
-| **Status** | approved for build (assumptions in §9 to confirm with client on the follow-up call) |
+| **Client** | NimbusStack |
+| **Status** | approved for build (assumptions in §9 to be confirmed with the client) |
 | **Version** | `v1.0` |
 | **Created** | 2026-10-07 |
 | **Author** | Andrei Tekhtelev |
-| **Inputs** | Client brief (`requirenments/CodeShip-Technical-Assessment.pdf`), [00_KB_Discovery.md](00_KB_Discovery.md) |
+| **Inputs** | Client brief, [00_KB_Discovery.md](00_KB_Discovery.md) |
 | **Downstream** | [02_TRD.md](02_TRD.md) → [03_Implementation_Plan.md](03_Implementation_Plan.md) → [04_Acceptance_Matrix.md](04_Acceptance_Matrix.md) |
 
 ---
@@ -41,7 +41,7 @@ Rules:
 | Version | Date | Changes |
 |---------|------|---------|
 | v0.1 | 2026-10-07 | Initial draft from brief + discovery audit |
-| v0.2 | 2026-10-07 | Self-review cycle 1 (adversarial checklist from `/create-brd` Reviewer B/C): added BR-26 abuse guard (public URL + paid keys + no login); made every edge case state an explicit user-facing outcome; split fallback into "before first word" vs "mid-answer" (E8); added KPI targets |
+| v0.2 | 2026-10-07 | Self-review cycle 1 (adversarial checklist): added BR-26 abuse guard (public URL + paid keys + no login); made every edge case state an explicit user-facing outcome; split fallback into "before first word" vs "mid-answer" (E8); added KPI targets |
 | v1.0 | 2026-10-07 | Accepted for build; open product questions converted to logged assumptions (§9) |
 | v1.1 | 2026-10-07 | Added A9 from live-eval evidence (see [05_Retrospective.md](05_Retrospective.md)) |
 | v1.2 | 2026-10-07 | A9 reversed to "complete" to match the answer key and acceptance matrix; TRD rules G10–G11 |
@@ -74,7 +74,7 @@ Rules:
 | Correct, complete answers on the 6 representative questions | 6 / 6 | Golden eval set (`evals/`) — automated |
 | Answers containing a claim not supported by the KB | **0** | Golden eval "forbidden claims" + gap probes |
 | "Not in the knowledge base" on out-of-corpus probes | 100% | Gap probes from discovery §4 |
-| Time to first streamed word (p50, default model) | < 2.5 s | Server log `ttft_ms` |
+| Time to first streamed word (p50, default model) | < 2.5 s | Server log `ttftMs` |
 | Every answer shows model, tokens, estimated cost, sources | 100% | Acceptance matrix + UI test |
 
 ---
@@ -102,7 +102,7 @@ Rules:
 | Dependency | Type | Notes |
 |------------|------|-------|
 | Client knowledge base (10 markdown files) | client data | Read-only; versioned in repo as delivered |
-| Anthropic, OpenAI, Google AI accounts + API keys | external | At least one live on the deployed link; two for the follow-up call (fallback demo) |
+| Anthropic, OpenAI, Google AI accounts + API keys | external | At least two live on the deployed link, so a backup provider is always available |
 | Hosting with server-side secrets + streaming | external | Keys must never reach the browser |
 | GitHub (public repo, CI) | external | README must work on a clean clone |
 
@@ -110,7 +110,7 @@ Rules:
 
 ## 3. Requirements
 
-Priority: **P0** = assessment fails or product unusable without it · **P1** = required by brief · **P2** = brief "SHOULD" or derived risk control.
+Priority: **P0** = release blocker: product unusable or unsafe without it · **P1** = required by brief · **P2** = brief "SHOULD" or derived risk control.
 
 | Req ID | Requirement | Priority | Brief ref |
 |--------|-------------|----------|-----------|
@@ -133,13 +133,14 @@ Priority: **P0** = assessment fails or product unusable without it · **P1** = r
 | BR-17 | Session running totals (tokens, cost) update after every answer. | P1 | R4 |
 | BR-18 | Context-window warning: amber at 75%, red at 90% of the selected model's window; recalculates immediately on model switch. | P2 | R4 SHOULD, E7 |
 | BR-19 | Export session usage as CSV and JSON. | P2 | R4 SHOULD |
-| BR-20 | API keys are only ever on the server; nothing in the browser can reveal them. | P0 | R5, auto-fail |
+| BR-20 | API keys are only ever on the server; nothing in the browser can reveal them. | P0 | R5 |
 | BR-21 | Rate limits, bad/missing keys and provider outages produce a clear message saying what to do — never a frozen screen or stack trace. | P1 | R5, E9 |
 | BR-22 | An empty or whitespace-only message is rejected without calling any AI provider. | P1 | E10 |
-| BR-23 | At least one provider answers on the live link; two are configured for the follow-up call. | P0 | R3, deliverables |
+| BR-23 | At least one provider answers on the live link; at least two are configured so fallback always has a backup. | P0 | R3, deliverables |
 | BR-24 | The public repo runs by following its README on a fresh machine. | P0 | Deliverables |
 | BR-25 | A live deployment URL is available for the client to test. | P0 | Deliverables |
 | BR-26 | The public, login-free URL is protected from abuse that would burn the client's API budget (request rate and message size limits). | P2 | Derived risk (§8) |
+| BR-27 | Suggested next questions appear as tappable bubbles above the composer: one per product on the empty screen, follow-ups on the products of the last answer afterwards. Each is a fixed question the knowledge base answers; a tap sends it. | P2 | Client feedback 2026-10-07 |
 
 ---
 
@@ -187,8 +188,10 @@ Acceptance criteria are written so QA can execute them without interpretation. T
 | Answer card | Streamed markdown answer · "Answered by ‹model›" badge (+ fallback note) · usage line `in 1,234 · out 210 · est. $0.0004` · collapsible **Sources** with file, section and passage text. |
 | Answer style | Lead with the direct answer; bullets or a compact table for comparisons; per-product sections when several products apply; citations as `[n]`. |
 | Empty state | Short intro + 4 example questions (one per persona need) as clickable chips. |
+| Suggestion bubbles | "Ask more" row above the composer (BR-27); hidden while an answer streams; one line that scrolls sideways on phones. |
 | Loading | Typing indicator until the first word; then streaming text. Send disabled while streaming; Stop available. |
-| Error copy — rate limit | "‹Provider› is rate-limited right now. Wait about ‹N› seconds and try again, or choose another model." |
+| Error copy — rate limit | "‹Provider› is rate-limited right now. Wait about ‹N› seconds and try again, or choose another model." ‹N› counts down live with the Try again button. |
+| This app's rate limit (BR-26) | No error card: the question returns to the composer and one notice reads "Too many questions in a short time. You can ask again in ‹m:ss›." Send, suggestion bubbles, example questions and retry stay off until it ends. |
 | Error copy — key / auth | "‹Provider› isn't configured on the server. Choose another model." (no key details) |
 | Error copy — all providers down | "No AI provider is reachable right now. Your conversation is kept — try again in a minute." |
 | Not in KB | "I couldn't find this in the NimbusStack knowledge base." + what the KB *does* cover nearby, if anything. |
@@ -232,20 +235,20 @@ Acceptance criteria are written so QA can execute them without interpretation. T
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Model answers from general knowledge | Assessment fail; wrong info on calls | Retrieval-first; strict answer contract; "not in KB" path; golden eval with forbidden claims and gap probes in CI |
+| Model answers from general knowledge | Wrong product information given to customers on calls | Retrieval-first; strict answer contract; "not in KB" path; golden eval with forbidden claims and gap probes in CI |
 | Retrieval misses a product (Ledger "federated login") | Incomplete Q5 | Synonym expansion + per-product coverage; unit test asserting all four products retrieved |
 | Bot silently picks one side of a conflict | Nina trains wrong facts | Conflict companions in retrieval; prompt rule; eval cases C1/C2 |
-| Free-tier quota exhausted while client tests | Broken demo | Automatic fallback across providers; clear rate-limit copy |
+| Provider quota exhausted during use | Assistant unavailable | Automatic fallback across providers; clear rate-limit copy |
 | Public URL abused | Budget burn | Per-IP rate limit, message size cap, output token cap (BR-26) |
-| Key leakage | Assessment fail; security incident | Server-only keys; CI scan of client bundle |
+| Key leakage | Security incident; API budget abuse | Server-only keys; CI scan of client bundle |
 | Model IDs / prices drift | Wrong cost display | Prices + IDs in config with a pricing version stamp; startup check that every model has a price |
-| README rot | Reviewer can't run it | CI runs the README commands on a clean checkout |
+| README rot | New engineers can't run it | CI runs the README commands on a clean checkout |
 
 ---
 
 ## 9. Open questions → logged assumptions
 
-The client was not reachable inside the time box, so each open question has a documented default. All are to be confirmed on the follow-up call.
+Each open question has a documented default so the build is not blocked. All are to be confirmed with the client.
 
 | # | Question | Assumption taken | Why |
 |---|----------|------------------|-----|
@@ -266,6 +269,6 @@ The client was not reachable inside the time box, so each open question has a do
 - [ ] Every P0 and P1 row in [04_Acceptance_Matrix.md](04_Acceptance_Matrix.md) is **Pass**, with evidence (test path or recorded run).
 - [ ] Golden eval: Q1–Q6 correct and complete; all gap probes answered "not in KB"; conflict cases cite both sides.
 - [ ] CI green: typecheck, lint, unit, integration, offline eval, client-bundle secret scan, build.
-- [ ] Live URL serves answers with ≥ 2 configured providers; fallback demonstrated.
+- [ ] Live URL serves answers with ≥ 2 configured providers; fallback verified.
 - [ ] Fresh-clone README run verified.
 - [ ] TRD can be produced from this document without guessing product scope.

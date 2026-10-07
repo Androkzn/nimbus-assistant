@@ -27,6 +27,25 @@ export class LLMProviderFailure extends Error {
 export interface ChatMonitor {
   providerFailures: (outcome: ChatOutcome) => void;
   unhandled: (err: unknown, requestId: string) => void;
+  unverifiedFigures: (o: { requestId: string; answeredBy: string; count: number }) => void;
+}
+
+/** Named so the Sentry issue title reads "UnverifiedFigures: gemini-flash-lite — 1 figure not in the passages". */
+export class UnverifiedFigures extends Error {
+  override name = "UnverifiedFigures";
+}
+
+/**
+ * Figure-check hit (TRD §4.6): the answer contains a number found in no passage — the leading
+ * indicator of a hallucination. A count and the model only; the figures themselves are answer content.
+ */
+export function reportUnverifiedFigures(o: { requestId: string; answeredBy: string; count: number }): void {
+  Sentry.withScope((scope) => {
+    scope.setLevel("warning");
+    scope.setFingerprint(["unverified-figures", o.answeredBy]);
+    scope.setTags({ request_id: o.requestId, model: o.answeredBy, unverified_count: o.count });
+    Sentry.captureException(new UnverifiedFigures(`${o.answeredBy} — ${o.count} figure(s) not in the passages`));
+  });
 }
 
 /**
@@ -36,7 +55,7 @@ export interface ChatMonitor {
  * and error classes only, never message text (AGENTS.md rule 5).
  */
 export function reportProviderFailures(o: ChatOutcome): void {
-  if (o.injectedFaults > 0) return; // demo/E2E fault markers are not incidents
+  if (o.injectedFaults > 0) return; // injected fault markers are not incidents
   for (const a of o.attempts) {
     if (a.outcome === "answered") continue;
     Sentry.withScope((scope) => {
@@ -62,4 +81,8 @@ export function reportUnhandled(err: unknown, requestId: string): void {
   Sentry.captureException(err, { tags: { request_id: requestId, area: "chat" } });
 }
 
-export const sentryChatMonitor: ChatMonitor = { providerFailures: reportProviderFailures, unhandled: reportUnhandled };
+export const sentryChatMonitor: ChatMonitor = {
+  providerFailures: reportProviderFailures,
+  unhandled: reportUnhandled,
+  unverifiedFigures: reportUnverifiedFigures,
+};

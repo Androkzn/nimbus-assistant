@@ -34,6 +34,7 @@ Layers: **U** unit · **I** integration (mock LLM) · **R** retrieval eval (offl
 | NKA-CHAT-004 | E10 | BR-22 | Blank message (UI) | Send disabled | E |
 | NKA-CHAT-005 | E10 | BR-22 | Blank message (API) | 400; provider called 0 times | I |
 | NKA-CHAT-006 | — | BR-26 | Message > 2,000 chars | 400 with limit stated | I |
+| NKA-CHAT-007 | — | BR-27 | Suggestion bubbles | Empty: one starter per product. After a Vault question: Vault follow-ups, none already asked. Every suggestion gets a grounded answer (none "not in KB") | U, L |
 | NKA-MDL-001 | R3 | BR-12 | Model menu | Claude, OpenAI, Gemini with provider name + description | E |
 | NKA-MDL-002 | R3 | BR-13 | Catalog from config | Invariants test fails on broken config | U |
 | NKA-MDL-003 | R3 | BR-14 | Switch model mid-conversation | History kept; next `done.answeredBy` = new model | I, E |
@@ -51,5 +52,6 @@ Layers: **U** unit · **I** integration (mock LLM) · **R** retrieval eval (offl
 | NKA-SEC-001 | R5 | BR-20 | No key in client bundle | Scan of `.next/static` clean; planted key detected | S |
 | NKA-SEC-002 | R5 | BR-20 | Vendor errors not forwarded | Client sees `{code,message}` only | I |
 | NKA-SEC-003 | — | BR-26 | Rate limit per IP | 21st request in 5 min → 429 + `retryAfterSec` | U |
+| NKA-SEC-004 | — | BR-26, BR-21 | Rate-limited UI | App 429 → no error card; question kept; one countdown notice; send and bubbles disabled until it ends. Provider limit → "Wait about ‹N› seconds" counts down with the button | U, M |
 | NKA-OPS-001 | Deliv. | BR-24 | Fresh clone | CI on clean checkout runs README steps green | M (CI) |
 | NKA-OPS-002 | Deliv. | BR-25 | Live URL | Health OK; one answer per provider | M |

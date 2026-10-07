@@ -1,7 +1,7 @@
 import { APICallError, simulateReadableStream, type LanguageModel } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
 import { describe, expect, it, vi } from "vitest";
-import { StreamEventSchema, type StreamEvent } from "@/shared/contracts";
+import { KB_GUARD_ID, StreamEventSchema, type StreamEvent } from "@/shared/contracts";
 import { attemptOrder, type ModelEntry } from "../config/models";
 import { createRateLimiter } from "../http/rateLimit";
 import { handleChat, type ChatDeps } from "./handleChat";
@@ -150,6 +150,42 @@ describe("POST /api/chat", () => {
     const backup = attemptOrder("gemini-flash", ENV)[1].id;
     expect(evs.find((e) => e.type === "fallback")).toMatchObject({ from: "gemini-flash", to: backup });
     expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: backup });
+  });
+});
+
+describe("deterministic grounding layers", () => {
+  it.each(["hi", "What's the weather in Paris tomorrow?", "Tell me about Nimbus Edge."])(
+    "NKA-GRD-011: off-topic %j is answered 'not in the knowledge base' without calling any model",
+    async (question) => {
+      const d = deps();
+      const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: question }] }), d.deps));
+      const text = evs.filter((e) => e.type === "delta").map((e) => (e.type === "delta" ? e.text : "")).join("");
+      expect(text).toContain("couldn't find this in the NimbusStack knowledge base");
+      expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
+      expect(d.factory).not.toHaveBeenCalled();
+      expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ guarded: true });
+    },
+  );
+
+  it("does not guard a question that names a product, even with a weak match", async () => {
+    const d = deps();
+    await (await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Is there a free trial of Vault?" }] }), d.deps)).text();
+    expect(d.factory).toHaveBeenCalled();
+  });
+
+  it("NKA-GRD-010: done carries the figure check — invented figures listed, sourced ones not", async () => {
+    const invented = await events(
+      await handleChat(
+        post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "What's Vault's uptime SLA?" }] }),
+        deps({ modelFactory: () => recordingModel([], "Vault guarantees 99.95% uptime and P1 in 30 minutes [1].") }).deps,
+      ),
+    );
+    expect(invented.at(-1)).toMatchObject({ type: "done", unverifiedFigures: ["99.95"] });
+
+    const sourced = await events(
+      await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Vault Enterprise P1 SLA?" }] }), deps().deps),
+    );
+    expect(sourced.at(-1)).toMatchObject({ type: "done", unverifiedFigures: [] });
   });
 });
 

@@ -5,22 +5,46 @@
     "openai": "https://developers.openai.com/api/docs/pricing",
     "google": "https://ai.google.dev/gemini-api/docs/pricing"
   },
-  "defaultModelId": "gemini-flash-lite",
+  "defaultModelId": "claude-haiku",
   "fallbackOrder": [
+    "claude-haiku",
     "gemini-flash-lite",
     "openai-luna",
-    "claude-haiku",
     "gemini-flash",
     "claude-sonnet"
   ],
   "models": [
+    {
+      "id": "claude-haiku",
+      "provider": "anthropic",
+      "vendorModelId": "claude-haiku-5-5",
+      "displayName": "Claude Haiku 5.5",
+      "providerName": "Anthropic Claude",
+      "description": "Fast and precise with citations; ~1 s to first word.",
+      "contextWindow": 1000000,
+      "maxOutputTokens": 4000,
+      "pricing": {
+        "inputPerMTok": 0.1,
+        "outputPerMTok": 0.5,
+        "longPrompt": {
+          "aboveInputTokens": 100000,
+          "inputPerMTok": 0.5,
+          "outputPerMTok": 2.5
+        }
+      },
+      "providerOptions": {
+        "anthropic": {
+          "effort": "low"
+        }
+      }
+    },
     {
       "id": "gemini-flash-lite",
       "provider": "google",
       "vendorModelId": "gemini-3.1-flash-lite",
       "displayName": "Gemini 3.1 Flash-Lite",
       "providerName": "Google Gemini",
-      "description": "Default. Fastest first word (~0.6 s) and lowest cost.",
+      "description": "Default. Fastest first word (~1 s), lowest cost.",
       "contextWindow": 1048576,
       "maxOutputTokens": 4000,
       "pricing": {
@@ -30,8 +54,27 @@
       "providerOptions": {
         "google": {
           "thinkingConfig": {
-            "thinkingLevel": "minimal"
+            "thinkingLevel": "low"
           }
+        }
+      }
+    },
+    {
+      "id": "openai-luna",
+      "provider": "openai",
+      "vendorModelId": "gpt-5.6-luna",
+      "displayName": "GPT-5.6 Luna",
+      "providerName": "OpenAI",
+      "description": "Careful with conflicting sources; ~2–3 s to first word.",
+      "contextWindow": 1050000,
+      "maxOutputTokens": 4000,
+      "pricing": {
+        "inputPerMTok": 0.2,
+        "outputPerMTok": 1.2
+      },
+      "providerOptions": {
+        "openai": {
+          "reasoningEffort": "medium"
         }
       }
     },
@@ -53,49 +96,6 @@
           "thinkingConfig": {
             "thinkingLevel": "low"
           }
-        }
-      }
-    },
-    {
-      "id": "openai-luna",
-      "provider": "openai",
-      "vendorModelId": "gpt-5.6-luna",
-      "displayName": "GPT-5.6 Luna",
-      "providerName": "OpenAI",
-      "description": "Careful with conflicting sources; ~4 s to first word.",
-      "contextWindow": 1050000,
-      "maxOutputTokens": 4000,
-      "pricing": {
-        "inputPerMTok": 0.2,
-        "outputPerMTok": 1.2
-      },
-      "providerOptions": {
-        "openai": {
-          "reasoningEffort": "low"
-        }
-      }
-    },
-    {
-      "id": "claude-haiku",
-      "provider": "anthropic",
-      "vendorModelId": "claude-haiku-5-5",
-      "displayName": "Claude Haiku 5.5",
-      "providerName": "Anthropic Claude",
-      "description": "Anthropic's fastest model; precise and well cited.",
-      "contextWindow": 1000000,
-      "maxOutputTokens": 4000,
-      "pricing": {
-        "inputPerMTok": 0.1,
-        "outputPerMTok": 0.5,
-        "longPrompt": {
-          "aboveInputTokens": 100000,
-          "inputPerMTok": 0.5,
-          "outputPerMTok": 2.5
-        }
-      },
-      "providerOptions": {
-        "anthropic": {
-          "effort": "low"
         }
       }
     },

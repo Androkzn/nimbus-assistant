@@ -105,6 +105,8 @@ async function runCase(modelId, c) {
   if (c.expectNotInKb && !re(golden.notInKbPattern).test(text)) failed.push("does not clearly say the answer is not in the knowledge base");
   for (const p of c.mustInclude ?? []) if (!re(p).test(text)) failed.push(`missing /${p}/`);
   for (const p of c.mustNotInclude ?? []) if (re(p).test(text)) failed.push(`must not contain /${p}/`);
+  // Figure check (server-side, TRD §4.6): any number that appears in no retrieved passage fails the case.
+  if (done?.unverifiedFigures?.length) failed.push(`figures not in sources: ${done.unverifiedFigures.join(", ")}`);
   // Soft checks: better answers include these, but the brief does not require them (see case.note).
   const warnings = (c.shouldInclude ?? []).filter((p) => !re(p).test(text)).map((p) => `nice-to-have missing /${p}/`);
   // A clear "not in the knowledge base" answer has nothing to cite.
@@ -115,7 +117,8 @@ async function runCase(modelId, c) {
     const bad = cited.filter((n) => !sources.some((s) => s.n === n));
     if (bad.length) failed.push(`cites passages not shown: ${[...new Set(bad)].join(", ")}`);
   }
-  const verdict = failed.length ? "fail" : done && done.answeredBy !== modelId ? "fallback" : "pass";
+  // "kb-guard" = the off-topic guard answered with no model call: the intended path, not a fallback.
+  const verdict = failed.length ? "fail" : done && done.answeredBy !== modelId && done.answeredBy !== "kb-guard" ? "fallback" : "pass";
   return {
     caseId: c.id,
     brief: c.brief,

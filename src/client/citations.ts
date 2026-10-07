@@ -15,6 +15,9 @@ export function linkCitations(markdown: string): string {
   );
 }
 
+/** Which retrieved passages an answer came from (shared with the server, which uses it for the SLA qualifier). */
+export { citedNumbers } from "@/shared/citations";
+
 /** Source number of a citation link, or null for an ordinary link. */
 export function citationNumber(href: string | undefined): number | null {
   if (!href?.startsWith(CITE_PREFIX)) return null;

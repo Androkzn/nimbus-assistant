@@ -34,8 +34,6 @@ The corpus is **10 markdown files, 10,112 bytes (≈ 3k tokens)**, plain ASCII, 
 
 Every product doc has the same shape: Features → Pricing table → Integrations table → Support SLA table (→ Troubleshooting for Relay and Pulse only). **Most answers live in tables**, so retrieval must never split a table from its header row.
 
-Signal worth noting: in the zip, `relay.md`, `security-overview.md` and `vault-release-notes.md` were modified 4 minutes after the rest — exactly the files that carry the planted conflicts below.
-
 ---
 
 ## 2. Conflicts between documents (brief E4)
@@ -51,10 +49,10 @@ Non-conflicts checked and cleared: Ledger Salesforce ("coming soon" in `ledger.m
 
 ---
 
-## 3. Representative questions — traps and answer key
+## 3. Representative questions — pitfalls and answer key
 
 ### Q1 — "Key differences between Pro and Enterprise?"
-No product named → answer **per product** (or ask which). Pricing units differ: per seat (Relay, Vault), per workspace (Pulse), flat + 0.5% of invoiced volume (Ledger). Enterprise is always "Custom". Trap: **C2**.
+No product named → answer **per product** (or ask which). Pricing units differ: per seat (Relay, Vault), per workspace (Pulse), flat + 0.5% of invoiced volume (Ledger). Enterprise is always "Custom". Pitfall: **C2**.
 
 ### Q2 — "Does [product] integrate with Salesforce? What version?"
 Two version numbers per answer (product minimum + Salesforce API).
@@ -66,17 +64,17 @@ Two version numbers per answer (product minimum + Salesforce API).
 | Relay | **Not supported** — a community Zapier bridge exists; NimbusStack does not support it | `relay.md` Integrations |
 | Ledger | **Not yet** — "coming soon" on the 2.6 roadmap; requirement not published | `ledger.md`; 2.6 notes |
 
-Trap: v58 vs v59 are adjacent rows of different docs.
+Pitfall: v58 vs v59 are adjacent rows of different docs.
 
 ### Q3 — "What's new in v4.2 of [product]?"
 Only **Relay** has a 4.2 (2026-06-10): request replay (last 7 days, against staging, Enterprise); EU regional endpoint `eu.relay.nimbusstack.com`, Frankfurt residency (Enterprise); Pro price change to $59 for new contracts from 2026-08-01; fix — webhook retry storm on >10 min of downstream 5xx.
-Trap: **Pulse jumps 4.1 → 4.3** — "Pulse 4.2" must be answered as *not in the knowledge base*. Vault (latest 3.2) and Ledger (2.6) never reached 4.x.
+Pitfall: **Pulse jumps 4.1 → 4.3** — "Pulse 4.2" must be answered as *not in the knowledge base*. Vault (latest 3.2) and Ledger (2.6) never reached 4.x.
 
 ### Q4 — "A client gets a 403 on the API. What to check first?"
 Only Relay and Pulse document it (ordered checklists):
 - **Relay:** (1) token scope includes the route — per-route since 4.0; (2) caller IP on workspace allowlist, if configured; (3) owning seat not suspended.
 - **Pulse:** (1) API-key owner is a member of the project's workspace; (2) key is bound to the queried project — per-project since 4.0.
-Trap: no product named → answer both / ask; Vault and Ledger have no 403 guidance (brief E3).
+Pitfall: no product named → answer both / ask; Vault and Ledger have no 403 guidance (brief E3).
 
 ### Q5 — "Which products support SSO via SAML 2.0?"
 | Product | SAML 2.0 | Source |
@@ -86,7 +84,7 @@ Trap: no product named → answer both / ask; Vault and Ledger have no 403 guida
 | Ledger | **Every tier** | `ledger.md` ("Federated login (SAML 2.0)"), security overview |
 | Pulse | **No** — OIDC on Pro/Enterprise; SAML is roadmap only | `pulse.md`, security overview |
 
-Trap (brief E5): **Ledger never uses the words "SSO" or "single sign-on"** — only "Federated login". Pure keyword retrieval on "SSO" drops Ledger and produces an incomplete answer.
+Pitfall (brief E5): **Ledger never uses the words "SSO" or "single sign-on"** — only "Federated login". Pure keyword retrieval on "SSO" drops Ledger and produces an incomplete answer.
 
 ### Q6 — "SLA for Priority 1 tickets?"
 Response time to **first human reply** (not resolution). Values differ by product — `support-policy.md` says so explicitly.
@@ -98,13 +96,13 @@ Response time to **first human reply** (not resolution). Values differ by produc
 | Pulse | Next business day | 4 hours | 1 hour, 24x7 |
 | Ledger | 8 business hours | 2 hours | 30 minutes, 24x7 |
 
-Traps (brief E6): Pulse's entry tier is **Growth**, not Starter; Relay and Ledger rows are identical except Enterprise; "business hours" = 08:00–18:00 customer time zone, Mon–Fri (`support-policy.md`).
+Pitfalls (brief E6): Pulse's entry tier is **Growth**, not Starter; Relay and Ledger rows are identical except Enterprise; "business hours" = 08:00–18:00 customer time zone, Mon–Fri (`support-policy.md`).
 
 ---
 
 ## 4. Known gaps — questions the KB cannot answer (brief E2 / E3)
 
-The bot must say "not in the knowledge base" for these. They are the most likely tester probes.
+The bot must say "not in the knowledge base" for these. Users will ask them, and any confident answer would be invented.
 
 | Probe | Why it is a gap |
 |-------|-----------------|

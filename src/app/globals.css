@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Brand: deep navy chrome, warm orange accent, light reading surface — the CodeShip brief's look.
+ * Brand: deep navy chrome, warm orange accent, light reading surface.
  * Orange text on light backgrounds uses --orange-ink (AA contrast); --orange is for navy surfaces.
  *
  * Hover, one rule per surface:
@@ -114,7 +114,7 @@ body {
   }
 }
 
-/* Warm glow in the top-right corner, as on the brief's cover. */
+/* Warm glow in the top-right corner. */
 .brand-glow {
   background-image: radial-gradient(520px 220px at 100% 0%, rgb(242 140 56 / 0.22), transparent 70%);
 }

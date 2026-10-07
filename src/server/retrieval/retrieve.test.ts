@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { retrieve } from "./retrieve";
-import type { HistoryMessage } from "./query";
+import { detectVersion, type HistoryMessage } from "./query";
 
 /**
  * Retrieval eval — the offline CI gate (TRD §9). Each case is taken from the discovery answer key
@@ -66,7 +66,7 @@ const cases: Case[] = [
     first: "pulse.md#support-sla",
   },
   {
-    id: "NKA-CHAT-007 E1 'And for Vault?' keeps the topic (P1 SLA) of the previous question",
+    id: "NKA-CHAT-008 E1 'And for Vault?' keeps the topic (P1 SLA) of the previous question",
     question: "And for Vault?",
     history: [
       { role: "user", content: "What's the P1 SLA for Relay Enterprise?" },
@@ -75,13 +75,13 @@ const cases: Case[] = [
     first: "vault.md#support-sla",
   },
   {
-    id: "NKA-CHAT-007 E1 'What about Pulse?' keeps the topic (Salesforce integration)",
+    id: "NKA-CHAT-008 E1 'What about Pulse?' keeps the topic (Salesforce integration)",
     question: "What about Pulse?",
     history: [{ role: "user", content: "Does Vault integrate with Salesforce? What version is required?" }],
     first: "pulse.md#integrations",
   },
   {
-    id: "NKA-CHAT-007 E1 'and Ledger?' keeps the topic (pricing)",
+    id: "NKA-CHAT-008 E1 'and Ledger?' keeps the topic (pricing)",
     question: "and Ledger?",
     history: [{ role: "user", content: "How much is Vault Pro?" }],
     first: "ledger.md#pricing",
@@ -123,6 +123,26 @@ describe("retrieval eval (golden cases)", () => {
   it("numbers passages 1..n in order", () => {
     const { passages } = retrieve("Relay pricing");
     expect(passages.map((p) => p.n)).toEqual(passages.map((_, i) => i + 1));
+  });
+
+  it("NKA-RET-013: product nicknames resolve to the product, also for follow-ups", () => {
+    expect(retrieve("Does the API gateway integrate with Salesforce?").products).toEqual(["relay"]);
+    expect(retrieve("What does the secrets manager cost on Pro?").products).toEqual(["vault"]);
+    const followUp = retrieve("what about its SLA?", [{ role: "user", content: "Does the API gateway integrate with Salesforce?" }]);
+    expect(followUp.products).toEqual(["relay"]);
+    expect(followUp.passages[0].chunk.id).toBe("relay.md#support-sla");
+  });
+
+  it("NKA-GRD-009: an integration question does not pull in sign-on passages (no false disagreement)", () => {
+    const ids = retrieve("Does Pulse integrate with Salesforce? What version is required?").passages.map((p) => p.chunk.id);
+    expect(ids).not.toContain("pulse.md#access-and-sign-in");
+    expect(ids).not.toContain("security-overview.md#identity");
+  });
+
+  it("does not read protocol versions as release versions", () => {
+    expect(detectVersion("Which of our products support SSO via SAML 2.0?")).toBeNull();
+    expect(detectVersion("Is TLS 1.2 required?")).toBeNull();
+    expect(detectVersion("What's new in v4.2 of Relay?")).toBe("4.2");
   });
 
   it("carries the topic only when the follow-up has none of its own", () => {

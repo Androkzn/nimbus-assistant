@@ -15,7 +15,20 @@ export const SYNONYM_GROUPS: Record<string, string[]> = {
   sla: ["sla", "response time", "support sla", "first human reply", "priority"],
   pricing: ["price", "pricing", "cost", "costs", "how much", "charge", "fee", "tier", "tiers", "plan", "per seat"],
   release: ["release", "released", "new features", "what's new", "whats new", "release notes", "new"],
-  integration: ["integrate", "integrates", "integration", "integrations", "sync", "connect"],
+  // No "connect": it matched "OpenID Connect" and pulled sign-on passages into integration answers,
+  // which then reported a disagreement that does not exist (found by external review, 2026-10-07).
+  integration: ["integrate", "integrates", "integration", "integrations", "sync"],
+};
+
+/**
+ * What staff call the products when they don't use the name (brief E1/E5: plain English).
+ * Taken from each product doc's own one-line description.
+ */
+export const PRODUCT_ALIASES: Record<Product, string[]> = {
+  relay: ["api gateway", "gateway", "event router", "webhook", "webhooks"],
+  vault: ["secrets manager", "secret manager", "secrets management", "secret store"],
+  pulse: ["product analytics", "analytics"],
+  ledger: ["billing", "invoicing", "usage-based billing", "usage billing", "metering"],
 };
 
 export type Topic = keyof typeof SYNONYM_GROUPS;
@@ -51,11 +64,12 @@ export function expandQuery(question: string): string[] {
 
 export function detectProducts(text: string): Product[] {
   const lower = text.toLowerCase();
-  return PRODUCTS.filter((p) => new RegExp(`\\b${p}\\b`).test(lower));
+  return PRODUCTS.filter((p) => [p, ...PRODUCT_ALIASES[p]].some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`).test(lower)));
 }
 
+/** A product release asked about ("v4.2", "4.2"). Protocol versions ("SAML 2.0", "TLS 1.2") are not releases. */
 export function detectVersion(question: string): string | null {
-  return normalize(question).match(/\b(\d+\.\d+)\b(?!\s*(?:saml|\)))/)?.[1] ?? null;
+  return normalize(question).match(/(?<!\b(?:saml|tls|ssl|oauth|http|api)\s?)\b(\d+\.\d+)\b/)?.[1] ?? null;
 }
 
 const CROSS_PRODUCT = /\b(which|what) (of )?(our|the|nimbusstack) products\b|\b(all|each|every|any) (of )?(our |the )?products?\b|\bproduct line\b/i;
@@ -86,7 +100,10 @@ export function productsInScope(question: string, history: HistoryMessage[]): { 
 }
 
 const FOLLOW_UP = /^\s*(and|what about|how about|same for|what of)\b/i;
-const PRODUCT_WORDS = /\b(nimbus\s+)?(relay|vault|pulse|ledger)\b/gi;
+const PRODUCT_WORDS = new RegExp(
+  `\\b(nimbus\\s+)?(${PRODUCTS.flatMap((p) => [p, ...PRODUCT_ALIASES[p]]).map(escapeRegExp).join("|")})\\b`,
+  "gi",
+);
 
 /**
  * "And for Vault?" / "What about Pulse?" — names a product but no topic of its own, so the topic

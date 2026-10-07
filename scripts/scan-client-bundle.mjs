@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Security gate (BRD BR-20, brief auto-fail): no API key may reach the browser.
+ * Security gate (BRD BR-20, brief R5): no API key may reach the browser.
  * Scans every file the browser can download (.next/static) for vendor key shapes and for the
  * literal values of the provider key env vars when they are set. Exits non-zero on any hit.
  *

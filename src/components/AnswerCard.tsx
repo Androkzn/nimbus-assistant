@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { citationNumber, linkCitations } from "@/client/citations";
+import { citationNumber, citedNumbers, linkCitations } from "@/client/citations";
+import { deadlineIn, formatWait, liveWaitCopy } from "@/client/cooldown";
+import { useCountdown } from "@/client/useCountdown";
 import type { AnswerState } from "@/shared/answer";
-import type { ErrorCode, PassageDTO } from "@/shared/contracts";
+import { KB_GUARD_ID, type ErrorCode, type PassageDTO } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
 import { AlertIcon, CheckIcon, ChevronDownIcon, CopyIcon, DocIcon, SwitchIcon } from "./icons";
 
@@ -47,7 +49,12 @@ export function AnswerCard({
   const streaming = answer.status === "streaming";
   const waiting = streaming && answer.text.length === 0;
   const lastFallback = answer.fallbacks.at(-1);
-  const sourceFiles = [...new Set(answer.sources.map((s) => s.file))];
+  const guarded = answer.answeredBy === KB_GUARD_ID;
+  // R2: which retrieved passages the answer actually came from. Cited ones are always visible and
+  // listed first; the rest stay available but marked, so nobody mistakes them for the answer's basis.
+  const cited = useMemo(() => citedNumbers(answer.text), [answer.text]);
+  const citedSources = answer.sources.filter((s) => cited.has(s.n));
+  const orderedSources = [...citedSources, ...answer.sources.filter((s) => !cited.has(s.n))];
 
   function showSource(n: number) {
     setSourcesOpen(true);
@@ -137,6 +144,23 @@ export function AnswerCard({
           </div>
         )}
 
+        {answer.status === "done" && citedSources.length > 0 && (
+          <div data-testid="cited-sources" className="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="mr-1 font-semibold text-muted">Sources used:</span>
+            {citedSources.map((s) => (
+              <button
+                key={s.n}
+                type="button"
+                onClick={() => showSource(s.n)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-orange-line bg-orange-soft px-2 py-0.5 text-orange-ink transition-colors hover:border-orange-strong"
+              >
+                <b className="tabular-nums">{s.n}</b>
+                {s.file} · {s.section}
+              </button>
+            ))}
+          </div>
+        )}
+
         {answer.status === "error" && answer.error && (
           <div
             data-testid="answer-error"
@@ -146,8 +170,7 @@ export function AnswerCard({
             <AlertIcon className="mt-0.5 shrink-0 text-base text-red" />
             <div className="min-w-0 flex-1">
               {ERROR_TITLE[answer.error.code] && <p className="font-semibold text-text">{ERROR_TITLE[answer.error.code]}</p>}
-              <p className="text-text/80">{answer.error.message}</p>
-              {onRetry && <RetryButton seconds={answer.error.retryAfterSec ?? 0} onRetry={onRetry} />}
+              <ErrorDetail message={answer.error.message} seconds={answer.error.retryAfterSec ?? 0} onRetry={onRetry} />
             </div>
           </div>
         )}
@@ -162,21 +185,20 @@ export function AnswerCard({
         >
           <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm select-none transition-colors hover:bg-orange-soft hover:text-orange-ink sm:px-6 [&::-webkit-details-marker]:hidden">
             <DocIcon className="shrink-0 text-orange-ink" />
-            <span className="font-semibold">Sources</span>
-            <span className="rounded-full border border-border bg-surface-2 px-1.5 text-xs font-medium tabular-nums text-muted">
-              {answer.sources.length}
+            <span className="font-semibold">Passages</span>
+            <span className="min-w-0 flex-1 truncate text-xs text-muted tabular-nums">
+              {citedSources.length} cited · {answer.sources.length} retrieved
             </span>
-            <span className="hidden min-w-0 flex-1 truncate text-xs text-muted sm:block">{sourceFiles.join(" · ")}</span>
             <ChevronDownIcon className="ml-auto shrink-0 text-muted transition-transform group-open/src:rotate-180" />
           </summary>
           <ol className="space-y-2 px-5 pb-5 sm:px-6">
-            {answer.sources.map((s) => (
+            {orderedSources.map((s) => (
               <li
                 key={s.n}
                 id={`${uid}-src-${s.n}`}
                 className={`scroll-mt-4 rounded-xl border bg-surface-2 p-3.5 transition-[border-color,box-shadow] duration-300 ${
                   highlight === s.n ? "border-orange-strong shadow-[0_0_0_4px_rgb(234_88_12/0.15)]" : "border-border"
-                }`}
+                } ${cited.has(s.n) ? "" : "opacity-70"}`}
               >
                 <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                   <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#c2410c] px-1 text-[11px] font-bold text-white">{s.n}</span>
@@ -184,6 +206,7 @@ export function AnswerCard({
                     {s.file} · {s.section}
                   </span>
                   {s.docDate && <span className="rounded-full border border-border px-1.5 py-px text-[11px] text-muted">{s.docDate}</span>}
+                  {!cited.has(s.n) && <span className="text-[11px] text-muted italic">retrieved, not cited</span>}
                 </div>
                 <div className="answer-md passage-md text-[13px] leading-relaxed text-muted">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{passageBody(s)}</ReactMarkdown>
@@ -197,15 +220,33 @@ export function AnswerCard({
       {answer.status === "done" && answer.answeredBy && (
         <footer className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-surface-2/60 px-5 py-2.5 text-xs text-muted sm:px-6">
           <span data-testid="answered-by" className="rounded-full border border-border bg-surface px-2.5 py-1 font-semibold text-text">
-            Answered by {modelName(answer.answeredBy)}
+            {guarded ? "No AI call — nothing in the knowledge base matched" : `Answered by ${modelName(answer.answeredBy)}`}
           </span>
-          {answer.requestedModel && answer.requestedModel !== answer.answeredBy && (
+          {!guarded && answer.requestedModel && answer.requestedModel !== answer.answeredBy && (
             <span
               data-testid="fallback-note"
               className="inline-flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber-soft px-2.5 py-1 font-medium text-amber"
             >
               <SwitchIcon className="shrink-0" />
               {modelName(answer.requestedModel)} {REASON[answer.fallbacks[0]?.reason ?? "unavailable"]} — backup answered
+            </span>
+          )}
+          {!guarded && answer.unverifiedFigures && (
+            <span
+              data-testid="figure-check"
+              data-ok={answer.unverifiedFigures.length === 0}
+              title="Every number in the answer is checked against the passages the model was given."
+              className={answer.unverifiedFigures.length === 0 ? "inline-flex items-center gap-1 font-medium text-ok" : "inline-flex items-center gap-1 rounded-full border border-amber/30 bg-amber-soft px-2.5 py-1 font-medium text-amber"}
+            >
+              {answer.unverifiedFigures.length === 0 ? (
+                <>
+                  <CheckIcon className="shrink-0" /> Figures match sources
+                </>
+              ) : (
+                <>
+                  <AlertIcon className="shrink-0" /> Not found in sources: {answer.unverifiedFigures.join(", ")} — verify before quoting
+                </>
+              )}
             </span>
           )}
           {answer.usage && (
@@ -229,23 +270,25 @@ export function AnswerCard({
 }
 
 /** Retry that waits out the provider's rate-limit window instead of letting the user hammer it (brief E9). */
-function RetryButton({ seconds, onRetry }: { seconds: number; onRetry: () => void }) {
-  const [left, setLeft] = useState(seconds);
-
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setTimeout(() => setLeft((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [left]);
+/** Error copy and retry share one countdown, so "wait about N seconds" and the button always agree (BR-21). */
+function ErrorDetail({ message, seconds, onRetry }: { message: string; seconds: number; onRetry?: () => void }) {
+  // Fixed when the error first shows: the button can unmount while another answer streams without restarting the wait.
+  const [retryAt] = useState(() => (seconds > 0 ? deadlineIn(seconds) : null));
+  const left = useCountdown(retryAt);
 
   return (
-    <button
-      type="button"
-      onClick={onRetry}
-      disabled={left > 0}
-      className="mt-3 inline-flex items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text transition-colors hover:border-orange-strong hover:bg-orange-soft hover:text-orange-ink disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-surface disabled:hover:text-text"
-    >
-      {left > 0 ? `Try again in ${left}s` : "Try again"}
-    </button>
+    <>
+      <p className="text-text/80">{retryAt === null ? message : liveWaitCopy(message, left)}</p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={left > 0}
+          className="mt-3 inline-flex items-center rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text transition-colors hover:border-orange-strong hover:bg-orange-soft hover:text-orange-ink disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border disabled:hover:bg-surface disabled:hover:text-text"
+        >
+          {left > 0 ? `Try again in ${formatWait(left)}` : "Try again"}
+        </button>
+      )}
+    </>
   );
 }

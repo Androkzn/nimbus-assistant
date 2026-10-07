@@ -34,10 +34,10 @@ Rules:
 | Version | Date | Changes |
 |---------|------|---------|
 | v0.1 | 2026-10-07 | Initial draft from BRD v1.0 |
-| v0.2 | 2026-10-07 | Self-review cycle 1 (cross-section consistency pass, per `create-implementation-plan` retrospective FM-2.4): aligned event names between §5 and §6; added `reset` event for mid-stream fallback; tagged model IDs/prices ⚠️ Unverified; added arithmetic check for cost formula (§4.3) |
+| v0.2 | 2026-10-07 | Self-review cycle 1 (cross-section consistency pass): aligned event names between §5 and §6; added `reset` event for mid-stream fallback; tagged model IDs/prices ⚠️ Unverified; added arithmetic check for cost formula (§4.3) |
 | v1.0 | 2026-10-07 | Accepted for build |
 | v1.1 | 2026-10-07 | As built: T1 resolved (IDs/prices verified against vendor docs, `pricingVersion` 2026-10-07); default model `gemini-flash-lite` chosen by measured eval (18/18, ~1 s first word), fallback order alternates vendors; `maxOutputTokens` 4,000 after reasoning tokens truncated an answer; `finishReason=length` appends a visible "cut off" note; billing/credit errors classified as `auth`; prompt rules for stale company-wide docs and full table rows; eval bypass token for the limiter |
-| v1.2 | 2026-10-07 | Sentry error monitoring (`@sentry/nextjs` 11.5, project `andrei-tekhtelev/nimbus-assistant`): §7 privacy contract, §8 signals |
+| v1.2 | 2026-10-07 | Sentry error monitoring (`@sentry/nextjs` 11.5): §7 privacy contract, §8 signals |
 
 ---
 
@@ -109,7 +109,7 @@ Browser (React, client component)            Server (Next.js route handler, Node
 | Retrieval | In-process BM25 + synonym expansion + structural rules | Embeddings + vector DB | Corpus ≈ 3k tokens / ~45 chunks: lexical is deterministic, offline-testable, zero extra vendor; upgrade path in §11 |
 | Stream protocol | Own NDJSON event protocol (zod-typed) | AI SDK UI message stream | Need first-class `sources`, `fallback`, `reset`, `usage` events and a contract we can test independently of a UI library |
 | Tests | Vitest (unit/integration), Playwright (E2E, mock LLM), eval runner | Jest, Cypress | Fast TS-native; Playwright is the industry default |
-| Hosting | Vercel (Node runtime, streaming) — Netlify as fallback | Render, Railway | Native Next.js streaming, env-var secrets, preview deploys |
+| Hosting | Vercel (Node runtime, streaming) | Render, Railway | Native Next.js streaming, env-var secrets, preview deploys |
 
 ---
 
@@ -120,19 +120,24 @@ Single source for everything the brief says must not be hard-coded.
 ```jsonc
 {
   "pricingVersion": "2026-10-07",          // bump when any price changes; stamped on every usage row
-  "defaultModelId": "gemini-flash",
-  "fallbackOrder": ["gemini-flash", "claude-haiku", "openai-mini"],
+  "pricingSources": { "anthropic": "…", "openai": "…", "google": "…" },  // vendor pricing pages the prices were checked against
+  "defaultModelId": "gemini-flash-lite",
+  "fallbackOrder": ["gemini-flash-lite", "claude-haiku", "openai-luna", "gemini-flash", "claude-sonnet"],
   "models": [
     {
       "id": "claude-haiku",                 // stable registry key — the only id the browser ever sees
       "provider": "anthropic",              // anthropic | openai | google
-      "vendorModelId": "…",                 // ⚠️ Unverified until Phase 2 check
-      "displayName": "Claude Haiku 4.5",
+      "vendorModelId": "claude-haiku-5-5",
+      "displayName": "Claude Haiku 5.5",
       "providerName": "Anthropic Claude",
-      "description": "Fast, precise answers with careful citations.",
-      "contextWindow": 200000,
-      "maxOutputTokens": 1024,
-      "pricing": { "inputPerMTok": 1.0, "outputPerMTok": 5.0, "currency": "USD" }
+      "description": "Fast and precise with citations; ~1 s to first word.",
+      "contextWindow": 1000000,
+      "maxOutputTokens": 4000,
+      "pricing": {                          // USD per million tokens
+        "inputPerMTok": 0.1, "outputPerMTok": 0.5,
+        "longPrompt": { "aboveInputTokens": 100000, "inputPerMTok": 0.5, "outputPerMTok": 2.5 }
+      },
+      "providerOptions": { "anthropic": { "effort": "low" } }  // passed through to the vendor SDK
     }
   ]
 }
@@ -243,7 +248,7 @@ Every event is validated against the shared zod schema in tests (contract test).
 `{ defaultModelId, models: { id, displayName, providerName, description, contextWindow, pricing, available }[] }` — never vendor keys.
 
 ### `GET /api/health`
-`{ ok: true, corpus: { files, chunks }, providersAvailable: string[] }` — for smoke tests and the demo.
+`{ ok: true, corpus: { files, chunks }, providersAvailable: string[] }` — for deploy smoke tests and monitoring.
 
 ---
 
@@ -258,6 +263,8 @@ Every event is validated against the shared zod schema in tests (contract test).
 | Done | `done` | Badge "Answered by ‹model›" (+ fallback note), usage line, totals updated, meter updated | — |
 | Error | `error` or HTTP 4xx/5xx | Error card with BRD §5 copy; question kept in composer for retry | Retry / switch model |
 | Blank | Composer empty/whitespace | Send disabled | Type |
+| Cooling down (BR-26) | HTTP 429 `rate_limited` from this app's limiter | Turn removed, question back in the composer, one countdown notice above it; send, bubbles, examples and retry disabled until `retryAfterSec` passes (absolute deadline, `src/client/useCountdown.ts`) | Wait, then send |
+| Suggestions (BR-27) | Models loaded and not sending | "Ask more" bubbles above the composer: starters (one per product) when empty; after an answer, up to 3 follow-ups for the products the question names (else the answer names), never one already asked. Fixed list in `src/client/suggestions.ts`, no model call | Tap sends |
 
 Client state: `messages[]`, `usageRows[]` (one per answered turn), `selectedModelId`. Only `{role, content}` of prior turns is sent to the server (sources/usage stay client-side). Export builds CSV/JSON from `usageRows` in the browser.
 
@@ -266,7 +273,7 @@ Client state: `messages[]`, `usageRows[]` (one per answered turn), `selectedMode
 ## 7. Security and privacy
 
 - **Secrets**: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` read only in server modules (`import 'server-only'`); never `NEXT_PUBLIC_*`.
-- **Bundle scan (CI gate)**: after `next build`, scan `.next/static/**` for key prefixes (`sk-ant-`, `sk-proj-`, `sk-`, `AIza`) and for the literal values of the three env vars when present; any hit fails the build.
+- **Bundle scan (CI gate)**: after `next build`, scan `.next/static/**` for key prefixes (`sk-ant-`, `sk-proj-`, `sk-`, `AIza`) and for the literal values of the server-side secret env vars when present; any hit fails the build.
 - **Logging**: structured JSON per request — `requestId, requestedModel, answeredBy, attempts[{model, errorClass}], ttftMs, totalMs, inputTokens, outputTokens, costUSD, passageIds` — **no message text, no keys**.
 - **Error hygiene**: vendor error bodies are never forwarded to the client; only `{code, message}` from §4.4.
 - **Error monitoring (Sentry)**: same rule as logging — errors, ids, models, tokens, latency; **no message text, no keys**. SDK v11 collects request/response bodies, headers, gen-AI inputs/outputs and stack-frame variables by default; all are switched off explicitly in `src/shared/sentry.ts`, plus `beforeSend` / `beforeSendSpan` scrubs (v11 streams spans, so `beforeSendTransaction` would be ignored). The DSN (`NEXT_PUBLIC_SENTRY_DSN`) is a public, send-only ingest key — the one `NEXT_PUBLIC_*` value allowed; unset → Sentry off (CI, fresh clones); `LLM_MODE=mock` → off (injected faults are not incidents).
@@ -282,7 +289,7 @@ Client state: `messages[]`, `usageRows[]` (one per answered turn), `selectedMode
 | `chat.request` log line | route | Latency, model, fallback, cost per request |
 | `ttftMs` | route | Sarah's "fast on a live call" KPI |
 | `attempts[].errorClass` | FallbackRunner | Provider health; fallback frequency |
-| `/api/health` | route | Deploy smoke; demo which providers are live |
+| `/api/health` | route | Deploy smoke; shows which providers are configured |
 | Sentry issue `LLMProviderFailure: <model> failed (<class>)` | `src/server/observability/report.ts` | Handled provider failures the fallback hides from users (bad key, billing, rate limit, outage); one issue per model × class; `warning` if a backup answered, `error` if none did |
 | Sentry errors | `onRequestError`, `global-error.tsx`, browser SDK, `chat.unhandled` | Unhandled server/client errors; events tunnelled via `/monitoring` past ad-blockers |
 | Sentry traces + `gen_ai` spans | SDK auto-instrumentation | Latency per route and per provider call (model, tokens; prompts/outputs not recorded) |
@@ -319,7 +326,7 @@ Anti-"coverage theater" rules: tests assert on concrete values from the KB (e.g.
 
 ## 11. Out of scope / future
 
-- Embeddings + hybrid retrieval + reranker once the corpus grows beyond hand-auditable size; ingestion for PDFs/wikis/email (the brief's real-world sources).
+- Embeddings + hybrid retrieval + reranker once the corpus grows beyond hand-auditable size; ingestion for PDFs/wikis/email (the client's real-world sources).
 - Persisted chats, login (SSO via the client's IdP), admin analytics, prompt caching.
 - LLM-as-judge grading in the eval runner (deterministic graders first).
 
@@ -331,7 +338,7 @@ Anti-"coverage theater" rules: tests assert on concrete values from the KB (e.g.
 |---|----------|----------|-------|--------|
 | T1 | Exact vendor model IDs + list prices for the three default models | high | Eng | ✅ resolved — verified via each vendor's models API + pricing page on 2026-10-07 (`config/models.json` `pricingSources`) |
 | T2 | Which provider keys are available for the live link | high | Andrei | ✅ resolved — Anthropic, OpenAI and Gemini keys all verified live |
-| T3 | Vercel login on this machine (Netlify is logged in) | medium | Andrei | open |
+| T3 | Hosting for the live link | medium | Andrei | ✅ resolved — deployed on Vercel: https://nimbus-assistant-coral.vercel.app |
 
 ---
 
@@ -340,4 +347,4 @@ Anti-"coverage theater" rules: tests assert on concrete values from the KB (e.g.
 - [x] Every BRD requirement maps to a technical contract (§1 checksum 26/26).
 - [x] Testing and rollout gates are explicit (§9, §10).
 - [x] External facts flagged ⚠️ Unverified where not yet checked (T1).
-- [ ] T2/T3 resolved before Phase 5 (deploy).
+- [x] T2/T3 resolved before Phase 5 (deploy).

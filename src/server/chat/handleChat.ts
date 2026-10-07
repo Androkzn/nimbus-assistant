@@ -1,12 +1,14 @@
 import type { LanguageModel } from "ai";
-import { ChatRequestSchema, HISTORY_MESSAGES, type StreamEvent } from "@/shared/contracts";
-import { getModel, type Env, type ModelEntry } from "../config/models";
+import { ChatRequestSchema, HISTORY_MESSAGES, KB_GUARD_ID, type StreamEvent } from "@/shared/contracts";
+import { catalog, getModel, type Env, type ModelEntry } from "../config/models";
 import { createRateLimiter, type RateLimiter } from "../http/rateLimit";
-import { runWithFallback, type AttemptTrace } from "../llm/fallback";
+import { runWithFallback, type AttemptTrace, type RunnerEvent } from "../llm/fallback";
 import { extractFaults } from "../llm/faults";
 import { sentryChatMonitor, type ChatMonitor } from "../observability/report";
-import { buildInstructions } from "../prompt/build";
+import { buildInstructions, NOT_IN_KB } from "../prompt/build";
 import { retrieve } from "../retrieval/retrieve";
+import { unverifiedFigures } from "../verify/figures";
+import { slaQualifier } from "../verify/qualifiers";
 
 export interface ChatDeps {
   env?: Env;
@@ -60,12 +62,18 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   if (!question) return json(400, { error: { code: "invalid_input", message: "Please type a question first." } });
 
   const retrieval = retrieve(question, history);
-  const instructions = buildInstructions(retrieval, (deps.today ?? (() => new Date().toISOString().slice(0, 10)))());
+  const today = (deps.today ?? (() => new Date().toISOString().slice(0, 10)))();
+  const instructions = buildInstructions(retrieval, today);
   const modelMessages = [...history.slice(-HISTORY_MESSAGES), { role: "user" as const, content: question }];
+  // Off-topic guard: nothing in the knowledge base matches and no product is in scope, so no model
+  // is called at all — the "not in the knowledge base" answer is deterministic (brief E2, the one rule).
+  const guarded = retrieval.noMatch && retrieval.products.length === 0;
 
   const trace: AttemptTrace[] = [];
   let ttftMs: number | null = null;
   let final: StreamEvent | null = null;
+  let answerText = "";
+  let unverified: string[] = [];
   const encoder = new TextEncoder();
 
   const body = new ReadableStream<Uint8Array>({
@@ -75,20 +83,41 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
         send({ type: "meta", requestId, requestedModel: modelId });
         send({
           type: "sources",
-          passages: retrieval.passages.map((p) => ({ n: p.n, file: p.chunk.file, section: p.chunk.section, docDate: p.chunk.docDate, text: p.chunk.text })),
+          passages: guarded
+            ? []
+            : retrieval.passages.map((p) => ({ n: p.n, file: p.chunk.file, section: p.chunk.section, docDate: p.chunk.docDate, text: p.chunk.text })),
         });
-        for await (const event of runWithFallback({
-          requestedModelId: modelId,
-          instructions,
-          messages: modelMessages,
-          signal: req.signal,
-          faults,
-          env,
-          modelFactory: deps.modelFactory,
-          trace,
-          onFirstToken: () => (ttftMs ??= Date.now() - started),
-        })) {
-          if (event.type === "done" || event.type === "error") final = event;
+        const events = guarded
+          ? guardAnswer(modelId)
+          : runWithFallback({
+              requestedModelId: modelId,
+              instructions,
+              messages: modelMessages,
+              signal: req.signal,
+              faults,
+              env,
+              modelFactory: deps.modelFactory,
+              trace,
+              onFirstToken: () => (ttftMs ??= Date.now() - started),
+            });
+        for await (const event of events) {
+          if (event.type === "delta") answerText += event.text;
+          else if (event.type === "reset") answerText = "";
+          if (event.type === "done") {
+            // SLA definition (TRD §4.6): never let a response time read as a resolution time.
+            const qualifier = guarded ? null : slaQualifier(answerText, retrieval.passages.map((p) => ({ n: p.n, text: p.chunk.text })));
+            if (qualifier) {
+              answerText += qualifier;
+              send({ type: "delta", text: qualifier });
+            }
+            // Figure check: every number in the answer must appear in the passages or the question.
+            // Sources: passages, the question, today's date, and the earlier turns this answer may restate.
+            unverified = unverifiedFigures(answerText, [...retrieval.passages.map((p) => p.chunk.text), question, today, ...modelMessages.map((m) => m.content)]);
+            final = { ...event, unverifiedFigures: unverified };
+            send(final);
+            continue;
+          }
+          if (event.type === "error") final = event;
           send(event);
         }
       } catch (err) {
@@ -117,8 +146,13 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
           passages: retrieval.passages.map((p) => p.chunk.id),
           historyTurns: history.length,
           faults,
+          guarded,
+          unverifiedFigures: unverified.length, // a count only: figures are answer content
         });
         monitor.providerFailures({ requestId, requestedModel: modelId, outcome: done?.type ?? "aborted", attempts: trace, injectedFaults: faults.length });
+        if (done?.type === "done" && unverified.length > 0 && faults.length === 0) {
+          monitor.unverifiedFigures({ requestId, answeredBy: done.answeredBy, count: unverified.length });
+        }
       }
     },
   });
@@ -126,4 +160,19 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   return new Response(body, {
     headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-request-id": requestId },
   });
+}
+
+export const GUARD_ANSWER = `${NOT_IN_KB} I can answer questions about NimbusStack's products — Relay, Vault, Pulse and Ledger: pricing, features, integrations, release notes, troubleshooting and support SLAs.`;
+
+/** The deterministic off-topic answer, streamed like a model answer but with no model call and no cost. */
+async function* guardAnswer(requestedModel: string): AsyncGenerator<RunnerEvent> {
+  for (const word of GUARD_ANSWER.match(/\S+\s*/g) ?? []) yield { type: "delta", text: word };
+  yield {
+    type: "done",
+    answeredBy: KB_GUARD_ID,
+    requestedModel,
+    usage: { inputTokens: 0, outputTokens: 0 },
+    costUSD: 0,
+    pricingVersion: catalog.pricingVersion,
+  };
 }

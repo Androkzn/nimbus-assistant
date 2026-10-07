@@ -2,7 +2,7 @@ import type { ErrorCode } from "@/shared/contracts";
 import { isMockMode, type Env } from "../config/models";
 
 /**
- * Fault injection, so fallback (brief E8/E9) can be demonstrated and E2E-tested without
+ * Fault injection, so fallback (brief E8/E9) can be exercised on demand and E2E-tested without
  * breaking a real provider. Enabled only with LLM_MODE=mock or ALLOW_FAULT_INJECTION=1.
  * Usage: add a marker to the question, e.g. "What is Relay's P1 SLA? #fail-primary".
  */

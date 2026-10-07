@@ -82,7 +82,7 @@ describe("Sentry provider-failure reporting (TRD §8)", () => {
     expect(redactSecrets("key AIzaSyA-123456 and sk-ant-api03-xyz123")).toBe("key [redacted-key] and [redacted-key]");
   });
 
-  it("stays silent for answered requests and for injected demo/E2E faults", () => {
+  it("stays silent for answered requests and for injected faults", () => {
     reportProviderFailures({ requestId: "r3", requestedModel: "gemini-flash-lite", outcome: "done", attempts: [answered("gemini-flash-lite")], injectedFaults: 0 });
     reportProviderFailures({
       requestId: "r4",
