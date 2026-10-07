@@ -63,3 +63,9 @@ export function parentName(fullName: string): string | undefined {
 export function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
+
+/** "Core requirements (R1–R5)" → ["Core requirements", "(R1–R5)"], so the parenthetical can stay on one line. */
+export function splitParenthetical(name: string): [string, string | undefined] {
+  const i = name.lastIndexOf(" (");
+  return i > 0 && name.endsWith(")") ? [name.slice(0, i), name.slice(i + 1)] : [name, undefined];
+}

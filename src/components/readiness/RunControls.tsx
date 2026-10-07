@@ -52,82 +52,99 @@ export function RunControls({
   const answerRelevant = mode === "probes" || probes;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-2/60 p-3 sm:p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {active ? (
-          <button
-            type="button"
-            data-testid="stop-run"
-            onClick={onStop}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-navy bg-navy px-4 text-sm font-semibold text-on-navy transition-colors hover:border-orange hover:text-orange dark:border-navy-3 dark:bg-navy-3"
-          >
-            <StopIcon className="text-orange" />
-            Stop
-          </button>
-        ) : (
-          <button
-            type="button"
-            data-testid="start-run"
-            onClick={onStart}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-orange bg-orange px-4 text-sm font-semibold text-navy transition-colors hover:border-orange-strong hover:bg-orange-strong"
-          >
-            <svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden>
-              {session.phase === "idle" ? (
-                <path d="M8 5.5v13l10.5-6.5z" fill="currentColor" />
-              ) : (
-                <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-              )}
-            </svg>
-            {startLabel(session, mode, availability)}
-          </button>
-        )}
-        <p className="min-w-0 flex-1 basis-56 text-[12.5px] leading-snug text-muted">
-          {active ? "Stop aborts everything in flight; a local run stops on the server too." : startHint(mode, availability, probes)}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-3 border-t border-border pt-3">
-        {replayRelevant && (
-          <fieldset className="min-w-0" disabled={active}>
-            <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">Replay speed</legend>
-            <div className="inline-flex rounded-lg border border-border bg-surface p-0.5">
-              {SPEEDS.map((s) => (
-                <button
-                  key={String(s.value)}
-                  type="button"
-                  aria-pressed={speed === s.value}
-                  onClick={() => onSpeed(s.value)}
-                  className={`h-7 rounded-md px-2.5 text-[12.5px] font-semibold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                    speed === s.value ? "bg-navy text-on-navy dark:bg-navy-3" : "text-muted hover:bg-orange-soft hover:text-orange-ink"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-        )}
-        {answerRelevant && (
-          <div className="min-w-0 flex-1 basis-64">
-            <label className="flex cursor-pointer items-start gap-2.5 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
-              <input
-                type="checkbox"
-                data-testid="include-answer"
-                checked={includeAnswer}
-                disabled={active}
-                onChange={(e) => onIncludeAnswer(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--orange-strong)]"
-              />
-              <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-text">Include one real answer</span>
-                <span className="block text-[12px] leading-snug text-muted">
-                  Asks the default model one grounded question: a single model call, about 1.5k tokens. Off by default; applies to the next run.
-                </span>
-              </span>
-            </label>
-          </div>
-        )}
-      </div>
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-5 gap-y-3 sm:justify-end">
+      {replayRelevant && (
+        <fieldset className="flex min-w-0 items-center gap-2" disabled={active}>
+          <legend className="sr-only">Replay speed</legend>
+          <span aria-hidden className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">
+            Replay
+          </span>
+          <span className="inline-flex rounded-lg border border-border bg-surface p-0.5">
+            {SPEEDS.map((s) => (
+              <button
+                key={String(s.value)}
+                type="button"
+                aria-pressed={speed === s.value}
+                aria-label={s.value === "instant" ? "Replay instantly" : `Replay at ${s.label}`}
+                onClick={() => onSpeed(s.value)}
+                className={`h-7 rounded-md px-2.5 text-[12.5px] font-semibold tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                  speed === s.value ? "bg-navy text-on-navy dark:bg-navy-3" : "text-muted hover:bg-orange-soft hover:text-orange-ink"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </span>
+        </fieldset>
+      )}
+      {answerRelevant && (
+        <label
+          className="flex min-w-0 cursor-pointer items-center gap-2 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+          title="Off by default. Applies to the next run."
+        >
+          <input
+            type="checkbox"
+            data-testid="include-answer"
+            checked={includeAnswer}
+            disabled={active}
+            onChange={(e) => onIncludeAnswer(e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-[var(--orange-strong)]"
+          />
+          <span className="min-w-0 text-[13px] leading-tight">
+            <span className="font-semibold text-text">Include one real answer</span>
+            <span className="block text-[11.5px] text-muted">one model call · about 1.5k tokens</span>
+          </span>
+        </label>
+      )}
+      {active ? (
+        <button
+          type="button"
+          data-testid="stop-run"
+          onClick={onStop}
+          title="Stop aborts everything in flight; a local run stops on the server too."
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-navy bg-navy px-4 text-sm font-semibold text-on-navy transition-colors hover:border-orange hover:text-orange dark:border-navy-3 dark:bg-navy-3"
+        >
+          <StopIcon className="text-orange" />
+          Stop
+        </button>
+      ) : (
+        <button
+          type="button"
+          data-testid="start-run"
+          onClick={onStart}
+          title={startHint(mode, availability, probes)}
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-orange bg-orange px-4 text-sm font-semibold text-navy transition-colors hover:border-orange-strong hover:bg-orange-strong"
+        >
+          <svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden>
+            {session.phase === "idle" ? (
+              <path d="M8 5.5v13l10.5-6.5z" fill="currentColor" />
+            ) : (
+              <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
+          {startLabel(session, mode, availability)}
+        </button>
+      )}
     </div>
+  );
+}
+
+/** One line under the toolbar: what Start will do, or what Stop does. */
+export function RunHint({
+  session,
+  mode,
+  probes,
+  availability,
+}: {
+  session: RunSession;
+  mode: RunMode | undefined;
+  probes: boolean;
+  availability: RunnerAvailability | null;
+}) {
+  const active = session.phase === "connecting" || session.phase === "running";
+  return (
+    <p className="text-[12.5px] text-muted">
+      {active ? "Stop aborts everything in flight; a local run stops on the server too." : startHint(mode, availability, probes)}
+    </p>
   );
 }

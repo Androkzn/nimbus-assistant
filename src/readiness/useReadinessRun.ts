@@ -140,7 +140,7 @@ async function probeBuild(signal: AbortSignal): Promise<string> {
   } catch (err) {
     if (isAbort(err)) throw err;
   }
-  return "deployed";
+  return /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname) ? "local server" : "deployed";
 }
 
 export function useReadinessRun(options: ReadinessOptions) {

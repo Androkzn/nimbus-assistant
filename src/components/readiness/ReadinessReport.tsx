@@ -10,7 +10,7 @@ import { LiveFeed, type ResultContext, type RunningTest } from "./LiveFeed";
 import { MetaRow } from "./MetaRow";
 import { MethodPanel } from "./MethodPanel";
 import { ReportHeader } from "./ReportHeader";
-import { RunControls } from "./RunControls";
+import { RunControls, RunHint } from "./RunControls";
 import { StagePipeline } from "./StagePipeline";
 import { TraceabilityMatrix } from "./TraceabilityMatrix";
 import { verdictOf } from "./verdict";
@@ -151,6 +151,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
           session={session}
           elapsedMs={elapsedMs}
           groups={groupStats}
+          hint={<RunHint session={session} mode={options.mode} probes={options.probes} availability={run.availability} />}
           controls={
             <RunControls
               session={session}
@@ -167,7 +168,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
           }
         />
 
-        <StagePipeline stages={state.stages} session={session} now={now} probesPlanned={probesPlanned} />
+        <StagePipeline stages={state.stages} session={session} now={now} probesPlanned={probesPlanned} runMode={state.meta?.mode} />
 
         <section aria-labelledby="trace-heading" className="min-w-0">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">

@@ -56,11 +56,14 @@ export function StagePipeline({
   session,
   now,
   probesPlanned,
+  runMode,
 }: {
   stages: StageState[];
   session: RunSession;
   now: number;
   probesPlanned: boolean;
+  /** The run's mode: a stage whose source differs from it (live probes in a replay, the recorded eval in a live run) is marked. */
+  runMode?: "local" | "replay" | "probes";
 }) {
   const [openId, setOpenId] = useState<StageId | null>(null);
   const views = viewsOf(stages, session, probesPlanned);
@@ -108,7 +111,12 @@ export function StagePipeline({
                   } ${d.tone === "pass" ? "bg-[var(--rdy-pass)]" : d.tone === "fail" ? "bg-[var(--rdy-fail)]" : d.tone === "warn" ? "bg-[var(--rdy-warn)]" : ""}`}
                 />
                 <span className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[11px] text-muted tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="font-mono text-[11px] text-muted tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                    {!v.planned && v.source && v.status !== "pending" && (runMode === "replay" ? v.source === "live" : v.source === "recorded") && (
+                      <SourceBadge source={v.source} size="xs" />
+                    )}
+                  </span>
                   <span className={`text-[15px] ${TONE_TEXT[d.tone]}`}>
                     <StatusIcon status={d.status} />
                   </span>

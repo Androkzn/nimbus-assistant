@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Summary } from "@/readiness/coverage";
 import type { RunSession } from "@/readiness/useReadinessRun";
 import { TONE_CLASS, TONE_TEXT } from "./badges";
-import { formatDuration, slug } from "./format";
+import { formatDuration, slug, splitParenthetical } from "./format";
 import type { Verdict } from "./verdict";
 
 function VerdictGlyph({ verdict }: { verdict: Verdict }) {
@@ -63,27 +63,34 @@ export interface GroupStat {
 
 function GroupBreakdown({ groups }: { groups: GroupStat[] }) {
   return (
-    <div className="mt-6 border-t border-border pt-4">
+    <div className="border-t border-border px-5 py-4 sm:px-6">
       <h3 className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">By requirement group</h3>
-      <ul className="mt-2.5 grid gap-y-2">
+      <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-7">
         {groups.map((g) => {
           const all = g.total > 0 && g.verified === g.total;
           return (
-            <li key={g.name} className="flex min-w-0 items-center gap-3 text-[12.5px]">
+            <li key={g.name} className="min-w-0">
               <a
                 href={`#group-${slug(g.name)}-section`}
-                className="min-w-0 flex-1 truncate text-text underline-offset-2 hover:text-orange-ink hover:underline"
+                className="group flex h-full flex-col justify-between gap-2 rounded-lg border border-border px-3 py-2.5 transition-colors hover:border-orange-strong hover:bg-orange-soft/50"
               >
-                {g.name}
+                <span className="line-clamp-2 text-[12.5px] leading-snug font-medium text-text group-hover:text-orange-ink">
+                  {splitParenthetical(g.name)[0]}
+                  {splitParenthetical(g.name)[1] && <> <span className="whitespace-nowrap">{splitParenthetical(g.name)[1]}</span></>}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span
+                    className={`shrink-0 text-[12.5px] tabular-nums ${g.failed ? "font-semibold text-[var(--rdy-fail)]" : all ? "font-semibold text-[var(--rdy-pass)]" : "text-muted"}`}
+                  >
+                    {g.verified}/{g.total}
+                    <span className="sr-only"> verified{g.failed ? `, ${g.failed} failed` : ""}</span>
+                  </span>
+                  <span aria-hidden className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--rdy-track)]">
+                    <span className="h-full bg-[var(--rdy-pass)] transition-[width] duration-500" style={{ width: `${g.total ? (g.verified / g.total) * 100 : 0}%` }} />
+                    <span className="h-full bg-[var(--rdy-fail)] transition-[width] duration-500" style={{ width: `${g.total ? (g.failed / g.total) * 100 : 0}%` }} />
+                  </span>
+                </span>
               </a>
-              <span className={`w-12 shrink-0 text-right tabular-nums ${g.failed ? "font-semibold text-[var(--rdy-fail)]" : all ? "font-semibold text-[var(--rdy-pass)]" : "text-muted"}`}>
-                {g.verified}/{g.total}
-                <span className="sr-only"> verified{g.failed ? `, ${g.failed} failed` : ""}</span>
-              </span>
-              <span aria-hidden className="flex h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-[var(--rdy-track)] sm:w-40">
-                <span className="h-full bg-[var(--rdy-pass)] transition-[width] duration-500" style={{ width: `${g.total ? (g.verified / g.total) * 100 : 0}%` }} />
-                <span className="h-full bg-[var(--rdy-fail)] transition-[width] duration-500" style={{ width: `${g.total ? (g.failed / g.total) * 100 : 0}%` }} />
-              </span>
             </li>
           );
         })}
@@ -98,6 +105,7 @@ export function VerdictPanel({
   session,
   elapsedMs,
   controls,
+  hint,
   groups,
 }: {
   verdict: Verdict;
@@ -105,6 +113,7 @@ export function VerdictPanel({
   session: RunSession;
   elapsedMs?: number;
   controls: ReactNode;
+  hint: ReactNode;
   groups: GroupStat[];
 }) {
   const { requirements, checks, tests } = summary;
@@ -123,12 +132,18 @@ export function VerdictPanel({
 
   return (
     <section aria-labelledby="verdict-heading" className="rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgb(15_23_42/0.05)]">
-      <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-8">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-border px-5 py-3.5 sm:px-6">
         <div className="min-w-0">
           <h2 id="verdict-heading" className="text-[11px] font-semibold tracking-[0.16em] text-muted uppercase">
             Verdict
           </h2>
-          <div className="mt-3 flex items-center gap-4">
+          {hint}
+        </div>
+        {controls}
+      </div>
+      <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-8">
+        <div className="min-w-0">
+          <div className="flex items-center gap-4">
             <span
               aria-hidden
               className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl border transition-colors duration-500 ${TONE_CLASS[verdict.tone]}`}
@@ -202,11 +217,9 @@ export function VerdictPanel({
               </span>
             </p>
           </div>
-          <GroupBreakdown groups={groups} />
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          {controls}
           <div className="grid grid-cols-2 gap-3">
             <Stat
               testId="stat-requirements"
@@ -245,6 +258,7 @@ export function VerdictPanel({
           </div>
         </div>
       </div>
+      <GroupBreakdown groups={groups} />
     </section>
   );
 }

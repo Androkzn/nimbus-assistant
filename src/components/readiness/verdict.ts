@@ -54,6 +54,14 @@ export function verdictOf(summary: Summary, session: RunSession, coverage: Requi
     return { kind: "incomplete", label: "Incomplete", tone: "warn", sentence: `${session.error ?? "The run did not finish."} No verdict.` };
   }
   const unproven = coverage.filter((v) => v.status !== "passed");
+  if (unproven.length > 0 && session.mode === "probes") {
+    return {
+      kind: "incomplete",
+      label: "Incomplete",
+      tone: "warn",
+      sentence: `Every live probe passed. A probe-only run checks the running app, not the whole brief: ${unproven.length} of ${requirements.total} requirements need the gate evidence of a local run or a replay.`,
+    };
+  }
   if (unproven.length > 0) {
     return {
       kind: "incomplete",

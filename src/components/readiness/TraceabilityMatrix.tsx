@@ -7,7 +7,7 @@ import type { Status, TestResult } from "@/readiness/schema";
 import { IdChip, LayerBadge, SourceBadge, StatusIcon, StatusPill, TONE_TEXT, toneOf } from "./badges";
 import type { Filter, FilteredRequirement } from "./filter";
 import { resultPasses } from "./filter";
-import { formatDuration, leafName, parentName, plural, shortFile, slug } from "./format";
+import { formatDuration, leafName, parentName, plural, shortFile, slug, splitParenthetical } from "./format";
 
 const RESULTS_PREVIEW = 6;
 
@@ -63,8 +63,8 @@ export function ResultRow({ result }: { result: TestResult }) {
         <span className="sr-only">{result.status}</span>
       </span>
       <div className="min-w-0">
-        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-          <p className="min-w-0 text-[13px] leading-snug text-text">
+        <div className="flex items-start justify-between gap-3">
+          <p className="min-w-0 flex-1 text-[13px] leading-snug text-text">
             {parent && <span className="text-muted">{parent} › </span>}
             <span className="font-medium">{leafName(result.fullName)}</span>
           </p>
@@ -264,7 +264,8 @@ export function TraceabilityMatrix({ items, filter, searching }: { items: Filter
           >
             <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border bg-surface-2 px-4 py-2.5 sm:px-5">
               <h3 id={headingId} className="font-display text-[14.5px] font-bold tracking-[-0.01em] text-text">
-                {g.name}
+                {splitParenthetical(g.name)[0]}
+                {splitParenthetical(g.name)[1] && <> <span className="font-semibold whitespace-nowrap text-muted">{splitParenthetical(g.name)[1]}</span></>}
               </h3>
               <p className="text-[12px] text-muted tabular-nums">
                 <span className={verified === g.items.length ? `font-semibold ${TONE_TEXT.pass}` : ""}>

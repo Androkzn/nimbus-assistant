@@ -34,6 +34,7 @@ Rules for any AI agent (Claude Code, Cursor, Codex, Kiro) or human working in th
 | Wire contract shared by server and browser | `src/shared/contracts.ts`, `src/shared/answer.ts` |
 | UI (incl. suggestion bubbles — each tied to a brief item and a golden case) | `src/components/`, `src/client/` |
 | Tests: unit/integration (Vitest) · E2E (Playwright, mock LLM) · live eval | `src/**/*.test.ts` · `e2e/` · `scripts/eval-live.mjs` + `evals/golden-set.json` |
+| Readiness report (showcase; the chat app never imports it): traceability manifest, live runner, probes, `/readiness` page | `src/readiness/` (manifest.ts maps every test → requirement; a new test or golden case needs a check there) · `scripts/readiness/` · `src/app/readiness/` · `src/components/readiness/` · spec `docs/requirements/06_Readiness_Report.md` |
 
 ## Commands
 
