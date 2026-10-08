@@ -67,14 +67,6 @@ Production deployment uses the protected GitHub `production` environment. Config
 
 The production deployment is intentionally customer-facing and excludes the internal Readiness tooling. The optional developer deployment is promoted separately to `nimbus-assistant-dev.vercel.app`, where the Readiness report runs recorded evidence plus live probes against the deployed environment.
 
-### CI/CD evidence
-
-The [GitHub Actions workflow](.github/workflows/ci.yml) makes the delivery approach inspectable: pull requests and pushes to `main` share the same offline quality gates, and only a passing `main` push can promote production.
-
-![CI/CD workflow definition](docs/screenshots/ci-workflow.png)
-
-*Workflow definition: pull requests and pushes to `main` share the same offline quality gates, while only a passing `main` push can promote production.*
-
 ## Agentic delivery approach
 
 The project is organized as a set of reusable engineering workflows rather than a single implementation pass. Each workflow produces an artifact that the next one can verify:
