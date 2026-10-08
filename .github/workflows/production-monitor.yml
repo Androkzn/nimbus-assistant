@@ -70,6 +70,23 @@ jobs:
             const fingerprint = report.fingerprint || "unknown";
             const title = `Production monitor failure: ${fingerprint}`;
             const body = `${plan}\n\nMonitor run: ${process.env.RUN_URL}`;
+            const labels = ["incident", "bugfix-plan", "triage"];
+            const labelDefinitions = [
+              ["incident", "b60205", "Production incident or monitor failure"],
+              ["bugfix-plan", "5319e7", "Evidence-bound investigation plan"],
+              ["triage", "fbca04", "Awaiting investigation and scope confirmation"],
+              ["in-progress", "0e8a16", "Fix is being implemented"],
+              ["blocked", "d93f0b", "Waiting on evidence or decision"],
+              ["done", "0e8a16", "Fix verified and released"],
+            ];
+            for (const [name, color, description] of labelDefinitions) {
+              try {
+                await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name, color, description });
+              }
+            }
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -84,6 +101,7 @@ jobs:
                 issue_number: existing.number,
                 body,
               });
+              await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, labels });
               core.info(`Updated existing incident issue #${existing.number}`);
             } else {
               const created = await github.rest.issues.create({
@@ -91,6 +109,7 @@ jobs:
                 repo: context.repo.repo,
                 title,
                 body,
+                labels,
               });
               core.info(`Created incident issue #${created.data.number}`);
             }
@@ -127,6 +146,23 @@ jobs:
             const shortId = String(payload.issue_short_id || payload.short_id || "unknown").replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 80);
             const title = `Bugfix plan: ${shortId}`;
             const body = fs.readFileSync(process.env.PLAN, "utf8");
+            const labels = ["incident", "bugfix-plan", "triage"];
+            const labelDefinitions = [
+              ["incident", "b60205", "Production incident or monitor failure"],
+              ["bugfix-plan", "5319e7", "Evidence-bound investigation plan"],
+              ["triage", "fbca04", "Awaiting investigation and scope confirmation"],
+              ["in-progress", "0e8a16", "Fix is being implemented"],
+              ["blocked", "d93f0b", "Waiting on evidence or decision"],
+              ["done", "0e8a16", "Fix verified and released"],
+            ];
+            for (const [name, color, description] of labelDefinitions) {
+              try {
+                await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name, color, description });
+              }
+            }
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -141,6 +177,7 @@ jobs:
                 issue_number: existing.number,
                 body,
               });
+              await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, labels });
               core.info(`Updated existing bugfix-plan issue #${existing.number}`);
             } else {
               const created = await github.rest.issues.create({
@@ -148,6 +185,7 @@ jobs:
                 repo: context.repo.repo,
                 title,
                 body,
+                labels,
               });
               core.info(`Created bugfix-plan issue #${created.data.number}`);
             }

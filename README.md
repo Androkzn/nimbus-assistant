@@ -71,6 +71,17 @@ The production deployment is intentionally customer-facing and excludes the inte
 
 [`production-monitor.yml`](.github/workflows/production-monitor.yml) probes production every 15 minutes and on demand: homepage, health, model catalog, and the production-only Readiness `404`. Failures upload JSON evidence and create or update a GitHub bugfix-plan issue. With the optional `OPENAI_API_KEY` repository secret, Responses API Structured Outputs adds a schema-validated hypothesis plan; otherwise the deterministic safety plan is used. Sentry can trigger the same triage path with a trusted `repository_dispatch` event named `sentry-issue` carrying `issue_short_id`, `issue_url`, `issue_title`, `environment`, and `release`; human review is required before code changes, deployment, or issue resolution.
 
+GitHub Issues are the operational source of truth. New incidents receive `incident`, `bugfix-plan`, and `triage` labels; reviewers move them through `in-progress`, `blocked`, and `done`. Evidence stays in workflow artifacts and issue history rather than internal `todo/` folders in the public assessment branch.
+
+### Error investigation and fix workflow
+
+1. **Detect** — Sentry or the production monitor reports an error.
+2. **Collect evidence** — capture the environment, release, commit, logs, probe output, and reproduction path.
+3. **Create a plan** — generate a structured, evidence-bound bugfix plan; AI output remains a hypothesis.
+4. **Fix safely** — confirm root cause, add a regression test, and implement the smallest change in a PR.
+5. **Verify and release** — pass CI, deploy the tested commit, run production smoke checks, and document rollback.
+6. **Close** — mark the issue `done` only after production verification.
+
 ## Agentic delivery approach
 
 The project follows a requirements-driven approach:
