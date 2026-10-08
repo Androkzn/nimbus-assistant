@@ -127,6 +127,8 @@ The project is organized as a set of reusable engineering workflows rather than 
 
 Each skill produced evidence for the next step: brief → decision → implementation → verification → deployment.
 
+The repository also includes stack-agnostic Claude Code commands in [`.claude/commands/`](.claude/commands/). They cover requirements, technical design, implementation plans, bugfix triage, plan review, test synchronization, design systems, and safe landing. Each command inspects the current repository first, so it can be reused across frontend, backend, mobile, and full-stack applications without assuming a specific framework or cloud provider. These are authoring-time workflows; production CI remains self-contained and does not depend on a local assistant installation.
+
 ## Optional internal tooling
 
 The developer deployment includes the internal Readiness report. It is intentionally separate from the assessment deployment: the production link stays focused on the customer-facing assistant, while the optional link shows how the implementation is verified against the brief.
