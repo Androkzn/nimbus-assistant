@@ -82,16 +82,13 @@ jobs:
       - name: Link the Vercel project
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           test -n "$VERCEL_TOKEN"
-          test -n "$VERCEL_PROJECT_ID"
-          npx --yes vercel@62.7.0 link --yes --project "$VERCEL_PROJECT_ID" --token "$VERCEL_TOKEN"
+          npx --yes vercel@62.7.0 link --yes --project nimbus-assistant-production --token "$VERCEL_TOKEN"
       - name: Deploy the tested commit
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx --yes vercel@62.7.0 deploy --prod --yes --project "$VERCEL_PROJECT_ID" --token "$VERCEL_TOKEN"
+        run: npx --yes vercel@62.7.0 deploy --prod --yes --project nimbus-assistant-production --token "$VERCEL_TOKEN"
       - name: Verify the public production alias
         env:
           PRODUCTION_URL: https://nimbus-assistant-production.vercel.app
