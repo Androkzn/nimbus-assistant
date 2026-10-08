@@ -86,7 +86,7 @@ LLM_MODE=mock npm run dev
 
 ## Readiness
 
-Readiness is the developer verification feature for checking the application against its quality gates and requirement traceability. It is available on local development and preview deployments; the production deployment hides the Readiness page and runner endpoint.
+Readiness is the developer verification feature for checking the application against its quality gates and requirement traceability. On the developer deployment, the assistant header includes a Readiness button that opens `/readiness?autostart=1` in a separate window. It is also available during local development and on preview deployments; the production deployment hides the Readiness page and runner endpoint.
 
 ### Features
 
