@@ -3,7 +3,9 @@ import type { NextConfig } from "next";
 
 // Vercel exposes VERCEL_ENV only at build time. Re-export it for observability metadata.
 const deploymentEnv = process.env.VERCEL_ENV ?? process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development";
-const devSurfaceEnabled = process.env.NIMBUS_DEV_PORTAL === "1" || deploymentEnv !== "production" || process.env.NODE_ENV === "development";
+const vercelDeploymentNames = [process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_URL].filter(Boolean).join(" ");
+const isDevVercelDeployment = /(^|[-.])dev([-.]|$)/i.test(vercelDeploymentNames);
+const devSurfaceEnabled = process.env.NIMBUS_DEV_PORTAL === "1" || deploymentEnv !== "production" || process.env.NODE_ENV === "development" || isDevVercelDeployment;
 
 const nextConfig: NextConfig = {
   env: {
