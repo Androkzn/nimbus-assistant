@@ -3,10 +3,8 @@
  * Readiness runner (docs/requirements/06_Readiness_Report.md §3): runs the CI gates live and streams them as
  * ReadinessEvents (src/readiness/schema.ts), then adds the latest committed live-eval report as recorded evidence.
  *
- *   npm run readiness                                   # every stage, readable live summary
- *   npm run readiness -- --stages typecheck,lint,unit   # a subset (always run in canonical order)
- *   node scripts/readiness/run.mjs --stream             # NDJSON events only on stdout (/api/readiness/run uses this)
- *   npm run readiness -- --publish                      # also refresh public/readiness/latest.ndjson
+ * The developer Readiness button invokes this runner through /api/readiness/run with --stream.
+ * Maintainer-only options remain available to the internal route and publishing workflow.
  *
  * Every run writes readiness/reports/<runId>/events.ndjson (appended live) and summary.json.
  *

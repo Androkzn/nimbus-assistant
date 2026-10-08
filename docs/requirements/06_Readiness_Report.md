@@ -39,7 +39,6 @@ Reviewers should be able to see, not take on trust, that every requirement in th
 |------|-------|-----------|
 | **Local run** | `npm run dev`, button → `/readiness?autostart=1` | `scripts/readiness/run.mjs` streams the CI gates live (typecheck → lint → unit/integration/retrieval eval → build → bundle scan → E2E), adds the latest committed live-eval report as **recorded** evidence, then the page runs the **live probes** against the local server |
 | **Production** | deployed URL, same button | The page replays the last published local run (`public/readiness/latest.ndjson`, labelled *recorded*), then runs the **live probes** against production for real |
-| **CLI** | `npm run readiness` | Same runner, human-readable output; `--stream` prints NDJSON; `--publish` refreshes `public/readiness/latest.ndjson` |
 
 ## 4. Event protocol
 

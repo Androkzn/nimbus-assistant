@@ -91,31 +91,17 @@ Readiness is the developer verification feature for checking the application aga
 - **Controlled model usage:** replay and probes do not spend model tokens by default. An optional “Include one real answer” check runs one provider call for live answer evidence.
 - **Safe local execution:** readiness builds use `.next-readiness` and port `3199`, leaving the normal `.next/` build untouched; emitted evidence redacts secrets and message content.
 
-### Examples
+### How to use it
 
-Run the complete readiness suite locally:
+Use the **Readiness test** button in the developer assistant header. It opens the report and starts the available local or replay flow automatically. The button is the supported user entry point; the runner behind it is internal developer tooling.
 
-```bash
-npm run readiness
-```
-
-Run only selected gates:
-
-```bash
-npm run readiness -- --stages typecheck,lint,unit
-```
-
-Publish the completed local run for the developer portal to replay:
-
-```bash
-npm run readiness -- --publish
-```
-
-Open the browser report and start it automatically:
+For local development, open the browser report directly when needed:
 
 ```text
 http://localhost:3000/readiness?autostart=1
 ```
+
+The report can replay the latest published evidence and then run live probes against the current browser origin. Maintainers publish the recorded artifact through the internal readiness runner; end users do not need a separate readiness command.
 
 For example, a live health probe can return HTTP `200` but still fail if the JSON says `ok: false` or no model providers are available. The report keeps that distinction visible instead of treating the HTTP status alone as success.
 
