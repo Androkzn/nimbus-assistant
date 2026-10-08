@@ -60,6 +60,7 @@ function findingAnalysis(retrieval: RetrievalResult): string {
   if (retrieval.guardReason === "unsupported_pricing_tier") return "The question uses a pricing tier name that does not appear in the published pricing tables, so the assistant could not safely map it to a documented tier.";
   if (retrieval.guardReason === "ambiguous_release") return "The question gives only a major release version. The knowledge base requires an exact product release before it can answer reliably.";
   if (retrieval.guardReason === "unsupported_priority") return "The question uses an SLA priority outside the documented P1–P4 range, so the assistant could not provide a supported response.";
+  if (retrieval.unknownProduct) return "The request names a product that does not appear in the published NimbusStack knowledge base, so the assistant did not invent a Salesforce integration.";
   if (retrieval.guardReason === "out_of_scope") return "No published passage matched this request and no NimbusStack product was in scope, so the assistant returned the knowledge-base fallback without calling a model.";
   if (retrieval.guardReason === "incomplete") return "A product was named without a topic, so the assistant asked for clarification instead of inventing an answer.";
   return "The retrieved passages did not provide enough approved evidence to answer this question without speculation.";
@@ -89,7 +90,7 @@ export function buildFinding(input: {
     status: "new",
     proposedAction: proposedAction(category, reason),
     // Keep irrelevant/off-topic usage privacy-safe; retain evidence for actionable findings.
-    question: category === "out_of_scope" ? "" : input.question.trim().replace(/\s+/g, " ").slice(0, 2000),
+    question: category === "out_of_scope" && !input.retrieval.unknownProduct ? "" : input.question.trim().replace(/\s+/g, " ").slice(0, 2000),
     analysis: findingAnalysis(input.retrieval),
     evidence: {
       retrievalBestScore: input.retrieval.retrievalBestScore,

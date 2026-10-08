@@ -371,6 +371,8 @@ const TEST_CHECKS: Check[] = [
     "'What are the key differences between the Pro and Enterprise pricing tiers?' retrieves every product's pricing table."),
   retrieval("retrieval.no-match", "Off-corpus question matches nothing", "flags an off-corpus question as noMatch", ["NKA-GRD-011"],
     "An off-corpus question ('What's the weather in Paris tomorrow?') matches no passage, which lets the guard say 'not in the knowledge base'."),
+  retrieval("retrieval.unknown-product", "Unknown product is guarded", "guards and identifies an unknown product in an integration question", ["NKA-GRD-008", "NKA-GRD-011", "E2"],
+    "An integration question naming an unsupported product such as Walnut is guarded before the model can borrow a Salesforce answer from another product."),
   retrieval("retrieval.unsupported-tier", "Unsupported pricing tier labels are flagged", "NKA-GRD-013: flags pricing questions that use unsupported tier names", ["E2"],
     "A pricing question using misspelled 'Profeccional' and unsupported 'Company' is flagged before a model can map those labels to documented tiers."),
   retrieval("retrieval.ambiguous-version", "Major-only release versions are flagged", "NKA-GRD-014: flags a release question that gives only a major version", ["E2"],

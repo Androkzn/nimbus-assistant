@@ -85,6 +85,12 @@ export function detectProducts(text: string): Product[] {
   return [...exact, ...(fuzzy.length === 1 ? fuzzy : [])];
 }
 
+/** Detects an explicit product-shaped subject that is not one of the supported products. */
+export function namesUnknownProduct(question: string): boolean {
+  if (detectProducts(question).length > 0) return false;
+  return /^\s*(?:does|can|is)\s+(?:nimbus\s+)?[a-z][a-z0-9-]*(?:\s+[a-z][a-z0-9-]*)?\s+(?:integrate|support|work|connect)\b/i.test(question);
+}
+
 /** A product release asked about ("v4.2", "4.2"). Protocol versions ("SAML 2.0", "TLS 1.2") are not releases. */
 export function detectVersion(question: string): string | null {
   return normalize(question).match(/(?<!\b(?:saml|tls|ssl|oauth|http|api)\s?)\b(\d+\.\d+)\b/)?.[1] ?? null;

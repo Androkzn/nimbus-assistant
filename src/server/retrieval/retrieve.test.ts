@@ -120,6 +120,15 @@ describe("retrieval eval (golden cases)", () => {
     expect(retrieve("What's the weather in Paris tomorrow?")).toMatchObject({ noMatch: true, answerability: "abstain", guardReason: "out_of_scope" });
   });
 
+  it("guards and identifies an unknown product in an integration question", () => {
+    expect(retrieve("Does Walnut integrate with Salesforce? What version is required?")).toMatchObject({
+      noMatch: true,
+      unknownProduct: true,
+      answerability: "abstain",
+      guardReason: "out_of_scope",
+    });
+  });
+
   it("distinguishes incomplete product questions from unsupported evidence", () => {
     expect(retrieve("What is Relay?")).toMatchObject({ answerability: "clarify", guardReason: "incomplete" });
     expect(retrieve("Is there a free trial of Vault?")).toMatchObject({ answerability: "abstain", guardReason: "insufficient_evidence" });

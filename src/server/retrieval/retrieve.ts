@@ -7,6 +7,7 @@ import {
   isCrossProduct,
   isElliptical,
   hasNearMatch,
+  namesUnknownProduct,
   PRODUCT_ALIASES,
   productsInScope,
   tokenize,
@@ -51,6 +52,8 @@ export interface RetrievalResult {
   answerability: Answerability;
   /** Stable reason used for privacy-safe quality statistics and UI behavior. */
   guardReason: GuardReason | null;
+  /** True when an explicit product-shaped subject is outside the NimbusStack catalog. */
+  unknownProduct: boolean;
   /** Retrieval signals retained for calibration and quality telemetry; never user text. */
   retrievalBestScore: number;
   retrievalFocusScore: number;
@@ -131,6 +134,7 @@ export async function retrieveAsync(question: string, history: HistoryMessage[] 
 
 function retrieveFromIndex(question: string, history: HistoryMessage[], idx: Index): RetrievalResult {
   const { products, inherited } = productsInScope(question, history);
+  const unknownProduct = products.length === 0 && namesUnknownProduct(question);
   const topic = isElliptical(question) ? carriedTopic(history) : null;
   const queryText = topic ? `${question} ${topic}` : question;
   const version = detectVersion(queryText);
@@ -189,7 +193,7 @@ function retrieveFromIndex(question: string, history: HistoryMessage[], idx: Ind
   addConflictCompanions(picked, queryText, scored);
 
   const passages = picked.slice(0, MAX_PASSAGES).map((p, i) => ({ n: i + 1, chunk: p.chunk, score: p.score }));
-  const noMatch = best < NO_MATCH_SCORE;
+  const noMatch = best < NO_MATCH_SCORE || unknownProduct;
   const incompleteQuestion = (!topic && isElliptical(question)) || (products.length > 0 && focusTokens.length === 0);
   const insufficientEvidence = !incompleteQuestion && focusTokens.length > 0 && focusBest < NO_MATCH_SCORE;
   const guardReason: GuardReason | null = incompleteQuestion
@@ -221,6 +225,7 @@ function retrieveFromIndex(question: string, history: HistoryMessage[], idx: Ind
     unsupportedPriority,
     answerability: guardReason === "incomplete" ? "clarify" : guardReason ? "abstain" : "answerable",
     guardReason,
+    unknownProduct,
     retrievalBestScore: Number(best.toFixed(3)),
     retrievalFocusScore: Number(focusBest.toFixed(3)),
   };
