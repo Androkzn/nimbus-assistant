@@ -5,11 +5,30 @@ import { shortFile } from "./format";
 const DOCS = "https://github.com/Androkzn/nimbus-assistant/blob/main/docs/requirements";
 
 const STEPS: { name: string; file: string; what: string }[] = [
-  { name: "Discovery", file: "00_KB_Discovery.md", what: "What the 10 client documents actually say, where they disagree, and what they never cover." },
-  { name: "BRD", file: "01_BRD.md", what: "Every brief item as a numbered business requirement (BR-xx) with its priority." },
-  { name: "TRD", file: "02_TRD.md", what: "The technical contract that satisfies each BR: wire format, retrieval, fallback, limits." },
-  { name: "Acceptance matrix", file: "04_Acceptance_Matrix.md", what: "One checkable criterion per row (NKA-xxx), each traced to the brief and the BRD." },
-  { name: "Evidence", file: "06_Readiness_Report.md", what: "Automated checks claim test results; this page maps every result back up the chain." },
+  { name: "Discovery", file: "00_KB_Discovery.md", what: "Sets the approved knowledge boundary: what the client documents say, where they disagree, and what they never cover." },
+  { name: "BRD", file: "01_BRD.md", what: "Defines numbered business outcomes, priorities, users, and risk independently of implementation." },
+  { name: "TRD", file: "02_TRD.md", what: "Defines contracts for retrieval, grounding, fallback, limits, security, storage, and observability." },
+  { name: "Acceptance matrix", file: "04_Acceptance_Matrix.md", what: "Makes each outcome observable through a precise criterion traced to the brief and BRD." },
+  { name: "Evidence", file: "06_Readiness_Report.md", what: "Connects checks and test results back to the requirement chain so the release decision is explainable." },
+];
+
+const PRINCIPLES = [
+  {
+    title: "Requirements are the control plane",
+    text: "The brief defines the outcome. Code, prompts, models, and tools are replaceable choices; the required behavior is not.",
+  },
+  {
+    title: "The agent is bounded by evidence",
+    text: "Approved documents, retrieval, citations, guards, and fallback rules constrain what the assistant may claim.",
+  },
+  {
+    title: "Plan, execute, validate, recover",
+    text: "The workflow turns each failure into the next action: understand, implement, validate, and recover from evidence.",
+  },
+  {
+    title: "Evidence drives the release decision",
+    text: "Deterministic checks prove behavior; live and recorded evaluations add model quality, cost, and deployment evidence without hiding provenance.",
+  },
 ];
 
 export function MethodPanel({ unclaimed, requirementCount, checkCount }: { unclaimed: TestResult[]; requirementCount: number; checkCount: number }) {
@@ -45,6 +64,18 @@ export function MethodPanel({ unclaimed, requirementCount, checkCount }: { uncla
           </li>
         ))}
       </ol>
+
+      <div className="mt-5 rounded-xl border border-border bg-surface-2 p-4">
+        <h3 className="font-display text-[15px] font-bold text-text">Why this architecture works</h3>
+        <ul className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {PRINCIPLES.map((principle) => (
+            <li key={principle.title} className="rounded-lg border border-border bg-surface px-3 py-2.5">
+              <h4 className="text-[12.5px] font-semibold leading-snug text-text">{principle.title}</h4>
+              <p className="mt-1 text-[12px] leading-relaxed text-muted">{principle.text}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <div className="min-w-0">

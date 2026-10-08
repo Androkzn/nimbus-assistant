@@ -35,6 +35,13 @@ async function stubRunner(context: BrowserContext, stream?: ReadinessEvent[]): P
 const feedItem = (page: Page, id: string) => page.locator(`[data-testid="feed-item"][data-result-id="${id}"]`);
 
 test.describe("Readiness report", () => {
+  test("RDY-004: readiness failures never create Knowledge base issues", async ({ page }) => {
+    const response = await page.request.post("/api/dev/knowledge-base/reports/readiness", {
+      data: { runId: "e2e-check", failedChecks: ["probe::health"], failedStages: ["probes"] },
+    });
+    expect(response.status()).toBe(410);
+  });
+
   test("RDY-001: the header's Readiness test button opens the report in its own window", async ({ page }) => {
     const calls = await stubRunner(page.context());
     await page.goto("/");
@@ -65,10 +72,9 @@ test.describe("Readiness report", () => {
     await expect(banner).toContainText(/build \S+/);
 
     const filters = page.getByRole("group", { name: "Filter results" }).getByRole("button");
-    await expect(filters.first()).toHaveAttribute("data-testid", "filter-needs-improvement");
-    await expect(filters.last()).toHaveAttribute("data-testid", "filter-all");
-    await expect(page.getByTestId("filter-needs-improvement")).toHaveAttribute("aria-pressed", "true");
-    await page.getByTestId("filter-all").click();
+    await expect(filters.first()).toHaveAttribute("data-testid", "filter-all");
+    await expect(filters.last()).toHaveAttribute("data-testid", "filter-recorded");
+    await expect(page.getByTestId("filter-all")).toHaveAttribute("aria-pressed", "true");
 
     for (const group of GROUPS) {
       await expect(page.getByRole("heading", { level: 3, name: group, exact: true })).toBeVisible();
@@ -100,9 +106,16 @@ test.describe("Readiness report", () => {
       await expect(item, `probe ${id}`).toHaveAttribute("data-status", "passed");
       await expect(item, `probe ${id}`).toHaveAttribute("data-source", "live");
     }
-    // The real-answer probe is opt-in: by default it spends nothing and says so.
-    await expect(feedItem(page, "probe::grounded-answer")).toHaveAttribute("data-status", "skipped");
+    // Every report includes the real-answer probe so the live deployment has grounded evidence.
+    await expect(feedItem(page, "probe::grounded-answer")).toHaveAttribute("data-status", "passed");
+    await expect(page.getByTestId("include-answer")).toHaveCount(0);
     await expect(page.getByTestId("stage-probes")).toHaveAttribute("data-status", "passed");
+
+    await page.getByTestId("stat-requirements").hover();
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: "main release-readiness measure" })).toBeVisible();
+    await page.getByTestId("stage-probes").hover();
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: "running deployment directly" })).toBeVisible();
+
     expect(calls, "a probe-only run never touches the runner").toEqual([]);
   });
 

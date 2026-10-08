@@ -30,29 +30,31 @@ export function SavedAssessments({
         </div>
         <span className="text-[12px] text-muted">{runs.length} saved</span>
       </div>
-      <ul className="mt-3 flex flex-wrap gap-2">
+      <ul className="mt-3 flex w-full flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
         {runs.map((run) => (
-          <li key={run.id} className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-2 px-2.5 py-2">
-            <span className={`h-2 w-2 shrink-0 rounded-full ${run.phase === "finished" ? "bg-[var(--rdy-pass)]" : run.phase === "error" ? "bg-[var(--rdy-fail)]" : "bg-[var(--rdy-warn)]"}`} aria-hidden />
-            <span className="min-w-0 text-[12.5px] text-text">
-              <span className="font-semibold">{label(run)}</span>
-              <span className="ml-1.5 text-muted">· {run.events.length} events · {run.phase}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => onReview(run)}
-              className="shrink-0 rounded-md px-2 py-1 text-[12px] font-semibold text-orange-ink hover:bg-orange-soft"
-            >
-              Review
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(run.id)}
-              className="shrink-0 rounded-md px-1.5 py-1 text-[12px] text-muted hover:bg-[var(--rdy-fail-bg)] hover:text-[var(--rdy-fail)]"
-              aria-label={`Delete saved assessment from ${label(run)}`}
-            >
-              ×
-            </button>
+          <li key={run.id} className="h-11 w-[min(360px,calc(100vw-4rem))] shrink-0">
+            <div className="flex h-full min-w-0 items-center gap-2 overflow-hidden rounded-lg border border-border bg-surface-2 px-2.5 py-2">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${run.phase === "finished" ? "bg-[var(--rdy-pass)]" : run.phase === "error" ? "bg-[var(--rdy-fail)]" : "bg-[var(--rdy-warn)]"}`} aria-hidden />
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-text">
+                <span className="font-semibold">{label(run)}</span>
+                <span className="ml-1.5 text-muted">· {run.events.length} events · {run.phase}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onReview(run)}
+                className="shrink-0 rounded-md px-2 py-1 text-[12px] font-semibold text-orange-ink hover:bg-orange-soft"
+              >
+                Review
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(run.id)}
+                className="shrink-0 rounded-md px-1.5 py-1 text-[12px] text-muted hover:bg-[var(--rdy-fail-bg)] hover:text-[var(--rdy-fail)]"
+                aria-label={`Delete saved assessment from ${label(run)}`}
+              >
+                ×
+              </button>
+            </div>
           </li>
         ))}
       </ul>

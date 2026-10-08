@@ -185,12 +185,12 @@ describe("live probes against the app's own handlers (RDY-003)", () => {
     expect(events.some((e) => e.type === "run-start" || e.type === "run-end")).toBe(false);
   });
 
-  it("is cheap: without the opt-in answer, 4 chat requests and no model call; the answer probe is skipped with its reason", async () => {
+  it("supports a cheap direct-caller mode: 4 chat requests and no model call; the answer probe is skipped with its reason", async () => {
     const modelFactory = vi.fn((entry: ModelEntry) => mockModel(entry));
     const { results, calls, bodies, events } = await run(appRoutes(quietDeps({ modelFactory })));
     expect(modelFactory).not.toHaveBeenCalled();
     expect(calls.filter((c) => c === "POST /api/chat")).toHaveLength(4);
-    expect(results["grounded-answer"]).toMatchObject({ status: "skipped", detail: { note: "opt-in: one real model call" } });
+    expect(results["grounded-answer"]).toMatchObject({ status: "skipped", detail: { note: "disabled by direct caller" } });
     expect(results["grounded-answer"].error).toBeUndefined();
     expect(events.at(-1)).toMatchObject({ type: "stage-end", status: "passed", counts: { passed: 8, failed: 0, skipped: 1 } });
     // I6: the only text sent is the fixed probe questions (and filler for the size limit).

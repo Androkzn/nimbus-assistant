@@ -15,6 +15,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: `http://localhost:${PORT}`,
+    extraHTTPHeaders: { "x-nimbus-test-run": "e2e" },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -23,7 +24,7 @@ export default defineConfig({
     command: `npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: !process.env.CI,
-    env: { LLM_MODE: "mock", RATE_LIMIT_MAX: "1000" },
+    env: { LLM_MODE: "mock", RATE_LIMIT_MAX: "1000", NIMBUS_DISABLE_FINDINGS: "1" },
     timeout: 60_000,
   },
 });

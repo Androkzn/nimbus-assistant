@@ -9,7 +9,7 @@ function first(q: Query, key: string): string | undefined {
 
 /**
  * Query string → run options.
- * autostart=1 · mode=local|replay|probes · speed=1|4|instant (replay, default 4) · answer=1 (opt-in model call)
+ * autostart=1 · mode=local|replay|probes · speed=1|4|instant (replay, default 4)
  * · probes=0 (skip the live probes after a local run or replay).
  */
 export function parseReadinessOptions(q: Query): ReadinessOptions {
@@ -21,7 +21,9 @@ export function parseReadinessOptions(q: Query): ReadinessOptions {
     autostart: first(q, "autostart") === "1",
     mode,
     speed,
-    includeAnswer: first(q, "answer") === "1",
+    // The grounded-answer probe is part of every readiness assessment. It is one
+    // required real-model check, so it is deliberately not user-configurable.
+    includeAnswer: true,
     probes: first(q, "probes") !== "0",
   };
 }

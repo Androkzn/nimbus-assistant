@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import { createReadinessReportAsync, devPortalEnabled } from "@/server/dev-portal/db";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
-  if (!devPortalEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const body = (await request.json().catch(() => null)) as { runId?: unknown; failedChecks?: unknown; failedStages?: unknown } | null;
-  const report = body
-    ? await createReadinessReportAsync({
-        runId: typeof body.runId === "string" ? body.runId : "",
-        failedChecks: Array.isArray(body.failedChecks) ? body.failedChecks.filter((item): item is string => typeof item === "string") : [],
-        failedStages: Array.isArray(body.failedStages) ? body.failedStages.filter((item): item is string => typeof item === "string") : [],
-      })
-    : null;
-  if (!report) return NextResponse.json({ error: "A run id and at least one failed live check or stage are required." }, { status: 400 });
-  return NextResponse.json(report, { status: 201 });
+export async function POST() {
+  // Readiness is verification evidence, not a Knowledge base finding source.
+  // Keep the endpoint as a safe tombstone so an older browser bundle cannot
+  // create issues during a rolling deployment.
+  return NextResponse.json({ error: "Readiness runs do not create Knowledge base issues." }, { status: 410 });
 }

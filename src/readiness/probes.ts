@@ -7,14 +7,15 @@ import type { ProbeId, ReadinessEvent } from "./schema";
 /**
  * Live probes (docs/requirements/06_Readiness_Report.md §3–4): requests this browser sends to the
  * running app — local or production — right now. Cheap by design: eight probes cost no model call
- * (the off-topic probe is answered by the deterministic guard); only the opt-in grounded answer spends
- * tokens. Results never carry app message text or anything key-shaped (spec I6).
+ * (the off-topic probe is answered by the deterministic guard); the grounded-answer probe spends one
+ * real model call on every readiness assessment. Results never carry app message text or anything
+ * key-shaped (spec I6).
  */
 
 export interface ProbeOptions {
   /** e.g. "https://nimbus.example.app" — the app being probed (normally the page's own origin). */
   origin: string;
-  /** Opt in to the one probe that makes a real model call (~1.5k tokens). */
+  /** Run the required probe that makes one real model call (~1.5k tokens). */
   includeAnswer: boolean;
   fetch?: typeof fetch;
   signal?: AbortSignal;
@@ -97,7 +98,7 @@ export const PROBES: ProbeInfo[] = [
   {
     id: "grounded-answer",
     title: "One real grounded answer: Vault SAML conflict",
-    verifies: `Opt-in, one real model call (~1.5k tokens): "${GROUNDED_QUESTION}" on the default model. Asserts the stream contract and order (meta, sources, deltas, done), that every [n] citation points to a passage that was sent, real token usage and cost, a clean figure check, and — with a live model — that the answer states the documents disagree, citing both a vault and a security-overview passage.`,
+    verifies: `One real model call (~1.5k tokens): "${GROUNDED_QUESTION}" on the default model. Asserts the stream contract and order (meta, sources, deltas, done), that every [n] citation points to a passage that was sent, real token usage and cost, a clean figure check, and — with a live model — that the answer states the documents disagree, citing both a vault and a security-overview passage.`,
     covers: ["RULE", "R2", "R4", "E4", "NKA-GRD-001", "NKA-GRD-005", "NKA-GRD-010", "NKA-USG-001"],
   },
 ];
@@ -196,7 +197,11 @@ function makeIo(s: Session, signal: AbortSignal): Io {
   const send = async (path: string, init: RequestInit): Promise<Response> => {
     let res: Response;
     try {
-      res = await s.fetch(new URL(path, `${s.origin}/`).href, { ...init, signal });
+      res = await s.fetch(new URL(path, `${s.origin}/`).href, {
+        ...init,
+        headers: { ...(init.headers ?? {}), "x-nimbus-test-run": "readiness-probe" },
+        signal,
+      });
     } catch (err) {
       if (signal.aborted) throw err;
       throw new NetworkError(`network error on ${init.method ?? "GET"} ${path}: ${err instanceof Error ? err.message : String(err)}`);
@@ -533,7 +538,7 @@ const RUNNERS: Record<ProbeId, ProbeFn> = {
   },
 
   async "grounded-answer"(s, io, d) {
-    if (!s.includeAnswer) return { status: "skipped", detail: { note: "opt-in: one real model call" } };
+    if (!s.includeAnswer) return { status: "skipped", detail: { note: "disabled by direct caller" } };
     const modelId = await loadModels(s, io);
     const mode = await loadMode(s, io);
     Object.assign(d, { requestedModel: modelId, mode });

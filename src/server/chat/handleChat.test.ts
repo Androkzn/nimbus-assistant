@@ -30,8 +30,8 @@ function recordingModel(seen: unknown[], text = "Vault · Enterprise · P1: 30 m
   });
 }
 
-function post(body: unknown): Request {
-  return new Request("http://localhost/api/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+function post(body: unknown, extraHeaders: Record<string, string> = {}): Request {
+  return new Request("http://localhost/api/chat", { method: "POST", headers: { "content-type": "application/json", ...extraHeaders }, body: JSON.stringify(body) });
 }
 
 async function events(res: Response): Promise<StreamEvent[]> {
@@ -202,6 +202,19 @@ describe("deterministic grounding layers", () => {
     expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
     expect(d.factory).not.toHaveBeenCalled();
     expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "unsupported_troubleshooting_status" });
+  });
+
+  it("does not create a finding for an explicitly marked automated test request", async () => {
+    const d = deps();
+    const findings: unknown[] = [];
+    const evs = await events(
+      await handleChat(
+        post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "A client is getting a 500 on the API. What should they check first?" }] }, { "x-nimbus-test-run": "readiness-probe" }),
+        { ...d.deps, findingSink: async (finding) => { findings.push(finding); } },
+      ),
+    );
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID });
+    expect(findings).toHaveLength(0);
   });
 
   it("abstains when a product question has no supporting evidence", async () => {

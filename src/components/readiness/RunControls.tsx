@@ -31,8 +31,6 @@ export function RunControls({
   availability,
   speed,
   onSpeed,
-  includeAnswer,
-  onIncludeAnswer,
   onStart,
   onStop,
 }: {
@@ -42,14 +40,11 @@ export function RunControls({
   availability: RunnerAvailability | null;
   speed: ReplaySpeed;
   onSpeed: (s: ReplaySpeed) => void;
-  includeAnswer: boolean;
-  onIncludeAnswer: (v: boolean) => void;
   onStart: () => void;
   onStop: () => void;
 }) {
   const active = session.phase === "connecting" || session.phase === "running";
   const replayRelevant = mode === "replay" || (!mode && !(availability?.available && !availability.running));
-  const answerRelevant = mode === "probes" || probes;
 
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center gap-x-5 gap-y-3 sm:w-auto sm:flex-1 sm:justify-end">
@@ -76,25 +71,6 @@ export function RunControls({
             ))}
           </span>
         </fieldset>
-      )}
-      {answerRelevant && (
-        <label
-          className="flex min-w-0 cursor-pointer items-center gap-2 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
-          title="Off by default. Applies to the next run."
-        >
-          <input
-            type="checkbox"
-            data-testid="include-answer"
-            checked={includeAnswer}
-            disabled={active}
-            onChange={(e) => onIncludeAnswer(e.target.checked)}
-            className="h-4 w-4 shrink-0 accent-[var(--orange-strong)]"
-          />
-          <span className="min-w-0 text-[13px] leading-tight">
-            <span className="font-semibold text-text">Include one real answer</span>
-            <span className="block text-[11.5px] text-muted">one model call · about 1.5k tokens</span>
-          </span>
-        </label>
       )}
       {active ? (
         <button

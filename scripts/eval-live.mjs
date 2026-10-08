@@ -77,7 +77,11 @@ async function runCase(modelId, c) {
   try {
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
-      headers: { "content-type": "application/json", ...(process.env.EVAL_BYPASS_TOKEN ? { "x-eval-token": process.env.EVAL_BYPASS_TOKEN } : {}) },
+      headers: {
+        "content-type": "application/json",
+        "x-nimbus-test-run": "live-eval",
+        ...(process.env.EVAL_BYPASS_TOKEN ? { "x-eval-token": process.env.EVAL_BYPASS_TOKEN } : {}),
+      },
       body: JSON.stringify({ modelId, messages: [...(c.history ?? []), { role: "user", content: c.question }] }),
     });
     if (!res.ok) {

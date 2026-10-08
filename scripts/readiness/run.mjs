@@ -398,7 +398,7 @@ const STAGES = {
       command: "npx",
       args: ["vitest", "run", "--reporter=./scripts/readiness/vitest-reporter.mjs"],
       display: "npx vitest run",
-      env: childEnv(process.env, { offline: true, extra: tagEnv }),
+      env: childEnv(process.env, { offline: true, extra: { ...tagEnv, NIMBUS_DISABLE_FINDINGS: "1" } }),
     }),
 
   build: async () => {
@@ -455,6 +455,7 @@ const STAGES = {
         extra: {
           ...distEnv,
           ...tagEnv,
+          NIMBUS_DISABLE_FINDINGS: "1",
           E2E_PORT: String(E2E_PORT),
           PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(ROOT, scratch, "playwright-report"),
           PLAYWRIGHT_HTML_OPEN: "never",

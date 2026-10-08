@@ -6,8 +6,8 @@ import type { RunSession } from "@/readiness/useReadinessRun";
 import { formatDuration, formatUtc, shortOrigin } from "./format";
 
 /**
- * The header metadata row of the established report format (evals/reports/<stamp>/index.html):
- * platform · environment · build · branch · golden set · pricing · corpus · prompt · started at · elapsed.
+ * The header metadata row of the readiness report: platform · environment · branch · started at · elapsed.
+ * Dataset, pricing, corpus and prompt fingerprints stay internal to the evidence contract.
  */
 /** On a phone only the first few pills show until expanded, so the verdict stays near the top. */
 const MOBILE_VISIBLE = 4;
@@ -21,12 +21,7 @@ export function MetaRow({ meta, session, elapsedMs }: { meta: RunMeta | null; se
 
   add("platform", meta?.platform);
   add("environment", meta?.mode === "probes" ? shortOrigin(meta.environment) : meta?.environment, false, meta?.environment);
-  add("build", meta?.build, true);
   add("branch", meta?.branch, true);
-  add("golden set", meta?.goldenVersion, true);
-  add("pricing", meta?.pricingVersion, true);
-  add("corpus", meta?.corpusHash, true);
-  add("prompt", meta?.promptHash, true);
   add("started", meta ? formatUtc(meta.startedAt) : undefined);
   if (session.probeOrigin && meta?.mode !== "probes") add("probes →", shortOrigin(session.probeOrigin), true, session.probeOrigin);
   if (elapsedMs !== undefined && session.phase !== "idle") add("elapsed", formatDuration(elapsedMs));
@@ -35,8 +30,7 @@ export function MetaRow({ meta, session, elapsedMs }: { meta: RunMeta | null; se
   if (items.length === 0) {
     return (
       <p className="text-[13px] text-muted" data-testid="meta-row">
-        Run metadata — platform, environment, build, golden set, pricing, corpus and prompt fingerprints — appears here
-        once a run starts.
+        Run metadata — platform, environment and timing — appears here once a run starts.
       </p>
     );
   }

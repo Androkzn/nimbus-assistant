@@ -1,7 +1,7 @@
 import type { CheckView, RequirementView } from "@/readiness/coverage";
 import type { TestResult } from "@/readiness/schema";
 
-/** Needs improvement · Failed · Live · Recorded · All, plus free-text search over requirement, check and test text. */
+/** All · Needs improvement · Failed · Live · Recorded, plus free-text search over requirement, check and test text. */
 export type Filter = "needs-improvement" | "failed" | "live" | "recorded" | "all";
 
 export interface FilteredRequirement {
@@ -55,6 +55,10 @@ export function filterCoverage(coverage: RequirementView[], filter: Filter, quer
   const terms = tokens(query);
   const out: FilteredRequirement[] = [];
   for (const view of coverage) {
+    // A verified requirement can contain optional or supporting checks without
+    // needing improvement. Keep this filter aligned with the requirement badge,
+    // otherwise VERIFIED rows appear under "Needs improvement".
+    if (filter === "needs-improvement" && view.status === "passed") continue;
     const byFilter = view.checks.filter((c) => checkPasses(c, filter));
     const reqHit = terms.length > 0 && matches(requirementText(view), terms);
     if (terms.length === 0 || reqHit) {

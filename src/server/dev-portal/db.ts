@@ -176,31 +176,6 @@ export function createReport(input: { title: string; product: string | null; sev
   return reportFromRow(db().prepare("SELECT * FROM reports WHERE id = ?").get(id) as Row);
 }
 
-function safeEvidenceId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_.:-]/g, "_").slice(0, 120);
-}
-
-export function createReadinessReport(input: { runId: string; failedChecks: string[]; failedStages: string[] }): KnowledgeReport | null {
-  const runId = input.runId.trim();
-  const failedChecks = [...new Set(input.failedChecks.map(safeEvidenceId).filter(Boolean))].slice(0, 40);
-  const failedStages = [...new Set(input.failedStages.map(safeEvidenceId).filter(Boolean))].slice(0, 20);
-  if (!runId || (failedChecks.length === 0 && failedStages.length === 0)) return null;
-
-  const sourceKey = `readiness:${safeEvidenceId(runId)}`;
-  const existing = db().prepare("SELECT * FROM reports WHERE source_key = ?").get(sourceKey) as Row | undefined;
-  if (existing) return reportFromRow(existing);
-
-  const evidence = [...failedStages.map((stage) => `stage ${stage}`), ...failedChecks.map((check) => `check ${check}`)].join(", ");
-  return createReport({
-    title: "Readiness test failed",
-    product: null,
-    severity: "high",
-    category: "readiness",
-    summary: `Live Readiness evidence reported ${evidence}. Review the Readiness test run ${safeEvidenceId(runId)}.`,
-    sourceKey,
-  });
-}
-
 export function likelyKnowledgeGap(question: string): boolean {
   return /\b(?:relay|vault|pulse|ledger|nimbus|api|endpoint|integration|sso|saml|sla|status|error|403|404|429|500|auth|token|webhook|secret|pricing|version)\b/i.test(question);
 }
@@ -446,20 +421,6 @@ export async function createReportAsync(input: { title: string; product: string 
   if (!input.sourceKey) return null;
   const existing = await sharedSql`SELECT * FROM reports WHERE source_key = ${input.sourceKey}` as SharedRow[];
   return existing[0] ? sharedReportFromRow(existing[0]) : null;
-}
-
-export async function createReadinessReportAsync(input: { runId: string; failedChecks: string[]; failedStages: string[] }): Promise<KnowledgeReport | null> {
-  if (!sharedSql) return createReadinessReport(input);
-  const runId = input.runId.trim();
-  const failedChecks = [...new Set(input.failedChecks.map(safeEvidenceId).filter(Boolean))].slice(0, 40);
-  const failedStages = [...new Set(input.failedStages.map(safeEvidenceId).filter(Boolean))].slice(0, 20);
-  if (!runId || (failedChecks.length === 0 && failedStages.length === 0)) return null;
-  const sourceKey = `readiness:${safeEvidenceId(runId)}`;
-  const evidence = [...failedStages.map((stage) => `stage ${stage}`), ...failedChecks.map((check) => `check ${check}`)].join(", ");
-  return createReportAsync({
-    title: "Readiness test failed", product: null, severity: "high", category: "readiness",
-    summary: `Live Readiness evidence reported ${evidence}. Review the Readiness test run ${safeEvidenceId(runId)}.`, sourceKey,
-  });
 }
 
 export async function createQuestionReportAsync(input: { question: string; analysis: string; category: "knowledge-gap" | "irrelevant" }): Promise<KnowledgeReport | null> {

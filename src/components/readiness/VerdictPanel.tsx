@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import type { Summary, UsageSummary } from "@/readiness/coverage";
 import type { RunSession } from "@/readiness/useReadinessRun";
 import { TONE_CLASS, TONE_TEXT } from "./badges";
-import { formatDuration, slug, splitParenthetical } from "./format";
+import type { TooltipDetail } from "./CardTooltip";
+import { formatDuration, slug } from "./format";
 import type { Verdict } from "./verdict";
 
 function VerdictGlyph({ verdict }: { verdict: Verdict }) {
@@ -44,12 +45,34 @@ function VerdictGlyph({ verdict }: { verdict: Verdict }) {
   }
 }
 
-function Stat({ label, value, sub, testId }: { label: string; value: ReactNode; sub?: ReactNode; testId?: string }) {
+function Stat({ label, value, sub, explanation, details, testId }: { label: string; value: ReactNode; sub?: ReactNode; explanation: string; details: TooltipDetail[]; testId?: string }) {
   return (
-    <div data-testid={testId} className="min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3">
+    <div
+      data-testid={testId}
+      tabIndex={0}
+      title={explanation}
+      aria-describedby={testId ? `${testId}-tooltip` : undefined}
+      className="group relative isolate h-24 min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3 outline-none focus-within:border-orange-strong focus-within:ring-2 focus-within:ring-orange-soft focus:border-orange-strong focus:ring-2 focus:ring-orange-soft"
+    >
       <p className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">{label}</p>
       <p className="mt-1 font-display text-[22px] leading-tight font-bold text-text tabular-nums">{value}</p>
-      {sub && <p className="mt-0.5 text-[12.5px] leading-snug text-muted tabular-nums">{sub}</p>}
+      {sub && <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-muted tabular-nums">{sub}</p>}
+      <span
+        id={testId ? `${testId}-tooltip` : undefined}
+        role="tooltip"
+        className="pointer-events-none invisible absolute top-[calc(100%+8px)] left-0 z-30 w-64 rounded-lg border border-border bg-navy px-3 py-2.5 text-left text-[12px] leading-relaxed text-on-navy opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
+      >
+        <span className="block font-semibold text-white">{label}</span>
+        <span className="mt-0.5 block text-on-navy-muted">{explanation}</span>
+        <span className="mt-2 grid gap-1.5 border-t border-white/15 pt-2">
+          {details.map((detail) => (
+            <span key={detail.label} className="block">
+              <span className="font-semibold text-white">{detail.label}: </span>
+              <span className="text-on-navy-muted">{detail.text}</span>
+            </span>
+          ))}
+        </span>
+      </span>
     </div>
   );
 }
@@ -62,51 +85,6 @@ function formatCost(value: number): string {
   return value === 0 ? "$0.00" : value < 0.01 ? `$${value.toFixed(5)}` : `$${value.toFixed(4)}`;
 }
 
-export interface GroupStat {
-  name: string;
-  total: number;
-  verified: number;
-  failed: number;
-}
-
-function GroupBreakdown({ groups }: { groups: GroupStat[] }) {
-  return (
-    <div className="border-t border-border px-5 py-4 sm:px-6">
-      <h3 className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">By requirement group</h3>
-      <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-7">
-        {groups.map((g) => {
-          const all = g.total > 0 && g.verified === g.total;
-          return (
-            <li key={g.name} className="min-w-0">
-              <a
-                href={`#group-${slug(g.name)}-section`}
-                className="group flex h-full flex-col justify-between gap-2 rounded-lg border border-border px-3 py-2.5 transition-colors hover:border-orange-strong hover:bg-orange-soft/50"
-              >
-                <span className="line-clamp-2 text-[12.5px] leading-snug font-medium text-text group-hover:text-orange-ink">
-                  {splitParenthetical(g.name)[0]}
-                  {splitParenthetical(g.name)[1] && <> <span className="whitespace-nowrap">{splitParenthetical(g.name)[1]}</span></>}
-                </span>
-                <span className="flex items-center gap-2">
-                  <span
-                    className={`shrink-0 text-[12.5px] tabular-nums ${g.failed ? "font-semibold text-[var(--rdy-fail)]" : all ? "font-semibold text-[var(--rdy-pass)]" : "text-muted"}`}
-                  >
-                    {g.verified}/{g.total}
-                    <span className="sr-only"> verified{g.failed ? `, ${g.failed} failed` : ""}</span>
-                  </span>
-                  <span aria-hidden className="flex h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--rdy-track)]">
-                    <span className="h-full bg-[var(--rdy-pass)] transition-[width] duration-500" style={{ width: `${g.total ? (g.verified / g.total) * 100 : 0}%` }} />
-                    <span className="h-full bg-[var(--rdy-fail)] transition-[width] duration-500" style={{ width: `${g.total ? (g.failed / g.total) * 100 : 0}%` }} />
-                  </span>
-                </span>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 export function VerdictPanel({
   verdict,
   summary,
@@ -114,7 +92,6 @@ export function VerdictPanel({
   elapsedMs,
   controls,
   hint,
-  groups,
   usage,
 }: {
   verdict: Verdict;
@@ -123,7 +100,6 @@ export function VerdictPanel({
   elapsedMs?: number;
   controls: ReactNode;
   hint: ReactNode;
-  groups: GroupStat[];
   usage: UsageSummary;
 }) {
   const { requirements, checks, tests } = summary;
@@ -242,6 +218,12 @@ export function VerdictPanel({
                 </>
               }
               sub={`${requirements.failed} failed · ${requirements.pending} without evidence yet`}
+              explanation="The number of brief requirements with passing evidence and no failed checks. This is the main release-readiness measure."
+              details={[
+                { label: "Counts", text: "Requirements with at least one passing check and no failed check." },
+                { label: "Why check", text: "This is the release decision: every requirement must have trustworthy evidence." },
+                { label: "Read it", text: "39 / 39 means all requirements are covered; a failed count means release risk." },
+              ]}
             />
             <Stat
               testId="stat-checks"
@@ -253,6 +235,12 @@ export function VerdictPanel({
                 </>
               }
               sub={`${checks.failed} failed · ${checks.pending} ${running ? "running or queued" : "without a result"}`}
+              explanation="The individual automated checks that passed. This shows how much of the requirement coverage has concrete evidence."
+              details={[
+                { label: "Counts", text: "Manifest checks, such as an acceptance rule or a deployment check." },
+                { label: "Why check", text: "Checks are the concrete evidence underneath each requirement." },
+                { label: "Read it", text: "A failed check can make its requirement fail even when many other checks pass." },
+              ]}
             />
             <Stat
               testId="stat-tests"
@@ -264,6 +252,12 @@ export function VerdictPanel({
                   {tests.failed > 0 && <span className="text-[var(--rdy-fail)]"> · {tests.failed} failed</span>}
                 </>
               }
+              explanation="The recorded and live tests that produced evidence for this assessment. It helps reviewers understand the breadth of verification."
+              details={[
+                { label: "Live", text: "Ran now against this browser or the running app." },
+                { label: "Recorded", text: "Read from the committed evaluation report and labelled with its source date." },
+                { label: "Why check", text: "Shows how much evidence came from the current build versus a saved report." },
+              ]}
             />
             <Stat
               testId="stat-usage"
@@ -275,13 +269,40 @@ export function VerdictPanel({
                   {running && <span className="text-[var(--rdy-run)]"> · updating live</span>}
                 </>
               }
+              explanation="The model tokens used by answer evaluations. This makes model usage and evaluation cost visible."
+              details={[
+                { label: "Counts", text: "Input tokens sent to models plus output tokens generated by them." },
+                { label: "Why check", text: "Makes expensive or unexpectedly long evaluations visible to reviewers." },
+                { label: "Note", text: "Deterministic checks and live probes may use zero model tokens." },
+              ]}
             />
-            <Stat testId="stat-cost" label="Estimated cost" value={formatCost(usage.costUSD)} sub={`${usage.answers} measured ${usage.answers === 1 ? "answer" : "answers"}`} />
-            <Stat testId="stat-time" label="Total time" value={formatDuration(session.phase === "idle" ? undefined : elapsedMs)} sub={recordedNote} />
+            <Stat
+              testId="stat-cost"
+              label="Estimated cost"
+              value={formatCost(usage.costUSD)}
+              sub={`${usage.answers} measured ${usage.answers === 1 ? "answer" : "answers"}`}
+              explanation="The estimated provider cost of measured model answers. It helps teams review the cost of running the readiness assessment."
+              details={[
+                { label: "Counts", text: "Estimated cost for measured provider answers, not hosting or database cost." },
+                { label: "Why check", text: "Keeps real-token evaluation spend visible before repeating a run." },
+                { label: "Note", text: "The number is an estimate based on the configured provider pricing." },
+              ]}
+            />
+            <Stat
+              testId="stat-time"
+              label="Total time"
+              value={formatDuration(session.phase === "idle" ? undefined : elapsedMs)}
+              sub={recordedNote}
+              explanation="The elapsed time from the start of the assessment to its verdict. It helps identify slow checks and release-gate delays."
+              details={[
+                { label: "Counts", text: "Wall-clock time for the current local run or the recorded run being replayed." },
+                { label: "Why check", text: "Shows whether a gate is practical to run during development and CI." },
+                { label: "Read it", text: "Expand a slow stage below to see its command and evidence." },
+              ]}
+            />
           </div>
         </div>
       </div>
-      <GroupBreakdown groups={groups} />
     </section>
   );
 }

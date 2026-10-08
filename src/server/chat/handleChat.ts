@@ -37,6 +37,10 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   const env = deps.env ?? process.env;
   const log = deps.log ?? ((r) => console.log(JSON.stringify(r)));
   const monitor = deps.monitor ?? sentryChatMonitor;
+  // Automated verification exercises fallback and abstention paths on purpose. Those requests are
+  // evidence for the test run, not customer findings, so they must never pollute the review portal.
+  // The header is set only by the readiness probes/E2E harness; normal browser traffic has no header.
+  const suppressFinding = Boolean(req.headers.get("x-nimbus-test-run")) || env.NIMBUS_DISABLE_FINDINGS === "1" || env.LLM_MODE === "mock";
   const requestId = crypto.randomUUID();
   const started = Date.now();
 
@@ -167,7 +171,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
           unverifiedFigureCount: unverified.length,
           question,
         });
-        if (finding) {
+        if (finding && !suppressFinding) {
           try {
             await (deps.findingSink ?? persistFinding)(finding, env);
           } catch (error) {

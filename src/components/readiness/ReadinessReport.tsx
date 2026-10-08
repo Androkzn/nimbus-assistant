@@ -15,7 +15,7 @@ import { SavedAssessments } from "./SavedAssessments";
 import { StagePipeline } from "./StagePipeline";
 import { TraceabilityMatrix } from "./TraceabilityMatrix";
 import { verdictOf } from "./verdict";
-import { VerdictPanel, type GroupStat } from "./VerdictPanel";
+import { VerdictPanel } from "./VerdictPanel";
 
 /** Wall clock for ticking durations; only ticks while a run is in flight. */
 function useNow(active: boolean, intervalMs = 250): number {
@@ -62,11 +62,11 @@ function contextOf(r: TestResult): ResultContext {
 }
 
 const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
   { id: "needs-improvement", label: "Needs improvement" },
   { id: "failed", label: "Failed" },
   { id: "live", label: "Live" },
   { id: "recorded", label: "Recorded" },
-  { id: "all", label: "All" },
 ];
 
 export function ReadinessReport({ options }: { options: ReadinessOptions }) {
@@ -75,7 +75,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
   const active = session.phase === "connecting" || session.phase === "running";
   const now = useNow(active);
 
-  const [filter, setFilter] = useState<Filter>("needs-improvement");
+  const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
 
@@ -84,18 +84,6 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
   const summary = useMemo(() => summarize(manifest, state), [state]);
   const usage = useMemo(() => usageSummary(state), [state]);
   const verdict = verdictOf(summary, session, coverage);
-  const groupStats = useMemo(() => {
-    const out: GroupStat[] = [];
-    for (const v of coverage) {
-      let g = out.find((x) => x.name === v.requirement.group);
-      if (!g) out.push((g = { name: v.requirement.group, total: 0, verified: 0, failed: 0 }));
-      g.total += 1;
-      if (v.status === "passed") g.verified += 1;
-      if (v.status === "failed") g.failed += 1;
-    }
-    return out;
-  }, [coverage]);
-
   const allResults = useMemo(
     () => state.resultOrder.map((id) => state.results[id]).filter((r): r is TestResult => Boolean(r)),
     [state.resultOrder, state.results],
@@ -156,7 +144,6 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
           summary={summary}
           session={session}
           elapsedMs={elapsedMs}
-          groups={groupStats}
           usage={usage}
           hint={<RunHint session={session} mode={options.mode} probes={options.probes} availability={run.availability} />}
           controls={
@@ -167,8 +154,6 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
               availability={run.availability}
               speed={run.speed}
               onSpeed={run.setSpeed}
-              includeAnswer={run.includeAnswer}
-              onIncludeAnswer={run.setIncludeAnswer}
               onStart={() => void run.start()}
               onStop={run.stop}
             />

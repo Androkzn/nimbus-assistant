@@ -332,7 +332,7 @@ Client state: `messages[]`, `usageRows[]` (one per answered turn), `selectedMode
 | Integration | `/api/chat` with AI SDK mock models: event order; blank → 400 + provider never called; fallback before first token; mid-stream `reset` → no mixed text; all-fail → classified `error`; `modelId` honoured | Vitest | ✅ |
 | Contract | Every emitted event parses with shared zod schema | Vitest | ✅ |
 | E2E | Playwright against `next start` with `LLM_MODE=mock`: streaming, sources, usage, totals, model switch keeps history, New Conversation, blank disabled, rate-limit copy, meter colours, export | Playwright | ✅ |
-| Answer eval (live, opt-in) | Golden Q&A: must-include facts, must-not-include claims, must-cite files, gap probes, conflict cases — per model; JSON + HTML report stamped with model, prompt hash, corpus hash | `npm run eval:live` | Manual / workflow_dispatch |
+| Answer eval (live) | Golden Q&A: must-include facts, must-not-include claims, must-cite files, gap probes, conflict cases — per model; JSON + HTML report stamped with model, prompt hash, corpus hash | `npm run eval:live` | Manual / workflow_dispatch |
 | Security | Client-bundle key scan | node script | ✅ gate |
 
 Anti-"coverage theater" rules: tests assert on concrete values from the KB (e.g. "15 minutes, 24x7"), never on snapshots of whole answers; every fallback test asserts **what the user would see** (final text, labels), not just that a function was called.

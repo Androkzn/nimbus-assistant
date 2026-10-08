@@ -29,7 +29,7 @@ export interface ReadinessOptions {
   /** Explicit source; without it the page asks the runner endpoint and falls back to replay. */
   mode?: RunMode;
   speed: ReplaySpeed;
-  /** Opt-in probe: one real model call (~1.5k tokens). */
+  /** Required probe: one real model call (~1.5k tokens). */
   includeAnswer: boolean;
   /** Append the live probes after a local run or a replay (default true). */
   probes: boolean;
@@ -83,29 +83,6 @@ function isAbort(err: unknown): boolean {
 function errorText(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   return msg.length > 200 ? `${msg.slice(0, 200)}…` : msg;
-}
-
-export function liveFailureEvidence(state: RunState): { failedChecks: string[]; failedStages: string[] } {
-  return {
-    failedChecks: Object.values(state.results).filter((result) => result.source === "live" && result.status === "failed").map((result) => result.id),
-    failedStages: state.stages.filter((stage) => stage.source === "live" && stage.status === "failed").map((stage) => stage.info.id),
-  };
-}
-
-async function reportLiveFailures(state: RunState): Promise<void> {
-  const runId = state.meta?.runId;
-  const evidence = liveFailureEvidence(state);
-  if (!runId || (evidence.failedChecks.length === 0 && evidence.failedStages.length === 0)) return;
-  try {
-    await fetch("/api/dev/knowledge-base/reports/readiness", {
-      method: "POST",
-      cache: "no-store",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ runId, ...evidence }),
-    });
-  } catch {
-    // The Readiness report remains useful when the optional Dev portal is unavailable.
-  }
 }
 
 /** "2026-10-07-21-30-00" from a Date, the runner's run-id format. */
@@ -171,7 +148,6 @@ export function useReadinessRun(options: ReadinessOptions) {
   const [state, setState] = useState<RunState>(() => initialRunState());
   const [session, setSession] = useState<RunSession>(() => idleSession(options.speed, options.includeAnswer));
   const [speed, setSpeed] = useState<ReplaySpeed>(options.speed);
-  const [includeAnswer, setIncludeAnswer] = useState(options.includeAnswer);
   const [availability, setAvailability] = useState<RunnerAvailability | null>(null);
   const [savedRuns, setSavedRuns] = useState<SavedAssessment[]>([]);
 
@@ -205,9 +181,6 @@ export function useReadinessRun(options: ReadinessOptions) {
 
   const sessionStartedAtRef = useRef<number | undefined>(undefined);
   const includeAnswerRef = useRef(options.includeAnswer);
-  useEffect(() => {
-    includeAnswerRef.current = includeAnswer;
-  }, [includeAnswer]);
 
   /** Publish the ref state to React; the rAF path keeps renders to one per frame, the timer covers hidden tabs. */
   const flush = useCallback(() => {
@@ -259,7 +232,7 @@ export function useReadinessRun(options: ReadinessOptions) {
 
     const t0 = Date.now();
     const runSpeed = speed;
-    const runAnswer = includeAnswer;
+    const runAnswer = options.includeAnswer;
     stateRef.current = initialRunState();
     clockRef.current = {};
     savedIdRef.current = `${runId(new Date(t0))}-${t0}`;
@@ -382,7 +355,6 @@ export function useReadinessRun(options: ReadinessOptions) {
       saveEvent(finalEvent);
       flush();
       persistSaved("finished", ended);
-      void reportLiveFailures(final);
       setSession((s) => ({ ...s, phase: "finished", endedAtMs: ended }));
       if (controllerRef.current === ctrl) controllerRef.current = null;
     } catch (err) {
@@ -393,7 +365,7 @@ export function useReadinessRun(options: ReadinessOptions) {
       setSession((s) => ({ ...s, phase: "error", error: errorText(err), endedAtMs: ended }));
       if (controllerRef.current === ctrl) controllerRef.current = null;
     }
-  }, [flush, includeAnswer, options.mode, options.probes, persistSaved, saveEvent, schedule, speed]);
+  }, [flush, options.includeAnswer, options.mode, options.probes, persistSaved, saveEvent, schedule, speed]);
 
   const reviewSavedRun = useCallback(
     (record: SavedAssessment) => {
@@ -464,5 +436,5 @@ export function useReadinessRun(options: ReadinessOptions) {
     [],
   );
 
-  return { state, session, start, stop, speed, setSpeed, includeAnswer, setIncludeAnswer, availability, savedRuns, reviewSavedRun, removeSavedRun };
+  return { state, session, start, stop, speed, setSpeed, availability, savedRuns, reviewSavedRun, removeSavedRun };
 }

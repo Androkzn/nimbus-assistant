@@ -55,7 +55,7 @@ Result ids (stable keys the traceability manifest matches on):
 | Recorded live eval | `eval::<caseId>::<modelId>` | `evals/reports/<stamp>/results.json` | `<caseId> — <question>` |
 | Live probe | `probe::<probeId>` | the origin probed | probe title |
 
-Probe ids: `health`, `models`, `blank`, `oversize`, `unknown-model`, `offtopic-guard`, `stream-headers`, `bundle-keys`, `grounded-answer` (opt-in: one real model call, ~1.5k tokens).
+Probe ids: `health`, `models`, `blank`, `oversize`, `unknown-model`, `offtopic-guard`, `stream-headers`, `bundle-keys`, `grounded-answer` (one required real model call, ~1.5k tokens).
 
 ## 5. Traceability
 

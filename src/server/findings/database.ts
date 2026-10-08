@@ -105,7 +105,13 @@ export function buildFinding(input: {
 }
 
 export async function persistFinding(finding: FindingRecord, env: Env): Promise<void> {
-  void env;
+  // Keep the write boundary defensive as well as the chat boundary. Readiness,
+  // E2E, and mock-provider runs must never turn verification fixtures into
+  // operational Knowledge base findings, even if a caller bypasses handleChat.
+  // Vitest supplies a minimal dependency environment in some unit tests, so
+  // checking only the injected object is not sufficient; the process mode is
+  // the final source of truth for test isolation.
+  if (env.NIMBUS_DISABLE_FINDINGS === "1" || env.LLM_MODE === "mock" || env.NODE_ENV === "test" || process.env.NODE_ENV === "test") return;
   await createFindingReportAsync({
     key: finding.key,
     observedAt: finding.observedAt,

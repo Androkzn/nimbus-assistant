@@ -87,8 +87,9 @@ Readiness is the developer verification feature for checking the application aga
 - **Recorded evidence:** replays the latest published local run with a `recorded` label, including its build and date.
 - **Live deployment probes:** checks the running server for health, model availability, chat behavior, bundle exposure, and other public-route guarantees.
 - **Traceability:** maps requirements to BRD items, acceptance rows, automated checks, and individual test results.
-- **Failure-focused review:** defaults to “Needs improvement” and also supports Failed, Live, Recorded, All, and text search filters.
-- **Controlled model usage:** replay and probes do not spend model tokens by default. An optional “Include one real answer” check runs one provider call for live answer evidence.
+- **Failure-focused review:** shows All requirements by default and also supports Needs improvement, Failed, Live, Recorded, and text search filters.
+- **No portal side effects:** readiness failures stay in the Readiness report and never create Knowledge base issues in developer or production deployments.
+- **Grounded live evidence:** every readiness assessment runs one real grounded answer probe (about 1.5k tokens) so a green report includes live answer evidence, not only health and contract checks.
 - **Safe local execution:** readiness builds use `.next-readiness` and port `3199`, leaving the normal `.next/` build untouched; emitted evidence redacts secrets and message content.
 
 ### How to use it
@@ -115,7 +116,54 @@ This example shows how Readiness helps developers separate an HTTP transport suc
 
 ![Failed readiness check](docs/screenshots/readiness-failure-example.png)
 
-Developers use the report as a delivery gate: start with the failed requirement, open its linked BRD item and acceptance row, inspect the automated check and test evidence, fix the code or deployment configuration, and rerun the gates. Delivery is complete only when every requirement has passing evidence—for this project, `39 / 39` verified—not merely when the code builds.
+### How readiness is decided
+
+Readiness is decided from requirements evidence, not from the number of green tests or the fact that the application builds. The report is the visible result of a requirements-driven, risk-based delivery system designed for an AI product whose behavior depends on data, retrieval, models, infrastructure, and user-facing safeguards.
+
+#### 1. Start with the required outcome
+
+Each requirement describes a user or operational outcome: for example, an answer must be grounded in approved material, a provider failure must not crash the application, or a public deployment must keep credentials out of the browser. The requirement is the source of truth. Tests, prompts, models, and implementation details are means of proving it—not substitutes for it.
+
+#### 2. Turn every requirement into observable evidence
+
+The delivery chain is deliberately traceable:
+
+`requirement → BRD outcome → TRD contract → acceptance row → automated check → test result → evidence`
+
+This prevents two common failures in AI projects: implementing impressive behavior that was never required, and having a large test suite that does not prove the important outcomes. A requirement is not considered covered until it has a concrete acceptance statement, a check that claims it, and a real test result.
+
+#### 3. Use the lowest reliable verification layer first
+
+The gates run from the cheapest and most deterministic evidence to the most realistic and variable evidence:
+
+- static contracts catch invalid types, routes, and build assumptions;
+- unit and integration tests verify deterministic product rules, retrieval, persistence, fallback, limits, and event contracts;
+- retrieval evaluations verify that the assistant finds the right approved passages and does not invent unsupported facts;
+- browser tests verify the actual user journey and streamed state transitions;
+- security checks verify that server-only credentials and sensitive content do not cross the browser boundary;
+- live evaluations and deployment probes verify real provider quality and the behavior of the deployed system.
+
+This ordering is an architectural decision. It gives fast feedback on local defects, reserves expensive model and deployment checks for the end, and makes a failure easier to attribute to the correct boundary.
+
+#### 4. Separate deterministic correctness from model quality
+
+The assistant is not judged by model confidence alone. Deterministic controls decide whether an answer is allowed to proceed: the question must match the approved knowledge base, retrieved passages must support the response, citations must be valid, unsupported questions must be bounded, and provider failures must follow the fallback contract.
+
+Real-provider evaluation is a separate evidence lane because model output, latency, and cost can vary. It measures grounded answer quality on representative questions without allowing a variable model response to redefine the product contract. Recorded results preserve what was evaluated; live probes confirm what is running now.
+
+#### 5. Treat safety and operations as product requirements
+
+Prompt-injection resistance, unknown-product handling, rate limits, secret protection, safe logs, database behavior, and deployment health are not secondary infrastructure checks. They are derived controls that protect the user outcome. An assistant that answers a question correctly but leaks a key, invents a product, or loses its grounding under an adversarial prompt is not ready.
+
+#### 6. Keep evidence provenance explicit
+
+The report distinguishes local, recorded, and live evidence. Recorded evidence is useful for repeatable review and cost control; live evidence proves the current browser origin and deployment. The system never relabels an old result as live, and automated readiness traffic is isolated from the Knowledge base issue workflow so verification cannot pollute operational data.
+
+#### 7. Use failures to drive the next engineering action
+
+When a gate fails, the developer follows the traceability chain back to the requirement, then inspects the acceptance row, check, test result, command, and redacted failure evidence. This turns a red dashboard into a diagnosis path: identify the violated contract, decide whether the defect is in code, data, configuration, deployment, or evaluation, make the smallest justified change, and rerun the affected gates.
+
+The delivery principle is that every green result must answer “what requirement did this prove?” and every red result must answer “what decision should the team make next?” Readiness is complete only when every in-scope requirement has passing evidence—for this project, `39 / 39` verified—not merely when the code compiles.
 
 ## Knowledge base portal
 

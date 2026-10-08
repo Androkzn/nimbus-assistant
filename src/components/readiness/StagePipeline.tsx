@@ -5,12 +5,75 @@ import type { StageState } from "@/readiness/coverage";
 import { STAGE_IDS, STAGE_INFO, type Counts, type Source, type StageId, type StageInfo, type Status } from "@/readiness/schema";
 import type { RunSession } from "@/readiness/useReadinessRun";
 import { LayerBadge, SourceBadge, StatusIcon, StatusPill, TONE_TEXT, toneOf, type Tone } from "./badges";
+import { CardTooltip, type TooltipDetail } from "./CardTooltip";
 import { formatDuration } from "./format";
 
 /** Short chip titles; the full title is in the detail panel. */
 const CHIP_TITLE: Partial<Record<StageId, string>> = {
   unit: "Unit · integration · retrieval eval",
   "bundle-scan": "Bundle secret scan",
+};
+
+const STAGE_IMPORTANCE: Record<StageId, string> = {
+  typecheck: "Catches type and route-contract errors before the application is built or deployed.",
+  lint: "Catches code-quality and React usage problems that can become maintenance or runtime defects.",
+  unit: "Verifies product behavior, retrieval, integrations, and the shared event contract with deterministic tests.",
+  build: "Confirms the application can be compiled in the same production shape used for deployment.",
+  "bundle-scan": "Confirms browser-delivered JavaScript does not expose provider keys or other secrets.",
+  e2e: "Verifies the user-visible application and deployment flow in a real browser.",
+  "live-eval": "Measures grounded answer quality on representative questions using the configured models and evidence rules.",
+  probes: "Checks the running deployment directly for health, public API behavior, headers, bundle safety, and one real grounded answer.",
+};
+
+const STAGE_TOOLTIP_DETAILS: Record<StageId, TooltipDetail[]> = {
+  typecheck: [
+    { label: "Checks", text: "Types, route handlers, API contracts, and generated route types." },
+    { label: "Architecture", text: "Keeps the browser, server, and shared wire contract aligned instead of discovering mismatches at runtime." },
+    { label: "Why first", text: "It is a fast, deterministic gate that prevents later stages from testing an invalid application shape." },
+    { label: "If it fails", text: "The code may not compile or may disagree with the data sent between the browser and server." },
+  ],
+  lint: [
+    { label: "Checks", text: "ESLint rules, React hooks, purity, and common code-quality mistakes." },
+    { label: "Architecture", text: "Protects component boundaries and predictable state flow in the client-facing readiness and chat surfaces." },
+    { label: "Why here", text: "Static maintainability checks are cheaper and clearer before compilation, browser automation, and provider calls." },
+    { label: "If it fails", text: "Fix the reported source issue before shipping; lint failures often reveal unsafe or hard-to-maintain code." },
+  ],
+  unit: [
+    { label: "Checks", text: "Server handlers, retrieval, model fallbacks, limits, event contracts, and offline answer quality." },
+    { label: "Architecture", text: "Exercises the deterministic core with mock providers so grounding, fallback, persistence, and contracts can be verified without network or token cost." },
+    { label: "Design decision", text: "The lowest useful test layer proves product rules before higher layers add browser, deployment, or provider variability." },
+    { label: "If it fails", text: "A deterministic product behavior changed or an integration contract no longer matches its callers." },
+  ],
+  build: [
+    { label: "Checks", text: "A clean production compilation using the same Next.js build shape used for deployment." },
+    { label: "Architecture", text: "Validates that server-only code, client bundles, route handlers, and generated artifacts compose into one deployable unit." },
+    { label: "Why here", text: "The release artifact must exist before browser or deployment checks can provide meaningful evidence." },
+    { label: "If it fails", text: "The deployment cannot safely be promoted until the production bundle builds." },
+  ],
+  "bundle-scan": [
+    { label: "Checks", text: "All browser-downloadable JavaScript for provider-key patterns and configured secret values." },
+    { label: "Architecture", text: "Keeps provider credentials behind server boundaries; the browser receives capabilities and responses, never API keys." },
+    { label: "Why it matters", text: "A functional build is still unsafe if a visitor can extract a provider credential from its JavaScript." },
+    { label: "If it fails", text: "A secret may be exposed to visitors; treat it as a release blocker and rotate the key if necessary." },
+  ],
+  e2e: [
+    { label: "Checks", text: "The built app in a real browser: streaming, citations, fallback, usage display, export, and readiness UI." },
+    { label: "Architecture", text: "Verifies the complete user path across browser state, HTTP streaming, server handlers, and the production-shaped build." },
+    { label: "Design decision", text: "Uses deterministic mock providers here so browser failures represent product regressions, not provider latency or model variability." },
+    { label: "If it fails", text: "The user-visible flow or a browser-only integration is broken even if server tests pass." },
+  ],
+  "live-eval": [
+    { label: "Checks", text: "The golden question set against configured providers, with grounding, citations, figures, and cost checks." },
+    { label: "Architecture", text: "Separates deterministic correctness from real-provider answer quality, making model behavior visible without weakening the release contract." },
+    { label: "Why separate", text: "Real models spend tokens and can vary; recording this evidence preserves reviewability while keeping normal CI predictable." },
+    { label: "If it fails", text: "A provider answer needs review; inspect the recorded evidence before changing prompts or retrieval." },
+  ],
+  probes: [
+    { label: "Checks", text: "The running deployment’s health, model catalog, validation, off-topic guard, stream headers, bundle safety, and grounded answer." },
+    { label: "Architecture", text: "Tests the deployed boundary from the browser, where environment variables, routing, headers, database access, and build promotion are real." },
+    { label: "Why last", text: "It confirms operational reality after local code, artifact, security, browser, and answer-quality gates have passed." },
+    { label: "If it fails", text: "The deployed server may differ from the code that passed locally; inspect the live response and deployment configuration." },
+  ],
 };
 
 interface StageView {
@@ -100,13 +163,14 @@ export function StagePipeline({
                 aria-expanded={selected}
                 aria-controls="stage-detail"
                 onClick={() => setOpenId(selected ? null : v.info.id)}
-                className={`group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-xl border bg-surface p-3 pt-3.5 text-left transition-[border-color,box-shadow] duration-300 hover:border-orange-strong ${
+                title={`${v.info.description} Why it matters: ${STAGE_IMPORTANCE[v.info.id]}`}
+                className={`group relative flex h-[132px] w-full min-w-0 flex-col rounded-xl border bg-surface p-3 pt-3.5 text-left transition-[border-color,box-shadow] duration-300 hover:border-orange-strong ${
                   selected ? "border-orange-strong shadow-[0_0_0_3px_var(--orange-soft)]" : "border-border"
                 } ${v.planned ? "border-dashed" : ""}`}
               >
                 <span
                   aria-hidden
-                  className={`absolute inset-x-0 top-0 h-[3px] transition-colors duration-300 ${
+                  className={`absolute inset-x-px top-px h-[2px] rounded-t-lg transition-colors duration-300 ${
                     d.tone === "idle" ? "bg-[var(--rdy-track)]" : d.tone === "run" ? "rdy-indeterminate" : ""
                   } ${d.tone === "pass" ? "bg-[var(--rdy-pass)]" : d.tone === "fail" ? "bg-[var(--rdy-fail)]" : d.tone === "warn" ? "bg-[var(--rdy-warn)]" : ""}`}
                 />
@@ -133,6 +197,11 @@ export function StagePipeline({
                 <span className="mt-0.5 truncate text-[11.5px] text-muted tabular-nums">
                   {v.counts && (v.counts.passed || v.counts.failed || v.counts.skipped) ? countsText(v.counts) : v.source === "recorded" ? "recorded" : " "}
                 </span>
+                <CardTooltip
+                  label={v.info.title}
+                  explanation={`${v.info.description} Why it matters: ${STAGE_IMPORTANCE[v.info.id]}`}
+                  details={STAGE_TOOLTIP_DETAILS[v.info.id]}
+                />
               </button>
             </li>
           );
