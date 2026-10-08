@@ -89,8 +89,9 @@ export function buildFinding(input: {
     severity: category === "documentation_gap" ? "medium" : "low",
     status: "new",
     proposedAction: proposedAction(category, reason),
-    // Keep irrelevant/off-topic usage privacy-safe; retain evidence for actionable findings.
-    question: category === "out_of_scope" && !input.retrieval.unknownProduct ? "" : input.question.trim().replace(/\s+/g, " ").slice(0, 2000),
+    // Every deterministic knowledge-base fallback is recorded with the normalized
+    // question so the review team can see exactly what triggered the finding.
+    question: input.question.trim().replace(/\s+/g, " ").slice(0, 2000),
     analysis: findingAnalysis(input.retrieval),
     evidence: {
       retrievalBestScore: input.retrieval.retrievalBestScore,

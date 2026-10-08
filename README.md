@@ -130,13 +130,13 @@ Production is also a quality feedback loop:
 4. **Improve** — update the knowledge base, retrieval rules, prompts, or tests based on confirmed evidence.
 5. **Promote** — run the same CI gates and production probes before releasing the improvement.
 
-The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count in structured logs—not the user's question or answer. Actionable knowledge-gap and unknown-product reports additionally retain a normalized, capped question plus a deterministic analysis for human review; irrelevant/off-topic statistics remain question-free. Repeated observations are aggregated as privacy-safe reports in the knowledge-base database. High-risk changes remain human-reviewed and reversible.
+The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count in structured logs—not the user's question or answer. Every deterministic knowledge-base fallback also creates or updates a shared improvement report with its type, priority, status, product scope, normalized capped question, deterministic analysis, proposed action, and occurrence evidence. Repeated observations are aggregated by finding type and context while the latest question is retained for review. High-risk changes remain human-reviewed and reversible.
 
 Expected behavior is deterministic: the chatbot says that it could not find the answer in the NimbusStack knowledge base, does not call a model, and records zero token cost. Repeated documentation-gap findings are reviewed by a human and may produce a knowledge-base update plus a regression evaluation case; an out-of-scope finding does not automatically imply missing documentation.
 
 ### Knowledge-base operations
 
-Use the Knowledge base portal to review documents and improvement reports. Keep provider credentials and full chat transcripts out of the database; actionable reports store only a normalized question, deterministic analysis, privacy-safe classifications, structured evidence, status, priority, and proposed action. GitHub remains the source of truth for code, tests, CI evidence, releases, and rollback.
+Use the Knowledge base portal to review documents and improvement reports. Keep provider credentials and full chat transcripts out of the database; reports store only a normalized, capped triggering question, deterministic analysis, classifications, structured evidence, status, priority, product scope, and proposed action. GitHub remains the source of truth for code, tests, CI evidence, releases, and rollback.
 
 ## Agentic delivery approach
 

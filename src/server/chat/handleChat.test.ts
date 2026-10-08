@@ -167,7 +167,7 @@ describe("deterministic grounding layers", () => {
     },
   );
 
-  it("records weather as an out-of-scope statistic without creating a documentation gap", async () => {
+  it("records the full question for an out-of-scope fallback", async () => {
     const d = deps();
     const findings: unknown[] = [];
     const evs = await events(
@@ -180,7 +180,7 @@ describe("deterministic grounding layers", () => {
     expect(d.factory).not.toHaveBeenCalled();
     expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "out_of_scope" });
     expect(findings).toHaveLength(1);
-    expect(JSON.stringify(findings)).not.toContain("weather");
+    expect(JSON.stringify(findings)).toContain("Tell me about weather?");
   });
 
   it("records an undocumented API 500 as a troubleshooting documentation gap", async () => {
