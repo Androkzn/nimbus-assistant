@@ -9,6 +9,17 @@ Deployments:
 - [Production assessment](https://nimbus-assistant-production.vercel.app) — customer-facing build without internal tooling
 - [Optional developer environment](https://nimbus-assistant-dev.vercel.app) — includes the Readiness test and live probes
 
+Quick links:
+
+- [Run locally](#run-locally)
+- [Verify](#verify)
+- [CI/CD approach](#cicd-approach)
+- [Production monitoring and triage](#production-monitoring-and-triage)
+- [Error investigation and fix workflow](#error-investigation-and-fix-workflow)
+- [Continuous improvement](#continuous-improvement-after-deployment)
+- [Agentic delivery approach](#agentic-delivery-approach)
+- [Product behavior](#product-behavior)
+
 ## Run locally
 
 Requirements: Node.js 22.12+ and npm.
