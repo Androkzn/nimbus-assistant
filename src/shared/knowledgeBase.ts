@@ -24,6 +24,7 @@ export interface KnowledgeReport {
   question: string | null;
   analysis: string | null;
   detectedAt: string;
+  occurrencesToday: number;
 }
 
 export interface KnowledgeBasePayload {

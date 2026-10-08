@@ -92,19 +92,23 @@ function documentFromRow(row: Row): KnowledgeDocument {
   };
 }
 
+function occurrencesFromSummary(summary: string): number {
+  const match = summary.match(/Observed (\d+) time/);
+  const count = match ? Number(match[1]) : 1;
+  return Number.isFinite(count) && count > 0 ? count : 1;
+}
+
 function reportFromRow(row: Row): KnowledgeReport {
   return {
     id: String(row.id), title: String(row.title), product: row.product ? String(row.product) : null,
     severity: String(row.severity) as KnowledgeReportSeverity, category: String(row.category ?? "manual") as KnowledgeReportCategory, status: String(row.status) as KnowledgeReportStatus,
     summary: String(row.summary), question: row.question ? String(row.question) : null, analysis: row.analysis ? String(row.analysis) : null,
-    detectedAt: String(row.detected_at),
+    detectedAt: String(row.detected_at), occurrencesToday: occurrencesFromSummary(String(row.summary)),
   };
 }
 
 function observationCount(report: KnowledgeReport): number {
-  const match = report.summary.match(/Observed (\d+) time/);
-  const count = match ? Number(match[1]) : 1;
-  return Number.isFinite(count) && count > 0 ? count : 1;
+  return report.occurrencesToday;
 }
 
 function reportStats(reports: KnowledgeReport[], today: string): { newIssuesToday: number; observationsToday: number } {
@@ -299,7 +303,7 @@ function sharedReportFromRow(row: SharedRow): KnowledgeReport {
     id: String(row.id), title: String(row.title), product: row.product ? String(row.product) : null,
     severity: String(row.severity) as KnowledgeReportSeverity, category: String(row.category ?? "manual") as KnowledgeReportCategory, status: String(row.status) as KnowledgeReportStatus,
     summary: String(row.summary), question: row.question ? String(row.question) : null, analysis: row.analysis ? String(row.analysis) : null,
-    detectedAt: sharedDate(row.detected_at),
+    detectedAt: sharedDate(row.detected_at), occurrencesToday: occurrencesFromSummary(String(row.summary)),
   };
 }
 
