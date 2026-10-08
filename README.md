@@ -13,11 +13,11 @@ The production deployment does not expose internal developer tooling. The develo
 
 ## Quick links
 
+- ⚙️ [CI/CD](#cicd)
 - 🗂️ [Knowledge base portal](#knowledge-base-portal)
 - 💻 [Local development](#local-development)
 - ✅ [Verification](#verification)
 - 🧭 [Product behavior](#product-behavior)
-- ⚙️ [CI/CD](#cicd)
 - 🔒 [Monitoring and security](#monitoring-and-security)
 - 📋 [Requirements and design documents](#requirements-and-design-documents)
 - 🧱 [Project layout](#project-layout)
