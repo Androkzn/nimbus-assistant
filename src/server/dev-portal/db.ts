@@ -232,7 +232,7 @@ export function createFindingReport(input: {
   if (existing) {
     const previous = String(existing.summary).match(/Observed (\d+) time/)?.[1];
     const occurrences = Number(previous ?? 1) + 1;
-    db().prepare("UPDATE reports SET summary = ?, question = COALESCE(question, ?), analysis = ?, detected_at = ? WHERE source_key = ?").run(
+    db().prepare("UPDATE reports SET summary = ?, question = ?, analysis = ?, detected_at = ? WHERE source_key = ?").run(
       `${summaryBase} Observed ${occurrences} times today.`, input.question?.trim() || null, input.analysis?.trim() || JSON.stringify(input.evidence), input.observedAt, sourceKey,
     );
     return reportFromRow(db().prepare("SELECT * FROM reports WHERE source_key = ?").get(sourceKey) as Row);
@@ -482,7 +482,7 @@ export async function createFindingReportAsync(input: {
   if (existing[0]) {
     const previous = String(existing[0].summary).match(/Observed (\d+) time/)?.[1];
     const occurrences = Number(previous ?? 1) + 1;
-    const rows = await sharedSql`UPDATE reports SET summary = ${`${summaryBase} Observed ${occurrences} times today.`}, question = COALESCE(question, ${input.question?.trim() || null}), analysis = ${input.analysis?.trim() || JSON.stringify(input.evidence)}, detected_at = ${input.observedAt} WHERE source_key = ${sourceKey} RETURNING *` as SharedRow[];
+    const rows = await sharedSql`UPDATE reports SET summary = ${`${summaryBase} Observed ${occurrences} times today.`}, question = ${input.question?.trim() || null}, analysis = ${input.analysis?.trim() || JSON.stringify(input.evidence)}, detected_at = ${input.observedAt} WHERE source_key = ${sourceKey} RETURNING *` as SharedRow[];
     return rows[0] ? sharedReportFromRow(rows[0]) : null;
   }
   return createReportAsync({
