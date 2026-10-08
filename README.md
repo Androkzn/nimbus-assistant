@@ -120,6 +120,14 @@ http://localhost:3000/readiness?autostart=1
 
 For example, a live health probe can return HTTP `200` but still fail if the JSON says `ok: false` or no model providers are available. The report keeps that distinction visible instead of treating the HTTP status alone as success.
 
+### Readiness overview
+
+![Readiness overview](docs/screenshots/readiness-overview.png)
+
+### Live deployment probes
+
+![Live deployment probes](docs/screenshots/readiness-live-probes.png)
+
 ## Verification
 
 Run the complete local quality suite:
