@@ -1,3 +1,4 @@
+import { createSign } from "node:crypto";
 import type { Env } from "../config/models";
 import type { GuardReason, RetrievalResult } from "../retrieval/retrieve";
 
@@ -5,6 +6,7 @@ const DEFAULT_FINDINGS_FOLDER_ID = "1iVRPfxJB5lHc6TorqWnmC5IeW5kY_a0s";
 const DEFAULT_API_BASE = "https://www.googleapis.com/drive/v3";
 const DEFAULT_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 
 export type FindingCategory = "out_of_scope" | "documentation_gap" | "clarification_needed";
 
@@ -166,13 +168,33 @@ export function mergeFinding(report: DailyFindingReport | null, finding: Finding
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 async function authToken(env: Env): Promise<string> {
+  const serviceAccountEmail = env.GOOGLE_DRIVE_FINDINGS_SERVICE_ACCOUNT_EMAIL?.trim();
+  const serviceAccountKey = env.GOOGLE_DRIVE_FINDINGS_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
+  if (serviceAccountEmail && serviceAccountKey) {
+    if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) return cachedToken.value;
+    const tokenUrl = env.GOOGLE_DRIVE_FINDINGS_SERVICE_ACCOUNT_TOKEN_URI ?? DEFAULT_TOKEN_URL;
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const encode = (value: string) => Buffer.from(value).toString("base64url");
+    const unsigned = `${encode(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${encode(JSON.stringify({ iss: serviceAccountEmail, scope: DRIVE_SCOPE, aud: tokenUrl, iat: issuedAt, exp: issuedAt + 3600 }))}`;
+    const signature = createSign("RSA-SHA256").update(unsigned).sign(serviceAccountKey, "base64url");
+    const response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: `${unsigned}.${signature}` }),
+    });
+    if (!response.ok) throw new Error(`Google Drive service-account token exchange failed (${response.status}).`);
+    const body = (await response.json()) as { access_token?: string; expires_in?: number };
+    if (!body.access_token) throw new Error("Google Drive service-account token exchange returned no access token.");
+    cachedToken = { value: body.access_token, expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000 };
+    return body.access_token;
+  }
   const direct = env.GOOGLE_DRIVE_FINDINGS_ACCESS_TOKEN?.trim();
   if (direct) return direct;
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) return cachedToken.value;
   const refreshToken = env.GOOGLE_DRIVE_FINDINGS_REFRESH_TOKEN?.trim();
   const clientId = (env.GOOGLE_DRIVE_FINDINGS_CLIENT_ID ?? env.GOOGLE_DRIVE_CLIENT_ID)?.trim();
   const clientSecret = (env.GOOGLE_DRIVE_FINDINGS_CLIENT_SECRET ?? env.GOOGLE_DRIVE_CLIENT_SECRET)?.trim();
-  if (!refreshToken || !clientId || !clientSecret) throw new Error("Google Drive findings write is enabled but OAuth credentials are incomplete.");
+  if (!refreshToken || !clientId || !clientSecret) throw new Error("Google Drive findings write is enabled but service-account or OAuth credentials are incomplete.");
   const response = await fetch(env.GOOGLE_DRIVE_TOKEN_URL ?? DEFAULT_TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
