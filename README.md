@@ -54,6 +54,12 @@ Deterministic knowledge-base findings are saved with:
 
 Repeated observations remain one issue record and increment that issue's occurrence count. Portal counters refresh from the shared API every five seconds and on window focus. Issue records can be filtered by type, priority, status, product, and date range.
 
+### Portal examples
+
+![Knowledge base portal issues view](docs/screenshots/knowledge-base-issues.png)
+
+![Knowledge base portal documents view](docs/screenshots/knowledge-base-documents.png)
+
 ## Local development
 
 Requirements: Node.js 22.12+ and npm.
