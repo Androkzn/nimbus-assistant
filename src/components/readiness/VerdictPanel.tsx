@@ -50,9 +50,8 @@ function Stat({ label, value, sub, explanation, details, testId }: { label: stri
     <div
       data-testid={testId}
       tabIndex={0}
-      title={explanation}
       aria-describedby={testId ? `${testId}-tooltip` : undefined}
-      className="group relative isolate h-24 min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3 outline-none focus-within:border-orange-strong focus-within:ring-2 focus-within:ring-orange-soft focus:border-orange-strong focus:ring-2 focus:ring-orange-soft"
+      className="group relative isolate z-0 h-24 min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3 outline-none transition-[border-color,box-shadow] focus-within:z-20 focus-within:border-orange-strong focus-within:ring-2 focus-within:ring-orange-soft focus:z-20 focus:border-orange-strong focus:ring-2 focus:ring-orange-soft group-hover:z-20"
     >
       <p className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">{label}</p>
       <p className="mt-1 font-display text-[22px] leading-tight font-bold text-text tabular-nums">{value}</p>

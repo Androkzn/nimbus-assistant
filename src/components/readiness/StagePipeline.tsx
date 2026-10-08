@@ -163,8 +163,7 @@ export function StagePipeline({
                 aria-expanded={selected}
                 aria-controls="stage-detail"
                 onClick={() => setOpenId(selected ? null : v.info.id)}
-                title={`${v.info.description} Why it matters: ${STAGE_IMPORTANCE[v.info.id]}`}
-                className={`group relative flex h-[132px] w-full min-w-0 flex-col rounded-xl border bg-surface p-3 pt-3.5 text-left transition-[border-color,box-shadow] duration-300 hover:border-orange-strong ${
+                className={`group relative z-0 flex h-[132px] w-full min-w-0 flex-col rounded-xl border bg-surface p-3 pt-3.5 text-left transition-[border-color,box-shadow] duration-300 hover:z-20 hover:border-orange-strong focus-visible:z-20 ${
                   selected ? "border-orange-strong shadow-[0_0_0_3px_var(--orange-soft)]" : "border-border"
                 } ${v.planned ? "border-dashed" : ""}`}
               >
