@@ -83,13 +83,15 @@ Readiness is the developer verification feature for checking the application aga
 
 ### Features
 
-- **Live quality gates:** runs typecheck, lint, unit/integration/retrieval tests, production build, client-bundle scanning, and browser E2E tests.
+- **Live quality gates (local run):** runs typecheck, lint, unit/integration/retrieval tests, production build, client-bundle scanning, and browser E2E tests.
+- **Live checks (developer deployment):** a deployment has no local runner, so the report runs the live probes against itself and, when **Include live answers** is ticked, the live answer eval. Production hides the Readiness page and both developer buttons; dev and prod run the same code.
 - **Recorded evidence:** with `mode=replay`, replays the latest published local run with a `recorded` label, including its build and date.
 - **Live deployment probes:** checks the running server for health, model availability, chat behavior, bundle exposure, and other public-route guarantees.
 - **Traceability:** maps requirements to BRD items, acceptance rows, automated checks, and individual test results.
 - **Failure-focused review:** shows All requirements by default and also supports Needs improvement, Failed, Live, Recorded, and text search filters.
 - **No portal side effects:** readiness failures stay in the Readiness report and never create Knowledge base issues in developer or production deployments.
-- **Grounded live evidence:** every readiness assessment sends one real grounded answer probe (one question, about 3k tokens), so a green report includes live answer evidence, not only health and contract checks. **Include live answers** (off by default) adds the live answer eval to a local run (every golden question on every available model, about 170 real answers, about $0.50); tick it, or open the page with `answer=1`, to include the eval. Unticked, the eval card shows Skipped and no tokens are spent on it.
+- **Grounded live evidence:** every readiness assessment sends one real grounded answer probe (one question, about 3k tokens), so a green report includes live answer evidence, not only health and contract checks.
+- **Include live answers (off by default):** ticking it adds the live answer eval to the run, locally or on the developer deployment: every golden question on every available model, about 170 real answers and about $0.50. Unticked (or without `answer=1` in the URL), the eval card shows Skipped and no tokens are spent on it. On the developer deployment the eval draws on its own rate-limit allowance (about one eval per 10 minutes per client); production keeps the public limit.
 - **Safe local execution:** readiness builds use `.next-readiness` and port `3199` (or the next free port when another checkout holds it), leaving the normal `.next/` build untouched; emitted evidence redacts secrets and message content.
 
 ### How to use it
@@ -107,6 +109,8 @@ On a deployment the report runs the live probes against the current browser orig
 For example, a live health probe can return HTTP `200` but still fail if the JSON says `ok: false` or no model providers are available. The report keeps that distinction visible instead of treating the HTTP status alone as success.
 
 ### Readiness overview
+
+A READY report: all 32 brief requirements verified, every gate green, with the recorded run's date and build and the live probes run against this server.
 
 ![Readiness overview](docs/screenshots/readiness-overview.png)
 
