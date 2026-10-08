@@ -69,15 +69,11 @@ The production deployment is intentionally customer-facing and excludes the inte
 
 ### CI/CD evidence
 
-These screenshots are included to make the delivery approach inspectable: the first shows the workflow as code, and the second shows the quality-gate job that runs before production promotion.
+The [GitHub Actions workflow](.github/workflows/ci.yml) makes the delivery approach inspectable: pull requests and pushes to `main` share the same offline quality gates, and only a passing `main` push can promote production.
 
 ![CI/CD workflow definition](docs/screenshots/ci-workflow.png)
 
 *Workflow definition: pull requests and pushes to `main` share the same offline quality gates, while only a passing `main` push can promote production.*
-
-![CI quality gates](docs/screenshots/ci-quality-gates.png)
-
-*Quality-gate evidence: typecheck, lint, tests, build, bundle scanning, and browser E2E are recorded against the commit.*
 
 ## Agentic delivery approach
 
