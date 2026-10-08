@@ -28,6 +28,23 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 /** Build output of a readiness run; `.next/` belongs to whatever server is already running. */
 export const DIST_DIR = ".next-readiness";
 export const E2E_PORT = 3199;
+/** Ports from E2E_PORT a run may use when another checkout's run, or a server one left behind, holds E2E_PORT. */
+export const E2E_PORT_SPAN = 100;
+
+/**
+ * Verbatim copy of READINESS_TOOLING_PATHS (src/readiness/manifest.ts); lib.test.ts proves they match. A run
+ * verifies the product only, so the report's own tests stay out of it; they run in CI.
+ */
+export const READINESS_TOOLING_PATHS = ["src/readiness/", "src/components/readiness/", "src/app/readiness/", "src/app/api/readiness/", "scripts/readiness/", "e2e/readiness"];
+
+/** Product E2E spec files: everything under e2e/ except the report's own. @param {string} root */
+export function productE2eFiles(root) {
+  return readdirSync(path.join(root, "e2e"))
+    .filter((f) => /\.(spec|test)\.ts$/.test(f))
+    .map((f) => `e2e/${f}`)
+    .filter((file) => !READINESS_TOOLING_PATHS.some((prefix) => file.startsWith(prefix)))
+    .sort();
+}
 /** Must equal RUN_LOCK_FILE in src/readiness/runner-gate.ts (the route reads it; lib.test.ts checks). */
 export const LOCK_FILE = "readiness/.run.lock";
 /** A lock older than this is stale even if its pid is alive again (pid reuse). Same value in runner-gate.ts. */
@@ -89,7 +106,7 @@ export const STAGE_INFO = {
     title: "Live answer eval",
     command: "npm run eval:live",
     layer: "live-eval",
-    description: "Golden questions answered by the real providers and graded by deterministic checks. Shown from the latest committed report; re-run on demand because it spends real tokens.",
+    description: "Golden questions answered by the real providers and graded by deterministic checks. Runs live against this build when 'Include live answers' is ticked (off by default), so it spends real tokens.",
   },
 };
 
@@ -317,6 +334,9 @@ export const runStartEvent = (meta, stages) => ({ type: "run-start", meta, stage
 /** @param {StageId} stage @returns {ReadinessEvent} */
 export const stageStartEvent = (stage) => ({ type: "stage-start", stage, at: iso() });
 
+/** @param {StageId} stage @param {number} total results the stage expects @returns {ReadinessEvent} */
+export const stageTotalEvent = (stage, total) => ({ type: "stage-total", stage, total });
+
 /**
  * @param {StageId} stage
  * @param {{ id: string, file: string, fullName: string }} identity
@@ -488,13 +508,20 @@ export function latestEvalReport(root) {
         return []; // a report being written right now, or a broken file: not evidence
       }
     });
-  let caseIds = [];
+  return chooseEvalReport(reports, goldenCaseIds(root));
+}
+
+/**
+ * The current golden-set case ids; empty when there is no golden set, so no report can be complete.
+ * @param {string} root
+ * @returns {string[]}
+ */
+export function goldenCaseIds(root) {
   try {
-    caseIds = JSON.parse(readFileSync(path.join(root, "evals", "golden-set.json"), "utf8")).cases.map((/** @type {any} */ c) => c.id);
+    return JSON.parse(readFileSync(path.join(root, "evals", "golden-set.json"), "utf8")).cases.map((/** @type {any} */ c) => c.id);
   } catch {
-    /* no golden set: nothing can be complete; the most graded report is shown as partial */
+    return [];
   }
-  return chooseEvalReport(reports, caseIds);
 }
 
 /**
@@ -514,6 +541,49 @@ const publishableReason = (reason) => reason.replace(/^figures not in sources: (
 const utcMinute = (isoString) => `${String(isoString).slice(0, 10)} ${String(isoString).slice(11, 16)} UTC`;
 
 /**
+ * One graded eval-live answer (a results.json row) as a readiness result. The answer text is never carried over.
+ * @param {any} r
+ * @param {{ reportPath: string, environment?: string, source?: "live" | "recorded" }} o
+ */
+export function evalResultEvent(r, { reportPath, environment, source = "live" }) {
+  const status = VERDICT_STATUS[/** @type {keyof typeof VERDICT_STATUS} */ (r.verdict)] ?? "failed";
+  const reasons = Array.isArray(r.failed) ? r.failed.map((f) => publishableReason(String(f))) : [];
+  if (!(r.verdict in VERDICT_STATUS)) reasons.unshift(`unknown verdict "${r.verdict}"`);
+  return testResultEvent({
+    stage: "live-eval",
+    id: `eval::${r.caseId}::${r.model}`,
+    file: reportPath,
+    fullName: `${r.caseId} — ${r.question}`,
+    status,
+    durationMs: r.totalMs,
+    source,
+    error: status === "failed" ? reasons.join("; ") : undefined,
+    detail: {
+      model: r.model,
+      brief: r.brief,
+      ttftMs: r.ttftMs,
+      inputTokens: r.usage?.inputTokens,
+      outputTokens: r.usage?.outputTokens,
+      costUSD: r.costUSD,
+      reportPath,
+      environment,
+      verdict: r.verdict === "pass" ? undefined : r.verdict,
+      answeredBy: r.answeredBy && r.answeredBy !== r.model ? r.answeredBy : undefined,
+      note: r.verdict === "fallback" ? `answered by ${r.answeredBy ?? "a backup"}, so ${r.model} was not evaluated on this case` : undefined,
+      warnings: Array.isArray(r.warnings) && r.warnings.length ? r.warnings.length : undefined,
+    },
+  });
+}
+
+/** "30 cases × 3 models", or the partial coverage; empty without a coverage. @param {EvalCoverage} [coverage] */
+export function evalScope(coverage) {
+  if (!coverage) return [];
+  return coverage.complete
+    ? [`${coverage.casesTotal} cases × ${coverage.fullModels.length} models`]
+    : [`partial: ${coverage.casesCovered}/${coverage.casesTotal} cases, ${coverage.models.length} model${coverage.models.length === 1 ? "" : "s"}`];
+}
+
+/**
  * Events for a committed eval-live results.json: one result per case × model, never relabelled as live (I7).
  * The stage note carries the recording date, build and environment, and the report's golden-set coverage.
  * @param {any} report parsed results.json
@@ -527,42 +597,12 @@ export function recordedEval(report, reportPath, coverage) {
   let durationMs = 0;
   /** @type {ReadinessEvent[]} */
   const events = rows.map((/** @type {any} */ r) => {
-    const status = VERDICT_STATUS[/** @type {keyof typeof VERDICT_STATUS} */ (r.verdict)] ?? "failed";
-    counts[status] += 1;
+    const event = evalResultEvent(r, { reportPath, environment: meta.environment, source: "recorded" });
+    counts[event.result.status] += 1;
     durationMs += ms(r.totalMs ?? 0);
-    const reasons = Array.isArray(r.failed) ? r.failed.map((f) => publishableReason(String(f))) : [];
-    if (!(r.verdict in VERDICT_STATUS)) reasons.unshift(`unknown verdict "${r.verdict}"`);
-    return testResultEvent({
-      stage: "live-eval",
-      id: `eval::${r.caseId}::${r.model}`,
-      file: reportPath,
-      fullName: `${r.caseId} — ${r.question}`,
-      status,
-      durationMs: r.totalMs,
-      source: "recorded",
-      error: status === "failed" ? reasons.join("; ") : undefined,
-      detail: {
-        model: r.model,
-        brief: r.brief,
-        ttftMs: r.ttftMs,
-        inputTokens: r.usage?.inputTokens,
-        outputTokens: r.usage?.outputTokens,
-        costUSD: r.costUSD,
-        reportPath,
-        environment: meta.environment,
-        verdict: r.verdict === "pass" ? undefined : r.verdict,
-        answeredBy: r.answeredBy && r.answeredBy !== r.model ? r.answeredBy : undefined,
-        note: r.verdict === "fallback" ? `answered by ${r.answeredBy ?? "a backup"}, so ${r.model} was not evaluated on this case` : undefined,
-        warnings: Array.isArray(r.warnings) && r.warnings.length ? r.warnings.length : undefined,
-      },
-    });
+    return event;
   });
-  const scope = !coverage
-    ? []
-    : coverage.complete
-      ? [`${coverage.casesTotal} cases × ${coverage.fullModels.length} models`]
-      : [`partial: ${coverage.casesCovered}/${coverage.casesTotal} cases, ${coverage.models.length} model${coverage.models.length === 1 ? "" : "s"}`];
-  const note = [`recorded ${utcMinute(meta.startedAt)}`, `build ${meta.build ?? "unknown"}`, meta.environment ?? "unknown environment", ...scope].join(" · ");
+  const note = [`recorded ${utcMinute(meta.startedAt)}`, `build ${meta.build ?? "unknown"}`, meta.environment ?? "unknown environment", ...evalScope(coverage)].join(" · ");
   const status = /** @type {Status} */ (counts.failed ? "failed" : counts.passed ? "passed" : "skipped");
   return { events, counts, durationMs, note, status };
 }
@@ -742,6 +782,17 @@ export async function portInUse(port) {
     });
   const [v4, v6] = await Promise.all([connects("127.0.0.1"), connects("::1")]);
   return v4 || v6 || (await bindFails());
+}
+
+/**
+ * First port from `start` that nothing holds, or null when all `span` ports are held. A held port is skipped,
+ * never reused, so a busy E2E_PORT no longer blocks the run.
+ * @param {number} start
+ * @param {number} [span]
+ */
+export async function freePort(start, span = E2E_PORT_SPAN) {
+  for (let port = start; port < start + span; port += 1) if (!(await portInUse(port))) return port;
+  return null;
 }
 
 // ── Run lock (I5) ─────────────────────────────────────────────────────────────────────────────────

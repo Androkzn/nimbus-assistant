@@ -8,6 +8,8 @@
  * "the model made up 99.9 % uptime" from a silent failure into a visible, measurable one.
  */
 const CITATION = /\[\d{1,2}(?:\s*[,;]\s*\d{1,2})*\]/g;
+/** "passage 5", "passages 5 and 6": a passage named in prose is a citation too, not a figure (NKA-RET-015). */
+const PASSAGE_REFERENCE = /\bpassages?\s+\d{1,2}(?:(?:\s*,\s*|\s+and\s+|\s*&\s*)\d{1,2})*(?![\d.]|,\d)/gi;
 const LIST_MARKER = /^\s*\d+[.)]\s/gm;
 const NUMBER = /\d[\d,]*(?:\.\d+)?/g;
 
@@ -24,7 +26,7 @@ function numbersIn(text: string): Set<string> {
 /** Figures in `answer` that appear in none of `sources` (passage texts, the question, today's date). */
 export function unverifiedFigures(answer: string, sources: string[]): string[] {
   const known = numbersIn(sources.join("\n"));
-  const body = answer.replace(CITATION, " ").replace(LIST_MARKER, " ");
+  const body = answer.replace(CITATION, " ").replace(PASSAGE_REFERENCE, " ").replace(LIST_MARKER, " ");
   const missing = new Set<string>();
   for (const match of body.match(NUMBER) ?? []) {
     const raw = match.replace(/,+$/, "");

@@ -29,7 +29,7 @@ export interface ReadinessOptions {
   /** Explicit source; without it the page asks the runner endpoint and falls back to replay. */
   mode?: RunMode;
   speed: ReplaySpeed;
-  /** Required probe: one real model call (~1.5k tokens). */
+  /** "Include live answers": run the live answer eval in a local run (real tokens). Off by default. */
   includeAnswer: boolean;
   /** Append the live probes after a local run or a replay (default true). */
   probes: boolean;
@@ -148,6 +148,7 @@ export function useReadinessRun(options: ReadinessOptions) {
   const [state, setState] = useState<RunState>(() => initialRunState());
   const [session, setSession] = useState<RunSession>(() => idleSession(options.speed, options.includeAnswer));
   const [speed, setSpeed] = useState<ReplaySpeed>(options.speed);
+  const [includeAnswer, setIncludeAnswer] = useState(options.includeAnswer);
   const [availability, setAvailability] = useState<RunnerAvailability | null>(null);
   const [savedRuns, setSavedRuns] = useState<SavedAssessment[]>([]);
 
@@ -181,6 +182,9 @@ export function useReadinessRun(options: ReadinessOptions) {
 
   const sessionStartedAtRef = useRef<number | undefined>(undefined);
   const includeAnswerRef = useRef(options.includeAnswer);
+  useEffect(() => {
+    includeAnswerRef.current = includeAnswer;
+  }, [includeAnswer]);
 
   /** Publish the ref state to React; the rAF path keeps renders to one per frame, the timer covers hidden tabs. */
   const flush = useCallback(() => {
@@ -232,7 +236,7 @@ export function useReadinessRun(options: ReadinessOptions) {
 
     const t0 = Date.now();
     const runSpeed = speed;
-    const runAnswer = options.includeAnswer;
+    const runAnswer = includeAnswer;
     stateRef.current = initialRunState();
     clockRef.current = {};
     savedIdRef.current = `${runId(new Date(t0))}-${t0}`;
@@ -276,7 +280,7 @@ export function useReadinessRun(options: ReadinessOptions) {
 
       if (mode === "local") {
         patch({ mode, notice, phase: "running" });
-        const res = await fetch(RUN_ENDPOINT, { method: "POST", cache: "no-store", signal });
+        const res = await fetch(runAnswer ? RUN_ENDPOINT : `${RUN_ENDPOINT}?answers=0`, { method: "POST", cache: "no-store", signal });
         if (res.status === 404) {
           mode = "replay";
           notice = "The local runner is not available here, so this page replays the last recorded run.";
@@ -333,7 +337,8 @@ export function useReadinessRun(options: ReadinessOptions) {
       if (mode === "probes" || options.probes) {
         const origin = window.location.origin;
         patch({ probeOrigin: origin });
-        await runProbes({ origin, includeAnswer: runAnswer, signal }, push);
+        // The grounded-answer probe (one real question, ~3k tokens) always runs; the checkbox only switches the live eval.
+        await runProbes({ origin, includeAnswer: true, signal }, push);
         if (!live()) return;
       }
 
@@ -365,7 +370,7 @@ export function useReadinessRun(options: ReadinessOptions) {
       setSession((s) => ({ ...s, phase: "error", error: errorText(err), endedAtMs: ended }));
       if (controllerRef.current === ctrl) controllerRef.current = null;
     }
-  }, [flush, options.includeAnswer, options.mode, options.probes, persistSaved, saveEvent, schedule, speed]);
+  }, [flush, includeAnswer, options.mode, options.probes, persistSaved, saveEvent, schedule, speed]);
 
   const reviewSavedRun = useCallback(
     (record: SavedAssessment) => {
@@ -436,5 +441,5 @@ export function useReadinessRun(options: ReadinessOptions) {
     [],
   );
 
-  return { state, session, start, stop, speed, setSpeed, availability, savedRuns, reviewSavedRun, removeSavedRun };
+  return { state, session, start, stop, speed, setSpeed, includeAnswer, setIncludeAnswer, availability, savedRuns, reviewSavedRun, removeSavedRun };
 }

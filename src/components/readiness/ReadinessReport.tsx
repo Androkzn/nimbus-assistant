@@ -5,12 +5,12 @@ import { computeCoverage, initialRunState, summarize, usageSummary } from "@/rea
 import { checksFor, manifest } from "@/readiness/manifest";
 import { STAGE_INFO, type TestResult } from "@/readiness/schema";
 import { useReadinessRun, type ReadinessOptions } from "@/readiness/useReadinessRun";
-import { countFor, filterCoverage, resultPasses, resultText, tokens, type Filter } from "./filter";
+import { countFor, countsOf, filterCoverage, resultPasses, resultText, tokens, type Filter } from "./filter";
 import { LiveFeed, type ResultContext, type RunningTest } from "./LiveFeed";
 import { MetaRow } from "./MetaRow";
 import { MethodPanel } from "./MethodPanel";
 import { ReportHeader } from "./ReportHeader";
-import { RunControls, RunHint } from "./RunControls";
+import { RunControls, RunHint, plannedMode } from "./RunControls";
 import { SavedAssessments } from "./SavedAssessments";
 import { StagePipeline } from "./StagePipeline";
 import { TraceabilityMatrix } from "./TraceabilityMatrix";
@@ -73,6 +73,8 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
   const run = useReadinessRun(options);
   const { state, session } = run;
   const active = session.phase === "connecting" || session.phase === "running";
+  /** The run is over: a check still without a result has no evidence (and needs improvement), rather than waiting. */
+  const settled = session.phase === "finished" || session.phase === "stopped" || session.phase === "error";
   const now = useNow(active);
 
   const [filter, setFilter] = useState<Filter>("all");
@@ -103,10 +105,11 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
     });
   }, [allResults, filter, deferredQuery]);
 
-  const matrixItems = useMemo(() => filterCoverage(coverage, filter, deferredQuery), [coverage, filter, deferredQuery]);
+  const matrixItems = useMemo(() => filterCoverage(coverage, filter, deferredQuery, settled), [coverage, filter, deferredQuery, settled]);
+  const shown = useMemo(() => countsOf(matrixItems), [matrixItems]);
   const filterCounts = useMemo(
-    () => Object.fromEntries(FILTERS.map((f) => [f.id, countFor(coverage, f.id)])) as Record<Filter, number>,
-    [coverage],
+    () => Object.fromEntries(FILTERS.map((f) => [f.id, countFor(coverage, f.id, settled)])) as Record<Filter, number>,
+    [coverage, settled],
   );
 
   const running: RunningTest[] = useMemo(
@@ -154,13 +157,22 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
               availability={run.availability}
               speed={run.speed}
               onSpeed={run.setSpeed}
+              includeAnswer={run.includeAnswer}
+              onIncludeAnswer={run.setIncludeAnswer}
               onStart={() => void run.start()}
               onStop={run.stop}
             />
           }
         />
 
-        <StagePipeline stages={state.stages} session={session} now={now} probesPlanned={probesPlanned} runMode={state.meta?.mode} />
+        <StagePipeline
+          stages={state.stages}
+          session={session}
+          now={now}
+          probesPlanned={probesPlanned}
+          runMode={state.meta?.mode}
+          liveEvalPlan={!active && plannedMode(options.mode, run.availability) === "local" ? run.includeAnswer : undefined}
+        />
 
         <section aria-labelledby="trace-heading" className="min-w-0">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -171,7 +183,7 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <div role="group" aria-label="Filter results" className="inline-flex max-w-full flex-wrap rounded-xl border border-border bg-surface p-1">
+            <div role="group" aria-label="Filter checks" className="inline-flex max-w-full flex-wrap rounded-xl border border-border bg-surface p-1">
               {FILTERS.map((f) => (
                 <button
                   key={f.id}
@@ -215,6 +227,12 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
               />
             </label>
           </div>
+          {/* Tabs count checks; the list groups them by requirement, so one check can appear under two rows. */}
+          <p data-testid="trace-summary" className="mt-2 text-[12.5px] text-muted tabular-nums">
+            Showing <span className="font-semibold text-text">{shown.checks}</span> {shown.checks === 1 ? "check" : "checks"} across{" "}
+            <span className="font-semibold text-text">{shown.requirements}</span> {shown.requirements === 1 ? "requirement" : "requirements"}
+            {shown.checks < shown.requirements ? " — one check can cover several requirements" : ""}
+          </p>
 
           <div className="mt-4 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:gap-6">
             <TraceabilityMatrix items={matrixItems} filter={filter} searching={terms.length > 0} />

@@ -45,13 +45,14 @@ function VerdictGlyph({ verdict }: { verdict: Verdict }) {
   }
 }
 
-function Stat({ label, value, sub, explanation, details, testId, lower = false }: { label: string; value: ReactNode; sub?: ReactNode; explanation: string; details: TooltipDetail[]; testId?: string; lower?: boolean }) {
+/** `end`: a right-column card; its tooltip anchors to the right edge so it stays on screen on narrow viewports. */
+function Stat({ label, value, sub, explanation, details, testId, lower = false, end = false }: { label: string; value: ReactNode; sub?: ReactNode; explanation: string; details: TooltipDetail[]; testId?: string; lower?: boolean; end?: boolean }) {
   return (
     <div
       data-testid={testId}
       tabIndex={0}
       aria-describedby={testId ? `${testId}-tooltip` : undefined}
-      className="group relative isolate z-0 h-24 min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3 outline-none transition-[border-color,box-shadow] focus-within:z-20 focus-within:border-orange-strong focus-within:ring-2 focus-within:ring-orange-soft focus:z-20 focus:border-orange-strong focus:ring-2 focus:ring-orange-soft group-hover:z-20"
+      className="group relative isolate z-0 h-24 min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3 outline-none transition-[border-color,box-shadow] focus-within:z-20 focus-within:border-orange-strong focus-within:ring-2 focus-within:ring-orange-soft focus:z-20 focus:border-orange-strong focus:ring-2 focus:ring-orange-soft hover:z-30"
     >
       <p className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">{label}</p>
       <p className="mt-1 font-display text-[22px] leading-tight font-bold text-text tabular-nums">{value}</p>
@@ -59,7 +60,7 @@ function Stat({ label, value, sub, explanation, details, testId, lower = false }
       <span
         id={testId ? `${testId}-tooltip` : undefined}
         role="tooltip"
-        className={`pointer-events-none invisible absolute left-0 z-30 w-64 rounded-lg border border-border bg-navy px-3 py-2.5 text-left text-[12px] leading-relaxed text-on-navy opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 ${
+        className={`pointer-events-none invisible absolute ${end ? "right-0" : "left-0"} z-30 w-64 rounded-lg border border-border bg-navy px-3 py-2.5 text-left text-[12px] leading-relaxed text-on-navy opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 ${
           lower ? "bottom-full mb-2" : "top-[calc(100%+8px)]"
         }`}
       >
@@ -223,11 +224,12 @@ export function VerdictPanel({
               details={[
                 { label: "Counts", text: "Requirements with at least one passing check and no failed check." },
                 { label: "Why check", text: "This is the release decision: every requirement must have trustworthy evidence." },
-                { label: "Read it", text: "39 / 39 means all requirements are covered; a failed count means release risk." },
+                { label: "Read it", text: `${requirements.total} / ${requirements.total} means all product requirements are covered; a failed count means release risk.` },
               ]}
             />
             <Stat
               testId="stat-checks"
+              end
               label="Checks"
               value={
                 <>
@@ -262,6 +264,7 @@ export function VerdictPanel({
             />
             <Stat
               testId="stat-usage"
+              end
               label="Tokens used"
               value={formatTokens(tokensUsed)}
               sub={
@@ -292,6 +295,7 @@ export function VerdictPanel({
             />
             <Stat
               testId="stat-time"
+              end
               lower
               label="Total time"
               value={formatDuration(session.phase === "idle" ? undefined : elapsedMs)}

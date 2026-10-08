@@ -8,7 +8,7 @@ import { sentryChatMonitor, type ChatMonitor } from "../observability/report";
 import { buildInstructions, NOT_IN_KB } from "../prompt/build";
 import { retrieveAsync, type RetrievalResult } from "../retrieval/retrieve";
 import { unverifiedFigures } from "../verify/figures";
-import { slaQualifier } from "../verify/qualifiers";
+import { slaQualifier, sourceLine } from "../verify/qualifiers";
 import { buildFinding, persistFinding, type FindingSink } from "../findings/database";
 
 export interface ChatDeps {
@@ -111,9 +111,12 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
           if (event.type === "delta") answerText += event.text;
           else if (event.type === "reset") answerText = "";
           if (event.type === "done") {
+            const passages = retrieval.passages.map((p) => ({ n: p.n, text: p.chunk.text }));
+            // Citations (rule 5): an answer that cites nothing gets the passages it copied from, so it can be checked.
             // SLA definition (TRD §4.6): never let a response time read as a resolution time.
-            const qualifier = guarded ? null : slaQualifier(answerText, retrieval.passages.map((p) => ({ n: p.n, text: p.chunk.text })));
-            if (qualifier) {
+            for (const qualify of guarded ? [] : [sourceLine, slaQualifier]) {
+              const qualifier = qualify(answerText, passages);
+              if (!qualifier) continue;
               answerText += qualifier;
               send({ type: "delta", text: qualifier });
             }

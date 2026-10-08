@@ -82,6 +82,8 @@ interface StageView {
   source?: Source;
   durationMs?: number;
   counts?: Counts;
+  /** Results the stage expects, once its producer announced them. */
+  total?: number;
   note?: string;
   /** True for a stage the page expects but no producer has announced yet. */
   planned?: boolean;
@@ -98,6 +100,7 @@ function viewsOf(stages: StageState[], session: RunSession, probesPlanned: boole
     source: s.source,
     durationMs: s.durationMs,
     counts: s.counts,
+    total: s.total,
     note: s.note,
   }));
   if (probesPlanned && !stages.some((s) => s.info.id === "probes")) {
@@ -106,12 +109,43 @@ function viewsOf(stages: StageState[], session: RunSession, probesPlanned: boole
   return views;
 }
 
-function countsText(c: Counts | undefined): string {
-  if (!c) return "";
-  const parts = [`${c.passed} passed`];
+/**
+ * Card 07 follows the "Include live answers" checkbox until the eval has real results: Skipped while it is unticked,
+ * Queued once it is ticked. Results from a run that did evaluate are never overwritten.
+ */
+function previewLiveEval(views: StageView[], plan: boolean | undefined): StageView[] {
+  if (plan === undefined) return views;
+  return views.map((v) => {
+    if (v.info.id !== "live-eval" || (v.status !== "pending" && v.status !== "skipped")) return v;
+    if (v.counts && v.counts.passed + v.counts.failed + v.counts.skipped > 0) return v;
+    return plan
+      ? { ...v, status: "pending", durationMs: undefined, note: "Include live answers is ticked: the next run evaluates live, with real tokens." }
+      : { ...v, status: "skipped", durationMs: undefined, note: "Include live answers is off: the next run skips the eval and spends no tokens on it." };
+  });
+}
+
+/**
+ * "87 / 120 passed · 1 failed" when the stage announced its total, else "87 passed · 1 failed". Empty for a
+ * single-result stage (the gates): its status already says it, and "1 passed" adds nothing.
+ */
+function countsText(c: Counts | undefined, total?: number): string {
+  if (!c || (total ?? c.passed + c.failed + c.skipped) <= 1) return "";
+  const parts = [total ? `${c.passed} / ${total} passed` : `${c.passed} passed`];
   if (c.failed) parts.push(`${c.failed} failed`);
   if (c.skipped) parts.push(`${c.skipped} skipped`);
   return parts.join(" · ");
+}
+
+/**
+ * Cards in the right half of a pipeline row (2, 4 or 8 columns) anchor their tooltip to the right edge; a
+ * left-anchored tooltip there runs past the viewport and, even while hidden, adds a page-wide horizontal scroll.
+ */
+function tooltipAlign(i: number): string {
+  return [
+    i % 2 === 1 ? "max-sm:right-0 max-sm:left-auto" : "",
+    i % 4 >= 2 ? "sm:max-xl:right-0 sm:max-xl:left-auto" : "",
+    i % 8 >= 4 ? "xl:right-0 xl:left-auto" : "",
+  ].join(" ");
 }
 
 export function StagePipeline({
@@ -120,6 +154,7 @@ export function StagePipeline({
   now,
   probesPlanned,
   runMode,
+  liveEvalPlan,
 }: {
   stages: StageState[];
   session: RunSession;
@@ -127,9 +162,11 @@ export function StagePipeline({
   probesPlanned: boolean;
   /** The run's mode: a stage whose source differs from it (live probes in a replay, the recorded eval in a live run) is marked. */
   runMode?: "local" | "replay" | "probes";
+  /** "Include live answers" for the next local run, while no run is in progress; undefined where it does not apply. */
+  liveEvalPlan?: boolean;
 }) {
   const [openId, setOpenId] = useState<StageId | null>(null);
-  const views = viewsOf(stages, session, probesPlanned);
+  const views = previewLiveEval(viewsOf(stages, session, probesPlanned), liveEvalPlan);
   const halted = session.phase === "stopped" || session.phase === "error";
   const open = views.find((v) => v.info.id === openId);
 
@@ -193,13 +230,14 @@ export function StagePipeline({
                   </span>
                   <span className="text-muted">{d.duration !== undefined ? formatDuration(d.duration) : ""}</span>
                 </span>
-                <span className="mt-0.5 truncate text-[11.5px] text-muted tabular-nums">
-                  {v.counts && (v.counts.passed || v.counts.failed || v.counts.skipped) ? countsText(v.counts) : v.source === "recorded" ? "recorded" : " "}
+                <span data-testid={`stage-${v.info.id}-counts`} className="mt-0.5 truncate text-[11.5px] text-muted tabular-nums">
+                  {countsText(v.counts, v.total) || (v.source === "recorded" ? "recorded" : " ")}
                 </span>
                 <CardTooltip
                   label={v.info.title}
                   explanation={`${v.info.description} Why it matters: ${STAGE_IMPORTANCE[v.info.id]}`}
                   details={STAGE_TOOLTIP_DETAILS[v.info.id]}
+                  className={tooltipAlign(i)}
                 />
               </button>
             </li>
@@ -230,7 +268,7 @@ export function StagePipeline({
             <StatusPill status={display(open).status} kind="stage" label={display(open).label} />
             <span className="text-[12.5px] text-muted tabular-nums">
               {formatDuration(display(open).duration)}
-              {open.counts ? ` · ${countsText(open.counts)}` : ""}
+              {countsText(open.counts, open.total) && ` · ${countsText(open.counts, open.total)}`}
             </span>
           </div>
         </div>

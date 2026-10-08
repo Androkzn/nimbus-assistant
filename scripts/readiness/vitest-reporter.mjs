@@ -7,7 +7,7 @@
  * Also reports what has no test case of its own: a file that fails to load, a failing beforeAll/afterAll, and
  * unhandled errors — so a red stage always has a visible reason.
  */
-import { logEvent, repoPath, resultId, taggedEmitter, testResultEvent, testStartEvent, vitestIdentity } from "./lib.mjs";
+import { logEvent, repoPath, resultId, stageTotalEvent, taggedEmitter, testResultEvent, testStartEvent, vitestIdentity } from "./lib.mjs";
 
 const STAGE = "unit";
 /** fullName for failures that belong to a file rather than a test (import error, file-level hook). */
@@ -28,6 +28,24 @@ export default class ReadinessVitestReporter {
   /** @param {{ config: { root: string } }} vitest */
   onInit(vitest) {
     this.root = vitest.config.root ?? this.root;
+  }
+
+  /** @param {ReadonlyArray<unknown>} specifications one per test file */
+  onTestRunStart(specifications) {
+    this.uncollected = specifications.length;
+    this.collected = 0;
+  }
+
+  /**
+   * Files are collected one by one as workers pick them up, so the stage total is announced once the last file
+   * is in — never a partial count that would later grow. (`vitest list` is no shortcut: it under-counts.)
+   * @param {any} testModule
+   */
+  onTestModuleCollected(testModule) {
+    if (this.uncollected === undefined) return;
+    this.collected += [...testModule.children.allTests()].length;
+    this.uncollected -= 1;
+    if (this.uncollected === 0) this.emit(stageTotalEvent(STAGE, this.collected));
   }
 
   /** @param {any} testCase */

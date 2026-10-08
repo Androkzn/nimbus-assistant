@@ -1,4 +1,4 @@
-import { checksFor, type Check, type Manifest, type Requirement } from "./manifest";
+import { checksFor, isReadinessTooling, type Check, type Manifest, type Requirement } from "./manifest";
 import {
   SourceSchema,
   STAGE_INFO,
@@ -24,6 +24,8 @@ export interface StageState {
   source: Source;
   durationMs?: number;
   counts: Counts;
+  /** Results the stage expects (stage-total), when its producer announced them. */
+  total?: number;
   note?: string;
   startedAt?: string;
 }
@@ -123,7 +125,12 @@ export function reduceRun(state: RunState, event: ReadinessEvent): RunState {
         stages: updateStage(state.stages, state.meta, event.stage, (s) => ({ ...s, status: "running", startedAt: event.at })),
       };
 
+    case "stage-total":
+      return { ...state, stages: updateStage(state.stages, state.meta, event.stage, (s) => ({ ...s, total: event.total })) };
+
+    // The report verifies the product only: results of its own tests (e.g. in an older recorded run) are ignored.
     case "test-start":
+      if (isReadinessTooling(event.file)) return state;
       return {
         ...state,
         stages: updateStage(state.stages, state.meta, event.stage, (s) => (s.status === "pending" ? { ...s, status: "running" } : s)),
@@ -132,6 +139,7 @@ export function reduceRun(state: RunState, event: ReadinessEvent): RunState {
 
     case "test-result": {
       const result = event.result;
+      if (isReadinessTooling(result.file)) return state;
       const previous = state.results[result.id];
       let stages = state.stages;
       if (previous) stages = updateStage(stages, state.meta, previous.stage, (s) => ({ ...s, counts: bump(s.counts, previous.status, -1) }));

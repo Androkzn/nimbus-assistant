@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ReadinessEventSchema, STAGE_IDS, STAGE_INFO } from "@/readiness/schema";
+import { READINESS_TOOLING_PATHS } from "@/readiness/manifest";
 import { RUN_LOCK_FILE, RUN_LOCK_MAX_AGE_MS } from "@/readiness/runner-gate";
 import * as lib from "./lib.mjs";
 
@@ -26,6 +27,12 @@ const parse = (event: unknown) => ReadinessEventSchema.parse(event);
 describe("stage copy", () => {
   it("runner stages are STAGE_IDS minus the page's own probes, in the same order", () => {
     expect([...lib.RUNNER_STAGE_IDS]).toEqual(STAGE_IDS.filter((s) => s !== "probes"));
+  });
+
+  it("the runner's copy of the report's own test paths matches the manifest, and leaves product E2E specs in", () => {
+    expect(lib.READINESS_TOOLING_PATHS).toEqual([...READINESS_TOOLING_PATHS]);
+    expect(lib.productE2eFiles(lib.ROOT)).toContain("e2e/chat.spec.ts");
+    expect(lib.productE2eFiles(lib.ROOT)).not.toContain("e2e/readiness.spec.ts");
   });
 
   it("the runner's STAGE_INFO copy matches the shared contract exactly", () => {
@@ -468,6 +475,18 @@ describe("isolation helpers (I4, I5)", () => {
     expect(await lib.portInUse(port)).toBe(true);
     await new Promise((resolve) => server.close(resolve));
     expect(await lib.portInUse(port)).toBe(false);
+  });
+
+  it("skips a held E2E port for the next free one instead of refusing to run", async () => {
+    const server = net.createServer();
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as net.AddressInfo;
+    const next = await lib.freePort(port, 10);
+    expect(next).toBeGreaterThan(port);
+    expect(await lib.portInUse(next!)).toBe(false);
+    expect(await lib.freePort(port, 1)).toBeNull();
+    await new Promise((resolve) => server.close(resolve));
+    expect(await lib.freePort(port, 1)).toBe(port);
   });
 
   it("reads .next/BUILD_ID, or null when there is no build", () => {

@@ -10,26 +10,40 @@ const CHANGE = /\b(changes? to|extended to|previously|no longer|deprecated|renam
  * Rule 4 support (brief E4). When a retrieved release note announces a change to a product, point the
  * model at that sentence and at every other passage describing the same product (its own docs and any
  * company-wide summary naming it), with dates. A mechanical pointer instead of hoping the model notices:
- * live evals showed one model quietly keeping the older value. Agreeing documents get no hint, because
- * a blanket "compare everything" hint made other models announce disagreements that did not exist.
+ * live evals showed one model quietly keeping the older value. Agreeing documents get no comparison hint,
+ * because a blanket "compare everything" hint made other models announce disagreements that did not exist.
+ * A company-wide summary next to a product's own page with no recorded change is named as confirmation
+ * instead: the lightest model read the security overview's silence on Pulse SAML as a disagreement.
  */
 export function comparisonHints(retrieval: RetrievalResult): string[] {
   const label = (p: RetrievalResult["passages"][number]) => `[${p.n}] ${p.chunk.file}${p.chunk.docDate ? ` (${p.chunk.docDate})` : ""}`;
   const hints: string[] = [];
+  const changed = new Set<Product>();
   for (const note of retrieval.passages) {
     if (note.chunk.version === null || !note.chunk.product) continue;
     // Only the "New" part of a release: a "Fixed" line ("users who changed workspace") is a bug, not a changed fact.
     const newSection = note.chunk.text.split(/\*\*Fixed\*\*/)[0];
-    const changed = newSection.split("\n").find((line) => CHANGE.test(line));
-    if (!changed) continue;
+    const change = newSection.split("\n").find((line) => CHANGE.test(line));
+    if (!change) continue;
     const product = note.chunk.product;
+    changed.add(product);
     const others = retrieval.passages.filter(
       (p) => p.chunk.file !== note.chunk.file && (p.chunk.product === product || (!p.chunk.product && p.chunk.text.includes(productName(product)))),
     );
     if (others.length === 0) continue;
     hints.push(
-      `${label(note)} records a change for ${productName(product)}: "${changed.replace(/^[-*\s]+/, "").trim()}". Compare it value by value with ${others.map(label).join(", ")}; where they state different values for what the question asks, apply rule 4 and cite both.`,
+      `${label(note)} records a change for ${productName(product)}: "${change.replace(/^[-*\s]+/, "").trim()}". Compare it value by value with ${others.map(label).join(", ")}; where they state different values for what the question asks, apply rule 4 and cite both.`,
     );
+  }
+  for (const summary of retrieval.passages.filter((p) => !p.chunk.product)) {
+    for (const product of retrieval.products.length > 0 ? retrieval.products : PRODUCTS) {
+      if (changed.has(product) || !summary.chunk.text.includes(productName(product))) continue;
+      const own = retrieval.passages.filter((p) => p.chunk.product === product && p.chunk.version === null);
+      if (own.length === 0) continue;
+      hints.push(
+        `${label(summary)} is a company-wide summary, and no retrieved release note records a change for ${productName(product)}: read it as confirming ${own.map(label).join(", ")}, not as a second value. A point it leaves out is not a disagreement.`,
+      );
+    }
   }
   return hints;
 }
@@ -72,7 +86,7 @@ Rules:
 2. If the passages do not contain the answer, reply exactly: "${NOT_IN_KB}" Then, in one sentence, you may say what the knowledge base does cover that is closest.
 3. If the passages answer only part of the question, answer that part, then say plainly which part is not in the NimbusStack knowledge base (use the words "not in the NimbusStack knowledge base"). When the answer for a product is "no" or "not available", add what the passages say that same product offers instead or plans (e.g. another protocol, a roadmap item).
 4. Only when two passages state DIFFERENT values for something the question asks about: do not choose one. Write a line that starts with "⚠️ Documents disagree:" and give both values, each with its document name, date and citation. Then add one line on what applies today and to whom, using the documents' dates and any effective dates (e.g. a release note that records a later change, or a price that applies to new contracts from a given date) — still citing both sides. When the documents state the same value, do not write that line and do not comment on the comparison at all. Never raise a disagreement about a topic the question did not ask about.
-5. Cite every factual sentence or bullet with its passage number in square brackets, e.g. [2]. Copy numbers, versions, prices and times exactly as written.
+5. Cite every factual sentence, bullet or table with its passage number in square brackets, e.g. [2]; a table copied from a passage takes the citation in the line that introduces it. Copy numbers, versions, prices and times exactly as written.
 6. If the question applies to several products and does not name one, answer separately for each product the passages cover, and say which products have no information on it.
 7. For table lookups, restate product, tier and row, e.g. "Vault · Enterprise · P1: 30 minutes, 24x7 [3]". Take the value from exactly that row and column, and include every column of the row that answers the question (for an integration: minimum product version AND the full partner requirement). If the table says what its values measure (e.g. an SLA table's "Response time to first human reply"), say so in the answer, so a response time is never read as a resolution time.
 8. Troubleshooting checklists: the user needs the whole procedure, not only its first step. For each product, copy its documented checklist as a numbered list with EVERY step in the documented order, and label step 1 "check first". This applies even when the question asks only what to check first: never stop after step 1.

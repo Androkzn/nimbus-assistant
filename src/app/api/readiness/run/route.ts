@@ -57,8 +57,10 @@ export function POST(req: Request): Response {
     return Response.json({ error: "A readiness run is already in progress on this machine." }, { status: 409, headers: NO_STORE });
   }
 
+  // "Include live answers" unticked (?answers=0, the default): skip the live answer eval, so the run spends no provider tokens.
+  const skipLiveEval = new URL(req.url).searchParams.get("answers") === "0";
   // stderr carries the runner's human-readable progress: shown in the `next dev` terminal.
-  const child = spawn(process.execPath, [path.join(root, "scripts", "readiness", "run.mjs"), "--stream"], {
+  const child = spawn(process.execPath, [path.join(root, "scripts", "readiness", "run.mjs"), "--stream", ...(skipLiveEval ? ["--skip-live-eval"] : [])], {
     cwd: root,
     env: process.env,
     stdio: ["ignore", "pipe", "inherit"],

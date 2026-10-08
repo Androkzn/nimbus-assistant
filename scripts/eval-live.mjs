@@ -209,11 +209,18 @@ writeReport(false);
 console.log(`Live report: ${path.resolve(outDir, "index.html")}`);
 if (args.open === "true") sh(`open "${path.resolve(outDir, "index.html")}"`);
 
+// Under the readiness runner: one tagged line per graded answer (without the answer text), so its report shows
+// each result as it lands. The tag keeps these lines apart from the human-readable output.
+const readinessTag = process.env.READINESS_EVENT_TAG;
+const reportPath = path.join(outDir, "results.json");
+if (readinessTag) console.log(`${readinessTag}${JSON.stringify({ type: "stage-total", stage: "live-eval", total: models.length * cases.length })}`);
+
 for (const m of models) {
   for (const c of cases) {
     const r = await runCase(m, c);
     results.push(r);
     writeReport(false);
+    if (readinessTag) console.log(`${readinessTag}${JSON.stringify({ type: "eval-result", reportPath, environment: baseUrl, row: { ...r, answer: undefined } })}`);
     console.log(`${r.verdict.padEnd(8)} ${m.padEnd(18)} ${c.id.padEnd(13)} ${r.ttftMs ?? "–"}ms ${[...r.failed, ...r.warnings].join("; ")}`);
   }
 }

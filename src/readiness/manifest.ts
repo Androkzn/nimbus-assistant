@@ -46,8 +46,14 @@ export const GROUPS = {
   questions: "Representative questions (Q1–Q6)",
   deliverables: "Deliverables",
   derived: "Derived risk controls",
-  tooling: "Readiness tooling (this report)",
 } as const;
+
+/**
+ * The readiness report's own code and tests. The report verifies the product only: these tests run in CI
+ * (npm test, npm run e2e) but not in a readiness run, and no check claims them.
+ */
+export const READINESS_TOOLING_PATHS = ["src/readiness/", "src/components/readiness/", "src/app/readiness/", "src/app/api/readiness/", "scripts/readiness/", "e2e/readiness"] as const;
+export const isReadinessTooling = (file: string): boolean => READINESS_TOOLING_PATHS.some((prefix) => file.startsWith(prefix));
 
 const req = (
   group: string,
@@ -132,21 +138,6 @@ const REQUIREMENTS: Requirement[] = [
     "One starter per product, then follow-ups for the last answer's products; every bubble has a golden-set case for the same brief item."),
   req(GROUPS.derived, "DR-OPS", "P1", "Logs and monitoring never carry message text or keys", [], [],
     "Server logs and Sentry reports carry ids, models, tokens and error classes only (BRD §7, TRD §8); key-shaped strings are redacted; test-only fault markers do nothing unless enabled."),
-
-  req(GROUPS.tooling, "RDY-001", "P1", "Header button opens /readiness in a new window; the chat page is otherwise unchanged", [], ["RDY-001"],
-    "06_Readiness_Report.md §6."),
-  req(GROUPS.tooling, "RDY-002", "P1", "Local mode: gates stream live, each test with what it verifies and what it covers", [], ["RDY-002"],
-    "06_Readiness_Report.md §6."),
-  req(GROUPS.tooling, "RDY-003", "P1", "Production mode: the recorded run replays labelled recorded; live probes run for real", [], ["RDY-003"],
-    "06_Readiness_Report.md §6."),
-  req(GROUPS.tooling, "RDY-004", "P1", "Every brief item shows its status and evidence; failures show the redacted reason", [], ["RDY-004"],
-    "06_Readiness_Report.md §6."),
-  req(GROUPS.tooling, "RDY-005", "P0", "The process-spawning /api/readiness/run returns 404 in production", [], ["RDY-005"],
-    "06_Readiness_Report.md §6 and isolation rule I3."),
-  req(GROUPS.tooling, "RDY-006", "P1", "A run leaves the working tree and .next/ unchanged", [], ["RDY-006"],
-    "06_Readiness_Report.md §6 and isolation rule I4."),
-  req(GROUPS.tooling, "RDY-007", "P0", "All existing gates stay green, and the chat app never imports the report", [], ["RDY-007"],
-    "06_Readiness_Report.md §6 and isolation rule I1."),
 ];
 
 // ─── Checks on test files ────────────────────────────────────────────────────────────────────────
@@ -277,7 +268,7 @@ const TEST_CHECKS: Check[] = [
     "An out-of-scope request is reported with its normalized question, analysis, type, priority, status and evidence."),
   chat("chat.unsupported-api-finding", "Unsupported API status becomes a documentation gap", "records an undocumented API 500", ["E2"],
     "An undocumented API status is guarded and classified as a troubleshooting documentation gap."),
-  chat("chat.test-findings-isolated", "Automated test requests do not create findings", "does not create a finding for an explicitly marked automated test request", ["RDY-007"],
+  chat("chat.test-findings-isolated", "Automated test requests do not create findings", "does not create a finding for an explicitly marked automated test request", ["DR-OPS"],
     "Readiness and E2E requests exercise fallback paths without creating Knowledge base issues; normal user requests keep the finding path."),
   chat("chat.product-clarification", "Incomplete product question asks for clarification", "asks for clarification when a product is named without a topic", ["E2"],
     "A product-only question asks for a topic instead of inventing an answer."),
@@ -346,8 +337,10 @@ const TEST_CHECKS: Check[] = [
     "For 'Which Vault tiers support SAML?' the model is told Vault 3.1 changed it, pointing at vault.md and the older security overview."),
   hints("hints.relay-price", "Relay Pro price change pointed out", "C2: quotes Relay 4.2's price change", ["NKA-GRD-006"],
     "For 'How much is Relay Pro?' the model is shown Relay 4.2's $59 per seat price change alongside relay.md."),
-  hints("hints.agree", "No conflict hint where documents agree", "adds no hint where documents agree: ", ["NKA-GRD-009"],
+  hints("hints.agree", "No conflict hint where documents agree", "adds no change hint where documents agree: ", ["NKA-GRD-009"],
     "No disagreement hint is added where documents agree: the P1 SLA table, Ledger SSO, Pulse with Salesforce, Pulse SAML."),
+  hints("hints.confirm", "Agreeing security overview named as confirmation", "C3: names an agreeing company-wide summary as confirmation", ["E4", "E5", "Q5"],
+    "For 'Does Pulse support SAML SSO?' the model is told the security overview confirms pulse.md, so its silence on SAML is not called a disagreement."),
 
   retrieval("retrieval.q5-saml", "Q5: SAML facts for all four products", "NKA-RET-001 Q5", ["NKA-RET-001"],
     "'Which of our products support SSO via SAML 2.0?' retrieves sign-on facts for all four products and both sides of the Vault conflict."),
@@ -408,6 +401,8 @@ const TEST_CHECKS: Check[] = [
     "A figure the model calculated itself ('25 seats at $49 is $1,225') is flagged, because no document states it."),
   figures("figures.ignored", "Citations, list numbers and the question's numbers allowed", "ignores citation markers and list numbering", ["NKA-GRD-010"],
     "Citation markers and list numbers are not treated as claims, and numbers taken from the user's question are allowed."),
+  figures("figures.passage-named", "A passage named in prose is not a figure", "ignores a passage named in prose", ["NKA-GRD-010", "Q2"],
+    "'passage 5' in an answer is read as a citation, not an invented figure, while a real figure in the same sentence is still flagged."),
 
   qualifiers("qualifiers.added", "SLA definition added when missing", "adds the documents' definition when an SLA answer omits it", ["NKA-GRD-012"],
     "An SLA answer that doesn't say what the times measure gets the documents' definition: response time to the first human reply."),
@@ -415,6 +410,10 @@ const TEST_CHECKS: Check[] = [
     "No note is added when the answer already says the times are to the first human reply."),
   qualifiers("qualifiers.no-sla", "No SLA note on non-SLA answers", "adds nothing when no SLA table is cited", ["NKA-GRD-012"],
     "No SLA note is added to answers that cite no SLA table, such as a price or a 'not in the knowledge base' reply."),
+  qualifiers("qualifiers.source-added", "Uncited answer gets its sources", "adds a source line when an answer copies a passage without citing it", ["NKA-GRD-001", "NKA-RET-013"],
+    "An answer that copies a table but cites nothing gets a source line citing the passage it was copied from — not another table sharing a row."),
+  qualifiers("qualifiers.source-none", "No source line when already cited", "adds no source line when the answer cites a passage or copied nothing", ["NKA-GRD-001", "NKA-RET-013"],
+    "No source line is added to an answer that already cites, to a 'not in the knowledge base' reply, or to a paraphrase copied from nowhere."),
 
   healthRoute("health.route", "Health route returns a safe smoke-check payload", "returns an operational, no-store smoke-check payload in mock mode", ["D1"],
     "The deployment health route returns a no-store operational payload without exposing API keys."),
@@ -464,13 +463,13 @@ const gate = (stage: "typecheck" | "lint" | "build" | "bundle-scan", title: stri
 });
 
 const GATE_CHECKS: Check[] = [
-  gate("typecheck", "TypeScript strict passes", "static", ["D2", "RDY-007"],
+  gate("typecheck", "TypeScript strict passes", "static", ["D2"],
     "TypeScript strict passes across server, browser and the shared wire contract, with route types generated first as on a fresh clone."),
-  gate("lint", "ESLint passes", "static", ["D2", "RDY-007"],
+  gate("lint", "ESLint passes", "static", ["D2"],
     "ESLint, with the Next.js, React hooks and TypeScript rules, reports no errors in src/ and scripts/."),
-  gate("build", "Production build compiles", "static", ["D1", "D2", "RDY-007"],
+  gate("build", "Production build compiles", "static", ["D1", "D2"],
     "The app compiles for production exactly as it is deployed."),
-  gate("bundle-scan", "No key in any browser file", "security", ["NKA-SEC-001", "RDY-007"],
+  gate("bundle-scan", "No key in any browser file", "security", ["NKA-SEC-001"],
     "Every JavaScript file a browser can download is scanned for Anthropic, OpenAI and Google key patterns and for the real key values: none found."),
 ];
 
@@ -597,44 +596,10 @@ const PROBE_CHECKS: Check[] = PROBES.map((probe) => ({
   covers: probe.covers,
 }));
 
-// ─── The report's own tests (file-level: their titles are the tooling authors' to change) ──────
-
-const tooling = (id: string, title: string, stage: StageId, layer: Layer, match: Check["match"], covers: string[], verifies: string): Check => ({
-  id: `readiness.${id}`,
-  title,
-  layer,
-  stage,
-  match,
-  verifies,
-  covers,
-});
-
-const TOOLING_CHECKS: Check[] = [
-  tooling("manifest", "Traceability invariants", "unit", "unit", { file: "src/readiness/manifest.test.ts" }, ["RDY-004"],
-    "Every acceptance row belongs to a brief item, every brief item has a check, and every test in the repo is claimed by exactly one check."),
-  tooling("coverage", "Status rules of this report", "unit", "unit", { file: "src/readiness/coverage.test.ts" }, ["RDY-002", "RDY-004"],
-    "An item is Verified only when a check passed and none failed; results stream in, retries replace earlier results, live and recorded are counted apart."),
-  // RDY-001's "chat page otherwise unchanged" half; the header button itself has no automated test yet.
-  tooling("isolation", "Chat app never imports the report", "unit", "static", { file: "src/readiness/isolation.test.ts" }, ["RDY-001", "RDY-007"],
-    "No chat-app code (server, shared, client, components, routes) imports the readiness tooling, so the report cannot change the assistant."),
-  tooling("probes", "Live probe rules", "unit", "unit", { file: "src/readiness/probes.test.ts" }, ["RDY-003", "RDY-004"],
-    "Each live probe runs against the app's own handlers: it passes on a correct server and fails, precisely and redacted, on each broken behaviour."),
-  tooling("replay", "Recorded run replay", "unit", "unit", { file: "src/readiness/replay.test.ts" }, ["RDY-003"],
-    "A recorded run replays with every result and stage relabelled recorded, keeping its date, build and durations — never shown as live."),
-  tooling("ndjson", "Event stream parsing", "unit", "unit", { file: "src/readiness/ndjson.test.ts" }, ["RDY-002"],
-    "The event stream is reassembled from chunks of any size and read line by line against the shared contract; a broken line is named, not fatal."),
-  tooling("runner-gate", "Runner endpoint is local-only", "unit", "unit", { file: "src/readiness/runner-gate.test.ts" }, ["RDY-005"],
-    "The endpoint that runs the gates exists only under next dev or READINESS_RUNNER=1, never on Vercel, and only one run holds the lock."),
-  tooling("runner", "Local gate runner", "unit", "unit", { id: "^scripts/readiness/[^:]+\\.test\\.ts::" }, ["RDY-002", "RDY-006"],
-    "The runner streams each Vitest and Playwright result as it finishes, redacts secrets and paths, and restores rewritten files byte-for-byte."),
-  tooling("page-e2e", "Readiness page in a real browser", "e2e", "e2e", { file: "e2e/readiness.spec.ts" }, ["RDY-002", "RDY-003", "RDY-004", "RDY-005"],
-    "In a real browser the page replays a recorded run labelled recorded, runs live probes labelled live, and never starts a local run unless asked."),
-];
-
 export const manifest: Manifest = {
   version: `1.0 · golden set ${golden.version}`,
   requirements: REQUIREMENTS,
-  checks: [...GATE_CHECKS, ...TEST_CHECKS, ...EVAL_CHECKS, ...PROVIDER_CHECKS, ...PROBE_CHECKS, ...TOOLING_CHECKS],
+  checks: [...GATE_CHECKS, ...TEST_CHECKS, ...EVAL_CHECKS, ...PROVIDER_CHECKS, ...PROBE_CHECKS],
 };
 
 // ─── Matching ────────────────────────────────────────────────────────────────────────────────────

@@ -89,8 +89,8 @@ Readiness is the developer verification feature for checking the application aga
 - **Traceability:** maps requirements to BRD items, acceptance rows, automated checks, and individual test results.
 - **Failure-focused review:** shows All requirements by default and also supports Needs improvement, Failed, Live, Recorded, and text search filters.
 - **No portal side effects:** readiness failures stay in the Readiness report and never create Knowledge base issues in developer or production deployments.
-- **Grounded live evidence:** every readiness assessment runs one real grounded answer probe (about 1.5k tokens) so a green report includes live answer evidence, not only health and contract checks.
-- **Safe local execution:** readiness builds use `.next-readiness` and port `3199`, leaving the normal `.next/` build untouched; emitted evidence redacts secrets and message content.
+- **Grounded live evidence:** every readiness assessment sends one real grounded answer probe (one question, about 3k tokens), so a green report includes live answer evidence, not only health and contract checks. **Include live answers** (off by default) adds the live answer eval to a local run (every golden question on every available model, about 170 real answers, about $0.50); tick it, or open the page with `answer=1`, to include the eval. Unticked, the eval card shows Skipped and no tokens are spent on it.
+- **Safe local execution:** readiness builds use `.next-readiness` and port `3199` (or the next free port when another checkout holds it), leaving the normal `.next/` build untouched; emitted evidence redacts secrets and message content.
 
 ### How to use it
 

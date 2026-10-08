@@ -22,7 +22,25 @@ describe("comparison hints (rule 4 support, brief E4)", () => {
     ["Ledger SSO (summary and doc agree)", "does ledger do single sign-on?"],
     ["Pulse Salesforce (doc and 4.3 notes agree)", "Does Pulse integrate with Salesforce? What version is required?"],
     ["Pulse SAML (a Fixed note says 'changed workspace': a bug, not a changed fact)", "Does Pulse support SAML SSO?"],
-  ])("adds no hint where documents agree: %s", (_name, question) => {
-    expect(comparisonHints(retrieve(question))).toEqual([]);
+  ])("adds no change hint where documents agree: %s", (_name, question) => {
+    expect(comparisonHints(retrieve(question)).filter((h) => h.includes("Compare it value by value"))).toEqual([]);
+  });
+
+  it("C3: names an agreeing company-wide summary as confirmation, only for the products asked about (NKA-RET-017)", () => {
+    expect(comparisonHints(retrieve("Does Pulse support SAML SSO?"))).toEqual([
+      expect.stringMatching(/^\[\d\] security-overview\.md \(2026-01-15\) is a company-wide summary, .* change for Nimbus Pulse: read it as confirming \[\d\] pulse\.md/),
+    ]);
+    // Vault 3.1 records a change, so Vault gets the comparison hint and no confirmation; pulse.md, also retrieved, is off-topic.
+    const vault = comparisonHints(retrieve("Which Vault tiers support SAML?"));
+    expect(vault).toHaveLength(1);
+    expect(vault[0]).toContain("records a change for Nimbus Vault");
+    // A question naming no product confirms every agreeing product and still compares Vault.
+    const all = comparisonHints(retrieve("Which of our products support SSO via SAML 2.0?"));
+    expect(all.filter((h) => h.includes("read it as confirming")).map((h) => h.match(/change for (Nimbus \w+)/)?.[1])).toEqual([
+      "Nimbus Relay",
+      "Nimbus Pulse",
+      "Nimbus Ledger",
+    ]);
+    expect(all.some((h) => h.includes("records a change for Nimbus Vault"))).toBe(true);
   });
 });

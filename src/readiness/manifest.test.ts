@@ -4,7 +4,7 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import models from "../../config/models.json";
 import golden from "../../evals/golden-set.json";
-import { checksFor, GROUPS, manifest, type Check, type Manifest, type Requirement } from "./manifest";
+import { checksFor, GROUPS, isReadinessTooling as isTooling, manifest, type Check, type Manifest, type Requirement } from "./manifest";
 import { PROBES } from "./probes";
 import { PROBE_IDS, type TestResult } from "./schema";
 
@@ -18,8 +18,6 @@ import { PROBE_IDS, type TestResult } from "./schema";
 
 const MATRIX = readFileSync("docs/requirements/04_Acceptance_Matrix.md", "utf8");
 const MATRIX_ROWS = [...MATRIX.matchAll(/^\| (NKA-[A-Z]+-\d{3}) \| ([^|]+?) \|/gm)].map(([, id, brief]) => ({ id, brief: brief.trim() }));
-const SPEC = readFileSync("docs/requirements/06_Readiness_Report.md", "utf8");
-const RDY_IDS = [...SPEC.slice(SPEC.indexOf("## 6.")).matchAll(/^\| (RDY-\d{3}) \|/gm)].map(([, id]) => id);
 const GOLDEN: { id: string; brief: string; question: string }[] = golden.cases;
 
 const { requirements, checks } = manifest;
@@ -27,10 +25,6 @@ const owners = (acceptanceId: string) => requirements.filter((r) => r.acceptance
 const coversRequirement = (c: Check, r: Requirement) => c.covers.some((id) => id === r.id || r.acceptance.includes(id));
 const KNOWN_IDS = new Set([...requirements.map((r) => r.id), ...requirements.flatMap((r) => r.acceptance)]);
 const duplicates = (ids: string[]) => ids.filter((id, i) => ids.indexOf(id) !== i);
-
-/** The report's own tests: claimed file by file, because their titles belong to the tooling authors. */
-const TOOLING = [/^src\/readiness\//, /^src\/components\/readiness\//, /^src\/app\/readiness\//, /^src\/app\/api\/readiness\//, /^scripts\/readiness\//, /^e2e\/readiness/];
-const isTooling = (file: string) => TOOLING.some((re) => re.test(file));
 
 // ─── Test titles, read statically from the test sources ─────────────────────────────────────────
 
@@ -191,20 +185,19 @@ describe("test title extraction (used by the invariants below)", () => {
 });
 
 describe("traceability manifest (06_Readiness_Report.md §5)", () => {
-  it("RDY-004: reads the acceptance matrix and the readiness acceptance table", () => {
+  it("RDY-004: reads the acceptance matrix", () => {
     expect(MATRIX_ROWS.length).toBeGreaterThan(50);
     expect(duplicates(MATRIX_ROWS.map((r) => r.id))).toEqual([]);
     expect(MATRIX_ROWS.map((r) => r.id)).toEqual(expect.arrayContaining(["NKA-GRD-001", "NKA-CHAT-007", "NKA-OPS-002"]));
-    expect(RDY_IDS).toEqual(expect.arrayContaining(["RDY-001", "RDY-007"]));
   });
 
-  it("RDY-004 (a): every acceptance row in 04_Acceptance_Matrix.md and 06 §6 is attached to a brief item", () => {
-    const unattached = [...MATRIX_ROWS.map((r) => r.id), ...RDY_IDS].filter((id) => owners(id).length === 0);
+  it("RDY-004 (a): every acceptance row in 04_Acceptance_Matrix.md is attached to a brief item", () => {
+    const unattached = MATRIX_ROWS.map((r) => r.id).filter((id) => owners(id).length === 0);
     expect(unattached, `acceptance rows with no brief item — attach them in src/readiness/manifest.ts:\n${list(unattached)}`).toEqual([]);
   });
 
-  it("RDY-004 (a): requirements list only acceptance ids that exist (NKA rows in the matrix, RDY rows in 06 §6)", () => {
-    const known = new Set([...MATRIX_ROWS.map((r) => r.id), ...RDY_IDS]);
+  it("RDY-004 (a): requirements list only acceptance ids that exist in the matrix", () => {
+    const known = new Set(MATRIX_ROWS.map((r) => r.id));
     const unknown = requirements.flatMap((r) => r.acceptance.filter((id) => !known.has(id)).map((id) => `${r.id} → ${id}`));
     expect(unknown).toEqual([]);
   });
@@ -254,9 +247,7 @@ describe("traceability manifest (06_Readiness_Report.md §5)", () => {
   });
 
   it("RDY-004 (d): every file a check names exists", () => {
-    // Readiness tooling tests are being written alongside this manifest; until they land, their file-level
-    // checks stay pending on the page. Product test files must always exist.
-    const missing = checks.flatMap((c) => (c.match.file && !isTooling(c.match.file) && !existsSync(c.match.file) ? [`${c.id} → ${c.match.file}`] : []));
+    const missing = checks.flatMap((c) => (c.match.file && !existsSync(c.match.file) ? [`${c.id} → ${c.match.file}`] : []));
     expect(missing).toEqual([]);
   });
 
@@ -281,9 +272,10 @@ describe("traceability manifest (06_Readiness_Report.md §5)", () => {
     expect(doubled, `narrow the matchers in src/readiness/manifest.ts:\n${list(doubled)}`).toEqual([]);
   });
 
-  it("RDY-004 (e): every readiness tooling test file is claimed by a check", () => {
-    const unclaimed = TEST_FILES.filter(isTooling).filter((file) => checksFor(asResult({ file, fullName: "any test" })).length === 0);
-    expect(unclaimed, `tooling test files no check claims — add a file-level check to src/readiness/manifest.ts:\n${list(unclaimed)}`).toEqual([]);
+  it("RDY-004 (e): only product requirements count — no check claims the report's own tests", () => {
+    expect(requirements.every((r) => Object.values(GROUPS).includes(r.group as (typeof GROUPS)[keyof typeof GROUPS]))).toBe(true);
+    const claimed = TEST_FILES.filter(isTooling).filter((file) => checksFor(asResult({ file, fullName: "any test" })).length > 0);
+    expect(claimed, `the report verifies the product only — remove these from src/readiness/manifest.ts:\n${list(claimed)}`).toEqual([]);
   });
 
   it("RDY-004 (f): every golden case has exactly one case check, and every live probe exactly one check", () => {

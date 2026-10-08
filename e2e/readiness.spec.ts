@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { manifest } from "../src/readiness/manifest";
-import { STAGE_INFO, type ReadinessEvent } from "../src/readiness/schema";
+import { PROBE_IDS, STAGE_INFO, type ReadinessEvent } from "../src/readiness/schema";
 
 /**
  * Readiness report page (docs/requirements/06_Readiness_Report.md §6). Runs against the production build
@@ -9,7 +9,8 @@ import { STAGE_INFO, type ReadinessEvent } from "../src/readiness/schema";
  * server under test.
  */
 
-const RUNNER = "**/api/readiness/run";
+/** The runner endpoint, with or without its query (?answers=0 when "Include live answers" is unticked). */
+const RUNNER = /\/api\/readiness\/run(\?.*)?$/;
 const FREE_PROBES = ["health", "models", "blank", "oversize", "unknown-model", "offtopic-guard", "stream-headers", "bundle-keys"];
 const FINAL = /^(ready|not-ready|incomplete)$/;
 const GROUPS = [...new Set(manifest.requirements.map((r) => r.group))];
@@ -71,10 +72,17 @@ test.describe("Readiness report", () => {
     await expect(banner).toContainText(/\d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2} UTC/);
     await expect(banner).toContainText(/build \S+/);
 
-    const filters = page.getByRole("group", { name: "Filter results" }).getByRole("button");
+    const filters = page.getByRole("group", { name: "Filter checks" }).getByRole("button");
     await expect(filters.first()).toHaveAttribute("data-testid", "filter-all");
     await expect(filters.last()).toHaveAttribute("data-testid", "filter-recorded");
     await expect(page.getByTestId("filter-all")).toHaveAttribute("aria-pressed", "true");
+
+    // The tabs count checks, the headline's unit ("N of 174 checks complete"); the list groups them by requirement.
+    const progress = await page.locator('[aria-valuetext$="checks complete"]').getAttribute("aria-valuetext");
+    const checksTotal = progress?.match(/of (\d+) checks/)?.[1];
+    expect(checksTotal).toBeTruthy();
+    await expect(page.getByTestId("filter-all")).toHaveText(new RegExp(`^All\\s*${checksTotal}$`));
+    await expect(page.getByTestId("trace-summary")).toHaveText(`Showing ${checksTotal} checks across ${manifest.requirements.length} requirements`);
 
     for (const group of GROUPS) {
       await expect(page.getByRole("heading", { level: 3, name: group, exact: true })).toBeVisible();
@@ -106,28 +114,40 @@ test.describe("Readiness report", () => {
       await expect(item, `probe ${id}`).toHaveAttribute("data-status", "passed");
       await expect(item, `probe ${id}`).toHaveAttribute("data-source", "live");
     }
-    // Every report includes the real-answer probe so the live deployment has grounded evidence.
+    // The real-answer probe always runs; "Include live answers" only switches a local run's live eval, so it is not offered here.
     await expect(feedItem(page, "probe::grounded-answer")).toHaveAttribute("data-status", "passed");
     await expect(page.getByTestId("include-answer")).toHaveCount(0);
     await expect(page.getByTestId("stage-probes")).toHaveAttribute("data-status", "passed");
 
+    // A visible tooltip can still be painted under the next card; the hovered card must stack above its neighbours.
+    const zIndex = (id: string) => page.getByTestId(id).evaluate((el) => Number(getComputedStyle(el).zIndex));
     await page.getByTestId("stat-requirements").hover();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "main release-readiness measure" })).toBeVisible();
-    const pipelineBefore = await page.getByTestId("pipeline").boundingBox();
+    expect(await zIndex("stat-requirements")).toBeGreaterThan(await zIndex("stat-tests"));
+    // Page position, not viewport position: hovering a card below the fold scrolls the page, which is not a layout shift.
+    const pageTop = (id: string) => page.getByTestId(id).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+    const pipelineBefore = await pageTop("pipeline");
     const timeBefore = await page.getByTestId("stat-time").boundingBox();
     await page.getByTestId("stat-time").hover();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "slow checks and release-gate delays" })).toBeVisible();
-    const pipelineAfter = await page.getByTestId("pipeline").boundingBox();
+    const pipelineAfter = await pageTop("pipeline");
     const timeAfter = await page.getByTestId("stat-time").boundingBox();
-    expect(pipelineAfter?.y).toBe(pipelineBefore?.y);
+    expect(pipelineAfter).toBe(pipelineBefore);
     expect(timeAfter?.width).toBe(timeBefore?.width);
     expect(timeAfter?.height).toBe(timeBefore?.height);
     await page.getByTestId("stat-cost").click();
     await page.getByTestId("stat-tests").hover();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "breadth of verification" })).toBeVisible();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "provider cost of measured" })).toBeHidden();
+    expect(await zIndex("stat-tests")).toBeGreaterThan(await zIndex("stat-cost"));
     await page.getByTestId("stage-probes").hover();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "running deployment directly" })).toBeVisible();
+    // Hidden tooltips still take part in layout: one anchored past the right edge scrolls the whole page sideways.
+    const overflowX = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    await page.mouse.move(0, 0);
+    expect(await overflowX()).toBe(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await overflowX()).toBe(0);
 
     expect(calls, "a probe-only run never touches the runner").toEqual([]);
   });
@@ -154,12 +174,27 @@ test.describe("Readiness report", () => {
     expect(calls, "no POST, so no gate run was spawned").not.toContain("POST");
   });
 
+  test("RDY-002: before a local run, the live answer eval card follows the Include live answers checkbox", async ({ page }) => {
+    await stubRunner(page.context(), []);
+    await page.goto("/readiness");
+    const card = page.getByTestId("stage-live-eval");
+    await expect(page.getByTestId("include-answer")).not.toBeChecked();
+    await expect(card).toHaveAttribute("data-status", "skipped");
+    await expect(card).toContainText("Skipped");
+    await page.getByTestId("include-answer").check();
+    await expect(card).toHaveAttribute("data-status", "pending");
+    await expect(card).toContainText("Queued");
+    await page.getByTestId("include-answer").uncheck();
+    await expect(card).toHaveAttribute("data-status", "skipped");
+  });
+
   test("RDY-002: a local run streams the runner's events as live, then the probes, then one verdict", async ({ page }) => {
     const at = new Date().toISOString();
+    // A product path: results of the report's own tests (src/readiness/…) are ignored by the page.
     const result = {
-      id: "src/readiness/stub.test.ts::stubbed runner result",
+      id: "src/server/stub.test.ts::stubbed runner result",
       stage: "unit" as const,
-      file: "src/readiness/stub.test.ts",
+      file: "src/server/stub.test.ts",
       fullName: "stubbed runner result",
       status: "passed" as const,
       durationMs: 12,
@@ -172,21 +207,39 @@ test.describe("Readiness report", () => {
         stages: [STAGE_INFO.unit],
       },
       { type: "stage-start", stage: "unit", at },
+      { type: "stage-total", stage: "unit", total: 1 },
       { type: "test-start", stage: "unit", id: result.id, file: result.file, fullName: result.fullName },
       { type: "test-result", result },
       { type: "stage-end", stage: "unit", status: "passed", durationMs: 40, counts: { passed: 1, failed: 0, skipped: 0 }, source: "live", at },
       { type: "run-end", status: "passed", durationMs: 50, at },
     ]);
 
+    const firstPost = page.waitForRequest((r) => r.url().includes("/api/readiness/run") && r.method() === "POST");
     await page.goto("/readiness?autostart=1");
+    // "Include live answers" is off by default, so the runner is asked to skip the live answer eval.
+    expect(new URL((await firstPost).url()).searchParams.get("answers")).toBe("0");
     await page.getByTestId("filter-all").click();
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
     await expect(page.getByTestId("mode-banner")).toHaveAttribute("data-mode", "local");
+    await expect(page.getByTestId("include-answer")).not.toBeChecked();
+    await expect(page.getByText("Uses real tokens: live answer eval (~170 answers, about $0.50)", { exact: true })).toBeVisible();
     await expect(feedItem(page, result.id)).toHaveAttribute("data-source", "live");
     await expect(feedItem(page, "probe::health")).toHaveAttribute("data-status", "passed");
     await expect(page.getByTestId("stage-unit")).toHaveAttribute("data-status", "passed");
+    // A stage that announced its total shows progress against it; a single-result stage shows no count at all.
+    await expect(page.getByTestId("stage-probes-counts")).toContainText(` / ${PROBE_IDS.length} passed`);
+    await expect(page.getByTestId("stage-unit-counts")).not.toContainText("passed");
     // A result no check claims is reported, not silently dropped.
     await expect(page.getByTestId("unclaimed")).toContainText("stubbed runner result");
     expect(calls).toEqual(["GET", "POST"]);
+
+    // Ticked, the next local run asks the runner for the live answer eval (real tokens).
+    await page.getByTestId("include-answer").check();
+    const secondPost = page.waitForRequest((r) => r.url().includes("/api/readiness/run") && r.method() === "POST");
+    await page.getByTestId("start-run").click();
+    expect(new URL((await secondPost).url()).searchParams.get("answers")).toBeNull();
+    // The probe question is not part of the switch: it still runs.
+    await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
+    await expect(feedItem(page, "probe::grounded-answer")).toHaveAttribute("data-status", "passed");
   });
 });

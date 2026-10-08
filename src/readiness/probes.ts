@@ -15,7 +15,7 @@ import type { ProbeId, ReadinessEvent } from "./schema";
 export interface ProbeOptions {
   /** e.g. "https://nimbus.example.app" — the app being probed (normally the page's own origin). */
   origin: string;
-  /** Run the required probe that makes one real model call (~1.5k tokens). */
+  /** Run the probe that asks one real question of the default model (~3k tokens). The page always runs it. */
   includeAnswer: boolean;
   fetch?: typeof fetch;
   signal?: AbortSignal;
@@ -98,7 +98,7 @@ export const PROBES: ProbeInfo[] = [
   {
     id: "grounded-answer",
     title: "One real grounded answer: Vault SAML conflict",
-    verifies: `One real model call (~1.5k tokens): "${GROUNDED_QUESTION}" on the default model. Asserts the stream contract and order (meta, sources, deltas, done), that every [n] citation points to a passage that was sent, real token usage and cost, a clean figure check, and — with a live model — that the answer states the documents disagree, citing both a vault and a security-overview passage.`,
+    verifies: `One real model call (~3k tokens): "${GROUNDED_QUESTION}" on the default model. Asserts the stream contract and order (meta, sources, deltas, done), that every [n] citation points to a passage that was sent, real token usage and cost, a clean figure check, and — with a live model — that the answer states the documents disagree, citing both a vault and a security-overview passage.`,
     covers: ["RULE", "R2", "R4", "E4", "NKA-GRD-001", "NKA-GRD-005", "NKA-GRD-010", "NKA-USG-001"],
   },
 ];
@@ -672,6 +672,7 @@ export async function runProbes(opts: ProbeOptions, emit: (e: ReadinessEvent) =>
   const counts = { passed: 0, failed: 0, skipped: 0 };
   const stageStarted = now();
   emit({ type: "stage-start", stage: "probes", at: iso() });
+  emit({ type: "stage-total", stage: "probes", total: PROBES.length });
   for (const probe of PROBES) {
     if (signal?.aborted) return;
     const id = `probe::${probe.id}`;

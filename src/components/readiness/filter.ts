@@ -30,9 +30,18 @@ export function resultPasses(r: TestResult, filter: Filter): boolean {
   return true;
 }
 
-function checkPasses(c: CheckView, filter: Filter): boolean {
+/**
+ * Needs improvement = a failed or skipped result, or no evidence once the run is over. A check that is queued or
+ * running while the run is in progress is only waiting, so it does not count.
+ */
+function needsImprovement(c: CheckView, settled: boolean): boolean {
+  if (c.status === "failed" || c.status === "skipped" || c.results.some((r) => r.status !== "passed")) return true;
+  return settled && (c.status === "pending" || c.status === "running");
+}
+
+function checkPasses(c: CheckView, filter: Filter, settled: boolean): boolean {
   if (filter === "all") return true;
-  if (filter === "needs-improvement") return c.status !== "passed" || c.results.some((r) => r.status !== "passed");
+  if (filter === "needs-improvement") return needsImprovement(c, settled);
   if (filter === "failed") return c.status === "failed" || c.results.some((r) => r.status === "failed");
   return c.results.some((r) => resultPasses(r, filter));
 }
@@ -51,7 +60,8 @@ export function resultText(r: TestResult, verifies: string[]): string {
   return [r.id, r.fullName, r.file, r.stage, ...verifies].join(" ");
 }
 
-export function filterCoverage(coverage: RequirementView[], filter: Filter, query: string): FilteredRequirement[] {
+/** @param settled the run is over (finished, stopped or failed to run): a check still without a result has no evidence. */
+export function filterCoverage(coverage: RequirementView[], filter: Filter, query: string, settled = true): FilteredRequirement[] {
   const terms = tokens(query);
   const out: FilteredRequirement[] = [];
   for (const view of coverage) {
@@ -59,12 +69,11 @@ export function filterCoverage(coverage: RequirementView[], filter: Filter, quer
     // needing improvement. Keep this filter aligned with the requirement badge,
     // otherwise VERIFIED rows appear under "Needs improvement".
     if (filter === "needs-improvement" && view.status === "passed") continue;
-    const byFilter = view.checks.filter((c) => checkPasses(c, filter));
+    const byFilter = view.checks.filter((c) => checkPasses(c, filter, settled));
     const reqHit = terms.length > 0 && matches(requirementText(view), terms);
     if (terms.length === 0 || reqHit) {
-      const needsImprovement = filter === "needs-improvement" && view.status !== "passed";
       const failedReq = filter === "failed" && view.status === "failed";
-      if (filter === "all" || byFilter.length > 0 || needsImprovement || failedReq) {
+      if (filter === "all" || byFilter.length > 0 || failedReq) {
         out.push({ view, checks: byFilter, matchedInside: false });
       }
       continue;
@@ -75,6 +84,12 @@ export function filterCoverage(coverage: RequirementView[], filter: Filter, quer
   return out;
 }
 
-export function countFor(coverage: RequirementView[], filter: Filter): number {
-  return filterCoverage(coverage, filter, "").length;
+/** Distinct checks and requirements in a filtered list. A check that covers two requirements counts once. */
+export function countsOf(items: FilteredRequirement[]): { checks: number; requirements: number } {
+  return { checks: new Set(items.flatMap((i) => i.checks.map((c) => c.check.id))).size, requirements: items.length };
+}
+
+/** A tab's count, in checks: the unit of the headline ("162 of 174 checks complete") and the Checks card. */
+export function countFor(coverage: RequirementView[], filter: Filter, settled = true): number {
+  return countsOf(filterCoverage(coverage, filter, "", settled)).checks;
 }

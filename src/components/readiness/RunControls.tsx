@@ -7,14 +7,24 @@ const SPEEDS: { value: ReplaySpeed; label: string }[] = [
   { value: "instant", label: "Instant" },
 ];
 
+/** What Start will run: the explicit mode, else a local run where the runner is free, else a replay. */
+export function plannedMode(mode: RunMode | undefined, availability: RunnerAvailability | null): RunMode | undefined {
+  return mode ?? (availability?.available && !availability.running ? "local" : availability ? "replay" : undefined);
+}
+
 function startLabel(session: RunSession, mode: RunMode | undefined, availability: RunnerAvailability | null): string {
   const again = session.phase !== "idle";
-  const planned = mode ?? (availability?.available && !availability.running ? "local" : availability ? "replay" : undefined);
+  const planned = plannedMode(mode, availability);
   if (planned === "local") return again ? "Re-run all gates" : "Run all gates locally";
   if (planned === "probes") return again ? "Re-run live probes" : "Run live probes";
   if (planned === "replay") return again ? "Replay again" : "Replay recorded run";
   return again ? "Re-run" : "Start";
 }
+
+/** "Include live answers" switches the live answer eval of a local run; the probe question always runs. */
+const LIVE_EVAL_NOTE = "Uses real tokens: live answer eval (~170 answers, about $0.50)";
+const LIVE_EVAL_DETAIL =
+  "Runs the live answer eval: every golden question on every available model, about 170 real answers and about $0.50 per run. Off by default; tick it to include the eval. Applies to the next run.";
 
 function startHint(mode: RunMode | undefined, availability: RunnerAvailability | null, probes: boolean): string {
   const planned = mode ?? (availability?.available && !availability.running ? "local" : "replay");
@@ -31,6 +41,8 @@ export function RunControls({
   availability,
   speed,
   onSpeed,
+  includeAnswer,
+  onIncludeAnswer,
   onStart,
   onStop,
 }: {
@@ -40,11 +52,16 @@ export function RunControls({
   availability: RunnerAvailability | null;
   speed: ReplaySpeed;
   onSpeed: (s: ReplaySpeed) => void;
+  includeAnswer: boolean;
+  onIncludeAnswer: (v: boolean) => void;
   onStart: () => void;
   onStop: () => void;
 }) {
   const active = session.phase === "connecting" || session.phase === "running";
   const replayRelevant = mode === "replay" || (!mode && !(availability?.available && !availability.running));
+  const planned = plannedMode(mode, availability);
+  // Only a local run has a live answer eval to switch; a replay shows the recorded one.
+  const answerRelevant = planned === "local";
 
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center gap-x-5 gap-y-3 sm:w-auto sm:flex-1 sm:justify-end">
@@ -71,6 +88,25 @@ export function RunControls({
             ))}
           </span>
         </fieldset>
+      )}
+      {answerRelevant && (
+        <label
+          className="flex min-w-0 cursor-pointer items-center gap-2 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+          title={LIVE_EVAL_DETAIL}
+        >
+          <input
+            type="checkbox"
+            data-testid="include-answer"
+            checked={includeAnswer}
+            disabled={active}
+            onChange={(e) => onIncludeAnswer(e.target.checked)}
+            className="h-4 w-4 shrink-0 accent-[var(--orange-strong)]"
+          />
+          <span className="min-w-0 text-[13px] leading-tight">
+            <span className="font-semibold text-text">Include live answers</span>
+            <span className="block text-[11.5px] text-muted">{LIVE_EVAL_NOTE}</span>
+          </span>
+        </label>
       )}
       {active ? (
         <button

@@ -170,11 +170,13 @@ describe("live probes against the app's own handlers (RDY-003)", () => {
   beforeEach(() => vi.stubEnv("LLM_MODE", "mock"));
   afterEach(() => vi.unstubAllEnvs());
 
-  it("contract: emits stage-start, a test-start/test-result pair per probe in order, then stage-end — every event valid", async () => {
+  it("contract: emits stage-start, its total, a test-start/test-result pair per probe in order, then stage-end — every event valid", async () => {
     const { events } = await run(appRoutes(quietDeps()), { includeAnswer: true });
     for (const e of events) expect(ReadinessEventSchema.parse(e)).toEqual(e);
+    expect(events[1]).toEqual({ type: "stage-total", stage: "probes", total: PROBE_IDS.length });
     expect(events.map((e) => (e.type === "test-start" || e.type === "test-result" ? `${e.type}:${e.type === "test-start" ? e.id : e.result.id}` : e.type))).toEqual([
       "stage-start",
+      "stage-total",
       ...PROBE_IDS.flatMap((id) => [`test-start:probe::${id}`, `test-result:probe::${id}`]),
       "stage-end",
     ]);
@@ -436,7 +438,7 @@ describe("live probes: time limits and abort", () => {
       if (e.type === "test-result") ctrl.abort(); // stop after the first result: the rest needs real timers
     });
     await vi.advanceTimersByTimeAsync(9_999);
-    expect(events.map((e) => e.type)).toEqual(["stage-start", "test-start"]);
+    expect(events.map((e) => e.type)).toEqual(["stage-start", "stage-total", "test-start"]);
     await vi.advanceTimersByTimeAsync(1);
     await done;
     const result = events.find((e) => e.type === "test-result");

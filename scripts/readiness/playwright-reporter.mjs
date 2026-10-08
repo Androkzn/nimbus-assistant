@@ -8,7 +8,7 @@
  * It prints nothing for humans, so Playwright keeps its own terminal reporter alongside (printsToStdio → false).
  */
 import path from "node:path";
-import { logEvent, playwrightIdentity, taggedEmitter, testResultEvent, testStartEvent } from "./lib.mjs";
+import { logEvent, playwrightIdentity, stageTotalEvent, taggedEmitter, testResultEvent, testStartEvent } from "./lib.mjs";
 
 const STAGE = "e2e";
 
@@ -29,10 +29,12 @@ export default class ReadinessPlaywrightReporter {
     return false;
   }
 
-  /** @param {{ configFile?: string, rootDir: string }} config */
-  onBegin(config) {
+  /** @param {{ configFile?: string, rootDir: string }} config @param {{ allTests: () => ReadonlyArray<unknown> }} [suite] */
+  onBegin(config, suite) {
     // Paths are reported relative to the repo (where playwright.config.ts lives), e.g. "e2e/chat.spec.ts".
     this.root = config.configFile ? path.dirname(config.configFile) : this.root;
+    // Every test reports once (its final attempt), so the collected count is the stage's total.
+    if (suite) this.emit(stageTotalEvent(STAGE, suite.allTests().length));
   }
 
   /** @param {any} test @param {{ retry: number }} result */

@@ -27,7 +27,7 @@ Reviewers should be able to see, not take on trust, that every requirement in th
 | I1 | Nothing under `src/server`, `src/shared`, `src/client` or `src/components` (except one header button) imports from `src/readiness`, `src/components/readiness` or `src/app/readiness` | grep check in `src/readiness/isolation.test.ts` |
 | I2 | The chat API, retrieval, prompt and model config are not changed | git diff review; main E2E suite unchanged and green |
 | I3 | The process-spawning endpoint `/api/readiness/run` exists only locally: available iff `NODE_ENV=development` or `READINESS_RUNNER=1`, and never when `VERCEL` is set. Otherwise it returns 404 | unit test on the gate |
-| I4 | A local run never touches `.next/` (another server may be serving it): build and E2E use `NEXT_DIST_DIR=.next-readiness` and port `3199`. Files that Next rewrites for a custom dist dir (`tsconfig.json`, `next-env.d.ts`) are restored byte-for-byte after the run | runner self-check; `git status` before/after |
+| I4 | A local run never touches `.next/` (another server may be serving it): build and E2E use `NEXT_DIST_DIR=.next-readiness` and port `3199`, or the next free port when that one is held (a held port is skipped, never reused). Files that Next rewrites for a custom dist dir (`tsconfig.json`, `next-env.d.ts`) are restored byte-for-byte after the run | runner self-check; `git status` before/after |
 | I5 | One run at a time (shared ports and dist dir) | lock in the route + runner |
 | I6 | No secrets and no app message text in any event: error strings are redacted (same patterns as `redactSecrets`) and capped at 500 chars | runner test |
 | I7 | Recorded results are never presented as live: every result carries `source: "live" \| "recorded"` and the page labels recorded runs with their date and build | schema + page |
@@ -43,7 +43,7 @@ Reviewers should be able to see, not take on trust, that every requirement in th
 ## 4. Event protocol
 
 NDJSON, one `ReadinessEvent` per line, validated by `ReadinessEventSchema` (`src/readiness/schema.ts`):
-`run-start{meta, stages}` → (`stage-start` → `test-result`… → `stage-end`)… → `run-end`. `log` events are optional, sparse, redacted.
+`run-start{meta, stages}` → (`stage-start` → `test-result`… → `stage-end`)… → `run-end`. `log` events are optional, sparse, redacted. `stage-total{stage, total}` is optional: a producer that knows how many results a stage will report up front (Playwright after collection, the live eval's cases × models, the probes) sends it, and the stage card shows *X / Y passed*.
 
 Result ids (stable keys the traceability manifest matches on):
 
@@ -55,7 +55,7 @@ Result ids (stable keys the traceability manifest matches on):
 | Recorded live eval | `eval::<caseId>::<modelId>` | `evals/reports/<stamp>/results.json` | `<caseId> — <question>` |
 | Live probe | `probe::<probeId>` | the origin probed | probe title |
 
-Probe ids: `health`, `models`, `blank`, `oversize`, `unknown-model`, `offtopic-guard`, `stream-headers`, `bundle-keys`, `grounded-answer` (one required real model call, ~1.5k tokens).
+Probe ids: `health`, `models`, `blank`, `oversize`, `unknown-model`, `offtopic-guard`, `stream-headers`, `bundle-keys`, `grounded-answer` (one real question to the default model, ~3k tokens; always run by the page). The page's "Include live answers" checkbox (off by default; `answer=1` turns it on) only switches a local run's live answer eval.
 
 ## 5. Traceability
 
@@ -63,11 +63,15 @@ Probe ids: `health`, `models`, `blank`, `oversize`, `unknown-model`, `offtopic-g
 - **requirements**: every brief item (the one rule, R1–R5, E1–E10, Q1–Q6, deliverables) with its BRD ids and acceptance ids;
 - **checks**: every automated check with a matcher (`file`, `name` regex on the test title, or `id` regex), its layer, the requirement / acceptance ids it covers, and one plain-English sentence on **what it verifies**.
 
-Invariants, enforced by `src/readiness/manifest.test.ts`: every acceptance row in `04_Acceptance_Matrix.md` is attached to a brief item; every brief item has at least one check; every check matches at least one real test; every test in the repo is claimed by at least one check (no orphan tests, no evidence-free requirements).
+Invariants, enforced by `src/readiness/manifest.test.ts`: every acceptance row in `04_Acceptance_Matrix.md` is attached to a brief item; every brief item has at least one check; every check matches at least one real test; every product test in the repo is claimed by at least one check (no orphan tests, no evidence-free requirements).
+
+**Product requirements only.** The report verifies the product, not itself. Its own code and tests (`READINESS_TOOLING_PATHS` in `manifest.ts`: `src/readiness/`, `src/components/readiness/`, `src/app/readiness/`, `src/app/api/readiness/`, `scripts/readiness/`, `e2e/readiness.spec.ts`) are not requirements, no check claims them, a readiness run leaves them out, and the page ignores their results in older recorded runs. They still run in CI (`npm test`, `npm run e2e`), against the acceptance criteria in §6.
 
 A requirement is **Verified** when at least one of its checks passed and none failed; **Failed** if any failed; **Running** / **Pending** otherwise.
 
 ## 6. Acceptance
+
+Criteria for the report tool itself, verified by its own tests in CI; they are not product requirements and do not count toward the report's verdict.
 
 | ID | Criterion |
 |----|-----------|

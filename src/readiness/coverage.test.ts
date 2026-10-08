@@ -86,6 +86,14 @@ describe("reduceRun (06 §4 event protocol)", () => {
     expect(stage(s, "unit")?.counts).toEqual({ passed: 2, failed: 0, skipped: 0 });
   });
 
+  it("RDY-002: stage-total records how many results a stage expects and survives its results and stage-end", () => {
+    const total = (stage: StageId, n: number) => ev({ type: "stage-total", stage, total: n });
+    const running = run(runStart(), stageStart("e2e"), total("e2e", 3), result({ id: "e1", stage: "e2e" }));
+    expect(stage(running, "e2e")).toMatchObject({ status: "running", total: 3, counts: { passed: 1, failed: 0, skipped: 0 } });
+    expect(stage(reduceRun(running, stageEnd("e2e", "passed", { passed: 1, failed: 0, skipped: 0 })), "e2e")?.total).toBe(3);
+    expect(stage(run(runStart(), stageStart("unit")), "unit")?.total).toBeUndefined();
+  });
+
   it("RDY-003: a result for an unannounced stage appends it; recorded results mark it recorded", () => {
     const s = run(runStart([STAGE_INFO.unit]), result({ id: "eval::NKA-RET-005::claude-haiku", stage: "live-eval", source: "recorded" }));
     expect(stage(s, "live-eval")).toMatchObject({ info: STAGE_INFO["live-eval"], status: "running", source: "recorded", counts: { passed: 1, failed: 0, skipped: 0 } });

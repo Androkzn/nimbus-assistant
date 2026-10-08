@@ -8,7 +8,7 @@
  *
  * Every run writes readiness/reports/<runId>/events.ndjson (appended live) and summary.json.
  *
- * Isolation (spec §2): typecheck, build and E2E use NEXT_DIST_DIR=.next-readiness and port 3199, never .next/;
+ * Isolation (spec §2): typecheck, build and E2E use NEXT_DIST_DIR=.next-readiness and port 3199 (or the next free one), never .next/;
  * tsconfig.json and next-env.d.ts (rewritten by Next for a custom distDir) are restored byte-for-byte after each
  * stage and on exit, including Ctrl-C / SIGTERM / a failed child; one run at a time (lock file); every string
  * that leaves a child process is redacted before it reaches an event.
@@ -22,8 +22,10 @@ import {
   addSecrets,
   DIST_DIR,
   E2E_PORT,
+  E2E_PORT_SPAN,
   EVENT_TAG_ENV,
   PUBLISH_PATH,
+  READINESS_TOOLING_PATHS,
   REPORTS_DIR,
   ROOT,
   STAGE_INFO,
@@ -33,16 +35,20 @@ import {
   decodeTagged,
   emptyCounts,
   eslintCounts,
+  evalCoverage,
+  evalResultEvent,
+  evalScope,
+  freePort,
   gateError,
   gateIdentity,
-  latestEvalReport,
+  goldenCaseIds,
   logEvent,
   newEventTag,
   newRunId,
   portInUse,
+  productE2eFiles,
   pruneTmp,
   readBuildId,
-  recordedEval,
   redact,
   restoreFiles,
   sanitizeError,
@@ -54,27 +60,35 @@ import {
   snapshotFiles,
   stageEndEvent,
   stageStartEvent,
+  stageTotalEvent,
   testResultEvent,
   testStartEvent,
   withEnvFiles,
 } from "./lib.mjs";
 
-const USAGE = `usage: node scripts/readiness/run.mjs [--stream] [--stages a,b] [--publish]
+const USAGE = `usage: node scripts/readiness/run.mjs [--stream] [--stages a,b] [--publish] [--skip-live-eval]
   --stream    print only NDJSON events on stdout; progress goes to stderr
   --stages    comma-separated subset of: ${Object.keys(STAGE_INFO).join(", ")}
-  --publish   copy the finished run to ${PUBLISH_PATH}`;
+  --publish   copy the finished run to ${PUBLISH_PATH}
+  --skip-live-eval  skip the live answer eval, so the run spends no provider tokens`;
 
 let opts;
 try {
   const { values } = parseArgs({
-    options: { stream: { type: "boolean" }, stages: { type: "string" }, publish: { type: "boolean" }, help: { type: "boolean", short: "h" } },
+    options: {
+      stream: { type: "boolean" },
+      stages: { type: "string" },
+      publish: { type: "boolean" },
+      "skip-live-eval": { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+    },
     strict: true,
   });
   if (values.help) {
     console.log(USAGE);
     process.exit(0);
   }
-  opts = { stream: Boolean(values.stream), publish: Boolean(values.publish), stages: selectStages(values.stages) };
+  opts = { stream: Boolean(values.stream), publish: Boolean(values.publish), skipLiveEval: Boolean(values["skip-live-eval"]), stages: selectStages(values.stages) };
 } catch (err) {
   console.error(`${err instanceof Error ? err.message : err}\n${USAGE}`);
   process.exit(2);
@@ -94,6 +108,10 @@ const state = {
   /** @type {Set<string>} */ restored: new Set(),
   runId: "",
   eventsPath: "",
+  /** Port the E2E stage actually used: E2E_PORT, or the next free one when that is held. */
+  e2ePort: E2E_PORT,
+  /** The `next start` the live-eval stage runs against, while it is up. */
+  /** @type {import("node:child_process").ChildProcess | null} */ server: null,
 };
 
 // ── Output ────────────────────────────────────────────────────────────────────────────────────────
@@ -234,6 +252,39 @@ async function runProcess(stage, command, args, { env, onLine }) {
   return { ok: code === 0, code, signal, output: tail.join("\n") };
 }
 
+/**
+ * Start `next start` on this run's build in its own process group, output (redacted) to the stage log. It stays up
+ * across commands, so it is tracked as state.server: the caller stops it, and abort() and cleanupSync() do too.
+ * @param {string} stage
+ * @param {number} port
+ * @param {Record<string, string>} env
+ */
+function startServer(stage, port, env) {
+  const log = createWriteStream(path.join(ROOT, TMP_DIR, state.runId, `${stage}.log`), { flags: "a" });
+  log.write(`$ npx next start -p ${port}\n`);
+  const child = spawn("npx", ["next", "start", "-p", String(port)], { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
+  for (const input of [child.stdout, child.stderr]) readline.createInterface({ input, crlfDelay: Infinity }).on("line", (line) => log.write(`${redact(line)}\n`));
+  child.once("exit", (code, signal) => log.end(`[server exit ${code ?? signal}]\n`));
+  state.server = child;
+  return child;
+}
+
+/**
+ * The server's /api/health JSON once it answers, or null if it exits, the run stops, or 60 s pass.
+ * @param {string} baseUrl
+ * @param {import("node:child_process").ChildProcess} server
+ */
+async function waitForHealth(baseUrl, server) {
+  for (const until = Date.now() + 60_000; Date.now() < until && server.exitCode === null && server.signalCode === null && !state.abortReason; ) {
+    const health = await fetch(`${baseUrl}/api/health`)
+      .then((res) => res.json())
+      .catch(() => null);
+    if (health) return health;
+    await delay(500);
+  }
+  return null;
+}
+
 // ── Stages ────────────────────────────────────────────────────────────────────────────────────────
 const summary = { stages: /** @type {any[]} */ ([]), failures: /** @type {any[]} */ ([]), artifacts: /** @type {Record<string, string>} */ ({}) };
 const buildIdBefore = readBuildId(ROOT);
@@ -269,6 +320,11 @@ class StageRun {
     emit(testStartEvent(this.stage, identity));
   }
 
+  /** Announce how many results this stage expects; a malformed count is dropped. @param {unknown} total */
+  total(total) {
+    if (Number.isInteger(total) && /** @type {number} */ (total) >= 0) emit(stageTotalEvent(this.stage, /** @type {number} */ (total)));
+  }
+
   /** @param {Omit<Parameters<typeof testResultEvent>[0], "stage">} fields */
   result(fields) {
     this.record(testResultEvent({ stage: this.stage, ...fields }));
@@ -297,6 +353,8 @@ class StageRun {
       this.record({ type: "test-result", result });
     } else if (event.type === "test-start" && typeof event.id === "string") {
       emit({ ...event, stage: this.stage });
+    } else if (event.type === "stage-total") {
+      this.total(event.total);
     } else if (event.type === "log") {
       emit(logEvent(this.stage, event.line));
     }
@@ -393,11 +451,12 @@ const STAGES = {
       },
     }),
 
+  // Product tests only: the report's own tests (READINESS_TOOLING_PATHS) run in CI, not in a readiness run.
   unit: () =>
     reporterStage("unit", {
       command: "npx",
-      args: ["vitest", "run", "--reporter=./scripts/readiness/vitest-reporter.mjs"],
-      display: "npx vitest run",
+      args: ["vitest", "run", "--reporter=./scripts/readiness/vitest-reporter.mjs", ...READINESS_TOOLING_PATHS.map((prefix) => `--exclude=${prefix}**`)],
+      display: "npx vitest run (product tests)",
       env: childEnv(process.env, { offline: true, extra: { ...tagEnv, NIMBUS_DISABLE_FINDINGS: "1" } }),
     }),
 
@@ -438,43 +497,88 @@ const STAGES = {
   e2e: async () => {
     const pre = buildPrerequisite();
     if (pre.skip) return skipStage("e2e", pre.skip);
-    const display = `E2E_PORT=${E2E_PORT} NEXT_DIST_DIR=${DIST_DIR} npx playwright test`;
-    if (await portInUse(E2E_PORT)) {
-      const reason = `port ${E2E_PORT} is already in use — refusing to run: Playwright (reuseExistingServer) would test that server, not this build`;
+    const port = await freePort(E2E_PORT);
+    const display = `E2E_PORT=${port ?? E2E_PORT} NEXT_DIST_DIR=${DIST_DIR} npx playwright test ${productE2eFiles(ROOT).join(" ")}`;
+    if (port === null) {
+      const reason = `ports ${E2E_PORT}–${E2E_PORT + E2E_PORT_SPAN - 1} are all in use — refusing to run: Playwright (reuseExistingServer) would test one of those servers, not this build`;
       const run = new StageRun("e2e");
       run.result({ ...gateIdentity("e2e", display), status: "failed", error: reason });
       return run.end({ note: reason });
     }
+    state.e2ePort = port;
+    if (port !== E2E_PORT) emit(logEvent("e2e", `port ${E2E_PORT} is in use (another checkout or a leftover server); using free port ${port}`));
     const scratch = path.join(TMP_DIR, state.runId);
     summary.artifacts.playwrightReport = `${scratch}/playwright-report`;
     const status = await reporterStage("e2e", {
       command: "npx",
-      args: ["playwright", "test", "--reporter=./scripts/readiness/playwright-reporter.mjs,html", "--output", path.join(scratch, "test-results")],
+      args: ["playwright", "test", ...productE2eFiles(ROOT), "--reporter=./scripts/readiness/playwright-reporter.mjs,html", "--output", path.join(scratch, "test-results")],
       display,
       env: childEnv(process.env, {
         extra: {
           ...distEnv,
           ...tagEnv,
           NIMBUS_DISABLE_FINDINGS: "1",
-          E2E_PORT: String(E2E_PORT),
+          E2E_PORT: String(port),
           PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(ROOT, scratch, "playwright-report"),
           PLAYWRIGHT_HTML_OPEN: "never",
         },
       }),
       note: () =>
-        [pre.reused, `next start :${E2E_PORT} on ${DIST_DIR}/ with the mock model`, `HTML report ${scratch}/playwright-report`, nextUntouchedNote()].filter(Boolean).join(" · "),
+        [pre.reused, `next start :${port} on ${DIST_DIR}/ with the mock model`, `HTML report ${scratch}/playwright-report`, nextUntouchedNote()].filter(Boolean).join(" · "),
     });
-    if (await portInUse(E2E_PORT)) emit(logEvent("e2e", `port ${E2E_PORT} is still in use after Playwright exited`));
+    if (await portInUse(port)) emit(logEvent("e2e", `port ${port} is still in use after Playwright exited`));
     return status;
   },
 
+  // Always live: this run's build with the real providers answers the golden set now. It spends real tokens, and
+  // it fails (never skips) when it cannot run — no provider key, no free port, a server that does not come up.
   "live-eval": async () => {
-    const report = latestEvalReport(ROOT);
-    if (!report) return skipStage("live-eval", "skipped: no committed live-eval report under evals/reports/");
+    if (opts.skipLiveEval) return skipStage("live-eval", 'skipped: "Include live answers" is off, so no provider tokens were spent');
+    const pre = buildPrerequisite();
+    if (pre.skip) return skipStage("live-eval", pre.skip);
     const run = new StageRun("live-eval");
-    const recorded = recordedEval(report.json, report.path, report.coverage);
-    recorded.events.forEach((event) => run.record(event));
-    return run.end({ status: recorded.status, source: "recorded", durationMs: recorded.durationMs, note: recorded.note });
+    const fail = (error) => {
+      run.result({ ...gateIdentity("live-eval", "npm run eval:live"), status: "failed", durationMs: Date.now() - run.started, error });
+      return run.end({ status: "failed", note: error });
+    };
+    const port = await freePort(E2E_PORT);
+    if (port === null) return fail(`ports ${E2E_PORT}–${E2E_PORT + E2E_PORT_SPAN - 1} are all in use — nowhere to start this build`);
+    const baseUrl = `http://localhost:${port}`;
+    // Findings off: eval traffic must never land in the Knowledge base issues. The rate limit is raised for the golden set.
+    const { env } = withEnvFiles(ROOT, childEnv(process.env, { extra: { ...distEnv, ...tagEnv, LLM_MODE: "live", NIMBUS_DISABLE_FINDINGS: "1", RATE_LIMIT_MAX: "1000" } }));
+    addSecrets(secretValues(env));
+    const server = startServer("live-eval", port, env);
+    try {
+      const health = await waitForHealth(baseUrl, server);
+      if (state.abortReason) return run.end({ status: "skipped", note: interruptedNote() });
+      if (!health) return fail(`next start on ${DIST_DIR}/ did not answer ${baseUrl}/api/health within 60 s — see the stage log`);
+      if (!health.providersAvailable?.length) return fail("no AI provider key — set ANTHROPIC_API_KEY, OPENAI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY in .env.local");
+      const rows = [];
+      let reportPath = "";
+      const r = await runProcess("live-eval", process.execPath, ["scripts/eval-live.mjs", "--base-url", baseUrl], {
+        env: childEnv(process.env, { offline: true, extra: tagEnv }),
+        onLine: (line) => {
+          const event = decodeTagged(line, eventTag);
+          if (event?.type === "stage-total") {
+            run.total(event.total);
+            return true;
+          }
+          if (event?.type !== "eval-result") return false;
+          rows.push(event.row);
+          reportPath = event.reportPath;
+          run.record(evalResultEvent(event.row, { reportPath, environment: event.environment }));
+          return true;
+        },
+      });
+      if (state.abortReason) return run.end({ status: "skipped", note: interruptedNote() });
+      if (rows.length === 0) return fail(r.ok ? "the eval graded no answers" : gateError(r.output));
+      const coverage = evalCoverage({ results: rows }, goldenCaseIds(ROOT));
+      const note = [pre.reused, `next start :${port} on ${DIST_DIR}/ with the real providers`, ...evalScope(coverage), `eval report ${path.dirname(reportPath)}/index.html`];
+      return run.end({ status: r.ok && !run.counts.failed ? "passed" : "failed", note: note.filter(Boolean).join(" · ") });
+    } finally {
+      await stopGroup(server);
+      state.server = null;
+    }
   },
 };
 
@@ -485,10 +589,23 @@ function abort(reason) {
   state.abortReason = reason;
   say(yellow(`\nStopping (${reason}): ending the current stage, then restoring files…`));
   void stopGroup(state.child);
+  void stopGroup(state.server);
+}
+
+/** @param {import("node:child_process").ChildProcess | null} child */
+function killGroupSync(child) {
+  if (!child?.pid || !groupAlive(child.pid)) return;
+  try {
+    process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL");
+  } catch {
+    /* already gone */
+  }
 }
 
 /** Last-resort cleanup, synchronous: runs on every exit path, including a second Ctrl-C and uncaught errors. */
 function cleanupSync() {
+  // A server this run started must never outlive it (a leftover one holds its port for every later run).
+  killGroupSync(state.server);
   if (state.snapshot) restoreFiles(ROOT, state.snapshot).forEach((f) => state.restored.add(f));
   if (state.lock?.ok) state.lock.release();
 }
@@ -497,13 +614,7 @@ for (const signal of /** @type {const} */ (["SIGINT", "SIGTERM", "SIGHUP"])) {
   process.on(signal, () => {
     if (!state.abortReason) return abort(signal);
     // Second signal: stop waiting for a graceful shutdown.
-    if (state.child?.pid && groupAlive(state.child.pid)) {
-      try {
-        process.kill(process.platform === "win32" ? state.child.pid : -state.child.pid, "SIGKILL");
-      } catch {
-        /* already gone */
-      }
-    }
+    killGroupSync(state.child);
     cleanupSync();
     process.exit(SIGNAL_EXIT[signal]);
   });
@@ -559,10 +670,15 @@ async function main() {
   let status = /** @type {"passed" | "failed"} */ ("failed");
   try {
     emit(runStartEvent(meta, opts.stages));
+    // Known before any gate runs: a turned-off live answer eval shows as skipped from the start, not "Queued" to the end.
+    const skippedUpFront = opts.skipLiveEval && opts.stages.includes("live-eval") ? ["live-eval"] : [];
+    for (const stage of skippedUpFront) await STAGES[stage]();
     for (const stage of opts.stages) {
+      if (skippedUpFront.includes(stage)) continue;
       if (state.abortReason) skipStage(stage, `skipped: the run was stopped (${state.abortReason})`);
       else await STAGES[stage]();
     }
+    summary.stages.sort((a, b) => opts.stages.indexOf(a.id) - opts.stages.indexOf(b.id));
     status = !state.abortReason && summary.stages.every((s) => s.status !== "failed") ? "passed" : "failed";
   } catch (err) {
     say(red(`runner error: ${redact(err instanceof Error ? err.stack ?? err.message : err)}`));
@@ -593,7 +709,7 @@ async function main() {
           failures: summary.failures,
           isolation: {
             distDir: DIST_DIR,
-            e2ePort: E2E_PORT,
+            e2ePort: state.e2ePort,
             restoredFiles: [...state.restored],
             nextBuildIdBefore: buildIdBefore,
             nextBuildIdAfter: buildIdAfter,

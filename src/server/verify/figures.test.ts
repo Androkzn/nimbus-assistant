@@ -24,4 +24,12 @@ describe("figure check (NKA-GRD-010)", () => {
     expect(unverifiedFigures(answer, ["no numbers here"])).toEqual([]);
     expect(unverifiedFigures("Relay 4.2 added request replay [1].", ["What's new in v4.2?"])).toEqual([]);
   });
+
+  it("ignores a passage named in prose, but still flags a figure beside it (NKA-RET-015)", () => {
+    // claude-haiku's live answer: "passage 5" was reported to Sentry as an invented figure.
+    const answer = "Passage 6 lists a Salesforce integration for Nimbus Vault and passage 5 lists one for Nimbus Pulse [5][6].";
+    expect(unverifiedFigures(answer, ["no numbers here"])).toEqual([]);
+    expect(unverifiedFigures("Passages 5 and 6 agree on 99.9% uptime.", ["no numbers here"])).toEqual(["99.9"]);
+    expect(unverifiedFigures("Passage 10,000 events.", ["no numbers here"])).toEqual(["10,000"]);
+  });
 });

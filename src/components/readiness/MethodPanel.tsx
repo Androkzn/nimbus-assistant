@@ -112,8 +112,9 @@ export function MethodPanel({ unclaimed, requirementCount, checkCount }: { uncla
             requirement has no check, a check matches no real test, or a test is claimed by no check.
           </p>
           <p>
-            The live answer eval spends real tokens, so it is shown from the latest committed report and labelled recorded. The live
-            probes always run from this browser, for real.
+            With &quot;Include live answers&quot; ticked (it is off by default), a local run asks the real providers the golden
+            questions and spends real tokens; unticked, the eval is skipped. A replay shows the eval from the recorded run, labelled recorded. The live probes
+            always run from this browser, for real.
           </p>
           <div data-testid="unclaimed">
             <p className="font-semibold text-text">Unclaimed results</p>

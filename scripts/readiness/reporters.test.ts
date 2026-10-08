@@ -52,6 +52,19 @@ describe("Vitest reporter", () => {
     ]);
   });
 
+  it("announces the stage total once every file is collected, never a partial count", () => {
+    const out = capture();
+    const reporter = new VitestReporter({ write: out.write });
+    reporter.onInit({ config: { root: ROOT } });
+    const moduleWith = (n: number) => ({ children: { allTests: function* () { for (let i = 0; i < n; i++) yield testCase(`t${i}`, `t${i}`, "pending"); } } });
+    reporter.onTestRunStart([{}, {}, {}]);
+    reporter.onTestModuleCollected(moduleWith(4));
+    reporter.onTestModuleCollected(moduleWith(0));
+    expect(out.events()).toEqual([]);
+    reporter.onTestModuleCollected(moduleWith(3));
+    expect(out.events()).toEqual([{ type: "stage-total", stage: "unit", total: 7 }]);
+  });
+
   it("at the end, reports file-level and hook failures, tests the live hooks missed, and unhandled errors", () => {
     const out = capture();
     const reporter = new VitestReporter({ write: out.write });
@@ -84,18 +97,21 @@ describe("Playwright reporter", () => {
   it("reports each test once, on its final attempt, with Playwright's outcome", () => {
     const out = capture();
     const reporter = new PlaywrightReporter({ write: out.write });
-    reporter.onBegin({ configFile: path.join(ROOT, "playwright.config.ts"), rootDir: path.join(ROOT, "e2e") });
     const flaky = test("NKA-MDL-004: primary fails → backup answers", "flaky", 1);
+    const failing = test("NKA-CHAT-004: blank message cannot be sent", "unexpected");
+    const stopped = test("stopped", "skipped");
+    reporter.onBegin({ configFile: path.join(ROOT, "playwright.config.ts"), rootDir: path.join(ROOT, "e2e") }, { allTests: () => [flaky, failing, stopped] });
     reporter.onTestBegin(flaky, { retry: 0 });
     reporter.onTestEnd(flaky, { status: "failed", retry: 0, duration: 900, errors: [{ message: "Timed out" }] });
     reporter.onTestBegin(flaky, { retry: 1 });
     reporter.onTestEnd(flaky, { status: "passed", retry: 1, duration: 800, errors: [] });
-    const failing = test("NKA-CHAT-004: blank message cannot be sent", "unexpected");
     reporter.onTestEnd(failing, { status: "failed", retry: 0, duration: 50, errors: [{ message: "Error: expect(locator).toBeDisabled() failed\n\nCall log:\n  - waiting" }] });
-    reporter.onTestEnd(test("stopped", "skipped"), { status: "interrupted", retry: 0, duration: 5, errors: [] });
+    reporter.onTestEnd(stopped, { status: "interrupted", retry: 0, duration: 5, errors: [] });
     reporter.onError({ message: "Error: Timed out waiting 60000ms from config.webServer." });
 
     const events = out.events();
+    // The collected count comes first, so the stage card can show "X / 3 passed" from the start.
+    expect(events[0]).toEqual({ type: "stage-total", stage: "e2e", total: 3 });
     expect(events.filter((e) => e.type === "test-start")).toHaveLength(1);
     expect(events).toContainEqual({ type: "log", stage: "e2e", line: "retrying (attempt 2): NKA-MDL-004: primary fails → backup answers" });
     expect(resultsOf(events)).toEqual([

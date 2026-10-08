@@ -9,7 +9,8 @@ function first(q: Query, key: string): string | undefined {
 
 /**
  * Query string → run options.
- * autostart=1 · mode=local|replay|probes · speed=1|4|instant (replay, default 4)
+ * autostart=1 · mode=local|replay|probes · speed=1|4|instant (replay, default 4) · answer=1 (run a local
+ * run's live answer eval with real tokens; it is off by default)
  * · probes=0 (skip the live probes after a local run or replay).
  */
 export function parseReadinessOptions(q: Query): ReadinessOptions {
@@ -21,9 +22,8 @@ export function parseReadinessOptions(q: Query): ReadinessOptions {
     autostart: first(q, "autostart") === "1",
     mode,
     speed,
-    // The grounded-answer probe is part of every readiness assessment. It is one
-    // required real-model check, so it is deliberately not user-configurable.
-    includeAnswer: true,
+    // "Include live answers", off by default: a local run's live answer eval spends real tokens. The checkbox or answer=1 turns it on.
+    includeAnswer: first(q, "answer") === "1",
     probes: first(q, "probes") !== "0",
   };
 }

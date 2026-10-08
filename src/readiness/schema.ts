@@ -79,6 +79,8 @@ export type Counts = z.infer<typeof CountsSchema>;
 export const ReadinessEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("run-start"), meta: RunMetaSchema, stages: z.array(StageInfoSchema) }),
   z.object({ type: z.literal("stage-start"), stage: StageIdSchema, at: Iso }),
+  /** Optional: how many results the stage expects, once its producer knows — the page shows "X / Y passed". */
+  z.object({ type: z.literal("stage-total"), stage: StageIdSchema, total: z.number().int().nonnegative() }),
   /** Optional: lets the page show a test as running before its result arrives. */
   z.object({ type: z.literal("test-start"), stage: StageIdSchema, id: z.string(), file: z.string(), fullName: z.string() }),
   z.object({ type: z.literal("test-result"), result: TestResultSchema }),
@@ -136,7 +138,7 @@ export const STAGE_INFO: Record<StageId, StageInfo> = {
     title: "Live answer eval",
     command: "npm run eval:live",
     layer: "live-eval",
-    description: "Golden questions answered by the real providers and graded by deterministic checks. Shown from the latest committed report; re-run on demand because it spends real tokens.",
+    description: "Golden questions answered by the real providers and graded by deterministic checks. Runs live against this build when 'Include live answers' is ticked (off by default), so it spends real tokens.",
   },
   probes: {
     id: "probes",
