@@ -221,6 +221,8 @@ export function createFindingReport(input: {
   category: "out_of_scope" | "documentation_gap" | "clarification_needed";
   severity: "low" | "medium";
   proposedAction: string;
+  question?: string | null;
+  analysis?: string | null;
   evidence: Record<string, unknown>;
 }): KnowledgeReport | null {
   const sourceKey = `finding:${input.observedAt.slice(0, 10)}:${input.key}`;
@@ -230,8 +232,8 @@ export function createFindingReport(input: {
   if (existing) {
     const previous = String(existing.summary).match(/Observed (\d+) time/)?.[1];
     const occurrences = Number(previous ?? 1) + 1;
-    db().prepare("UPDATE reports SET summary = ?, analysis = ?, detected_at = ? WHERE source_key = ?").run(
-      `${summaryBase} Observed ${occurrences} times today.`, JSON.stringify(input.evidence), input.observedAt, sourceKey,
+    db().prepare("UPDATE reports SET summary = ?, question = COALESCE(question, ?), analysis = ?, detected_at = ? WHERE source_key = ?").run(
+      `${summaryBase} Observed ${occurrences} times today.`, input.question?.trim() || null, input.analysis?.trim() || JSON.stringify(input.evidence), input.observedAt, sourceKey,
     );
     return reportFromRow(db().prepare("SELECT * FROM reports WHERE source_key = ?").get(sourceKey) as Row);
   }
@@ -241,7 +243,8 @@ export function createFindingReport(input: {
     severity: input.severity,
     category: input.category === "out_of_scope" ? "irrelevant" : "knowledge-gap",
     summary: `${summaryBase} Observed 1 time today.`,
-    analysis: JSON.stringify(input.evidence),
+    question: input.question,
+    analysis: input.analysis?.trim() || JSON.stringify(input.evidence),
     sourceKey,
   });
 }
@@ -468,7 +471,7 @@ export async function createQuestionReportAsync(input: { question: string; analy
 }
 
 export async function createFindingReportAsync(input: {
-  key: string; observedAt: string; category: "out_of_scope" | "documentation_gap" | "clarification_needed"; severity: "low" | "medium"; proposedAction: string; evidence: Record<string, unknown>;
+  key: string; observedAt: string; category: "out_of_scope" | "documentation_gap" | "clarification_needed"; severity: "low" | "medium"; proposedAction: string; question?: string | null; analysis?: string | null; evidence: Record<string, unknown>;
 }): Promise<KnowledgeReport | null> {
   if (!sharedSql) return createFindingReport(input);
   await ensureSharedDatabase();
@@ -479,13 +482,13 @@ export async function createFindingReportAsync(input: {
   if (existing[0]) {
     const previous = String(existing[0].summary).match(/Observed (\d+) time/)?.[1];
     const occurrences = Number(previous ?? 1) + 1;
-    const rows = await sharedSql`UPDATE reports SET summary = ${`${summaryBase} Observed ${occurrences} times today.`}, analysis = ${JSON.stringify(input.evidence)}, detected_at = ${input.observedAt} WHERE source_key = ${sourceKey} RETURNING *` as SharedRow[];
+    const rows = await sharedSql`UPDATE reports SET summary = ${`${summaryBase} Observed ${occurrences} times today.`}, question = COALESCE(question, ${input.question?.trim() || null}), analysis = ${input.analysis?.trim() || JSON.stringify(input.evidence)}, detected_at = ${input.observedAt} WHERE source_key = ${sourceKey} RETURNING *` as SharedRow[];
     return rows[0] ? sharedReportFromRow(rows[0]) : null;
   }
   return createReportAsync({
     title: `${label} detected`, product: null, severity: input.severity,
     category: input.category === "out_of_scope" ? "irrelevant" : "knowledge-gap",
-    summary: `${summaryBase} Observed 1 time today.`, analysis: JSON.stringify(input.evidence), sourceKey,
+    summary: `${summaryBase} Observed 1 time today.`, question: input.question, analysis: input.analysis?.trim() || JSON.stringify(input.evidence), sourceKey,
   });
 }
 

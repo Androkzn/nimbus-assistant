@@ -165,6 +165,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
           retrieval,
           modelOutcome: done?.type ?? "aborted",
           unverifiedFigureCount: unverified.length,
+          question,
         });
         if (finding) {
           try {

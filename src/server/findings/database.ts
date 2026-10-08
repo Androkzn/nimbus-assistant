@@ -16,6 +16,9 @@ export interface FindingRecord {
   severity: "low" | "medium";
   status: "new";
   proposedAction: string;
+  /** User-visible evidence, normalized and capped before persistence. */
+  question: string;
+  analysis: string;
   evidence: {
     retrievalBestScore: number;
     retrievalFocusScore: number;
@@ -49,12 +52,26 @@ function stableKey(retrieval: RetrievalResult, category: FindingCategory): strin
   return [category, retrieval.guardReason ?? "unknown", products, status].join("|");
 }
 
+function findingAnalysis(retrieval: RetrievalResult): string {
+  const status = retrieval.troubleshootingStatus;
+  if (retrieval.guardReason === "unsupported_troubleshooting_status" && status) {
+    return `The question asks about HTTP ${status}, but the published troubleshooting documents cover HTTP 403 and 429 only. No approved checklist for HTTP ${status} was found, so the assistant refused to invent one.`;
+  }
+  if (retrieval.guardReason === "unsupported_pricing_tier") return "The question uses a pricing tier name that does not appear in the published pricing tables, so the assistant could not safely map it to a documented tier.";
+  if (retrieval.guardReason === "ambiguous_release") return "The question gives only a major release version. The knowledge base requires an exact product release before it can answer reliably.";
+  if (retrieval.guardReason === "unsupported_priority") return "The question uses an SLA priority outside the documented P1–P4 range, so the assistant could not provide a supported response.";
+  if (retrieval.guardReason === "out_of_scope") return "No published passage matched this request and no NimbusStack product was in scope, so the assistant returned the knowledge-base fallback without calling a model.";
+  if (retrieval.guardReason === "incomplete") return "A product was named without a topic, so the assistant asked for clarification instead of inventing an answer.";
+  return "The retrieved passages did not provide enough approved evidence to answer this question without speculation.";
+}
+
 export function buildFinding(input: {
   requestId: string;
   observedAt: string;
   retrieval: RetrievalResult;
   modelOutcome: string;
   unverifiedFigureCount: number;
+  question: string;
 }): FindingRecord | null {
   const reason = input.retrieval.guardReason;
   if (!reason) return null;
@@ -71,6 +88,9 @@ export function buildFinding(input: {
     severity: category === "documentation_gap" ? "medium" : "low",
     status: "new",
     proposedAction: proposedAction(category, reason),
+    // Keep irrelevant/off-topic usage privacy-safe; retain evidence for actionable findings.
+    question: category === "out_of_scope" ? "" : input.question.trim().replace(/\s+/g, " ").slice(0, 2000),
+    analysis: findingAnalysis(input.retrieval),
     evidence: {
       retrievalBestScore: input.retrieval.retrievalBestScore,
       retrievalFocusScore: input.retrieval.retrievalFocusScore,
@@ -90,6 +110,8 @@ export async function persistFinding(finding: FindingRecord, env: Env): Promise<
     category: finding.category,
     severity: finding.severity,
     proposedAction: finding.proposedAction,
+    question: finding.question,
+    analysis: finding.analysis,
     evidence: finding.evidence,
   });
 }
