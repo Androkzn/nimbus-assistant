@@ -15,7 +15,7 @@ import { AnswerCard } from "./AnswerCard";
 import { BrandLockup } from "./BrandLockup";
 import { ConversationHistory } from "./ConversationHistory";
 import { EmptyState } from "./EmptyState";
-import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, HistoryIcon, StopIcon } from "./icons";
+import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, StopIcon } from "./icons";
 import { ModelPicker } from "./ModelPicker";
 import { SessionPanel } from "./SessionPanel";
 
@@ -359,16 +359,6 @@ export function ChatApp() {
           )}
           <button
             type="button"
-            onClick={() => setHistoryOpen(true)}
-            aria-controls="chat-history"
-            aria-expanded={historyOpen}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold transition-colors hover:border-orange hover:text-orange"
-          >
-            <HistoryIcon className="text-orange" />
-            <span className="max-sm:sr-only">History</span>
-          </button>
-          <button
-            type="button"
             onClick={() => setPanelOpen(true)}
             aria-controls="session-panel"
             aria-expanded={panelOpen}
@@ -530,6 +520,8 @@ export function ChatApp() {
           open={panelOpen}
           onClose={closePanel}
           onNewConversation={newConversation}
+          onOpenHistory={() => setHistoryOpen(true)}
+          historyOpen={historyOpen}
           totals={sessionTotals}
           rows={usage}
           modelName={modelName}

@@ -5,7 +5,7 @@ import type { UsageRow, UsageTotals } from "@/client/usage";
 import type { ContextLevel } from "@/shared/context";
 import type { PublicModel } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
-import { AlertIcon, CloseIcon, DownloadIcon, PlusIcon } from "./icons";
+import { AlertIcon, CloseIcon, DownloadIcon, HistoryIcon, PlusIcon } from "./icons";
 
 /** Warning colours stay fixed: the panel is navy in both light and dark mode. */
 const LEVEL_BAR: Record<ContextLevel, string> = { ok: "bg-on-navy/80", amber: "bg-[#f5b14a]", red: "bg-[#f87171]" };
@@ -35,6 +35,8 @@ export function SessionPanel({
   open,
   onClose,
   onNewConversation,
+  onOpenHistory,
+  historyOpen,
   totals,
   rows,
   modelName,
@@ -48,6 +50,8 @@ export function SessionPanel({
   open: boolean;
   onClose: () => void;
   onNewConversation: () => void;
+  onOpenHistory: () => void;
+  historyOpen: boolean;
   totals: UsageTotals;
   rows: UsageRow[];
   modelName: (id: string) => string;
@@ -171,6 +175,16 @@ export function SessionPanel({
             >
               <PlusIcon />
               New conversation
+            </button>
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              aria-controls="chat-history"
+              aria-expanded={historyOpen}
+              className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold transition-colors hover:border-orange hover:text-orange"
+            >
+              <HistoryIcon className="text-orange" />
+              History
             </button>
           </div>
         </div>
