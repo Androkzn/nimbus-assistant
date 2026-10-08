@@ -179,7 +179,7 @@ export function ChatApp() {
           status: "error",
           error: {
             code: body?.error?.code ?? "unavailable",
-            message: body?.error?.message ?? `The request failed (HTTP ${res.status}). Please try again.`,
+            message: body?.error?.message ?? "We couldn't send that. Please try again.",
             retryAfterSec: body?.error?.retryAfterSec,
           },
         });

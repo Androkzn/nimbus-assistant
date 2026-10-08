@@ -28,9 +28,9 @@ export const ChatRequestSchema = z
     if (last.role !== "user") {
       ctx.addIssue({ code: "custom", message: "The last message must be from the user." });
     } else if (last.content.trim().length === 0) {
-      ctx.addIssue({ code: "custom", message: "Please type a question first." });
+      ctx.addIssue({ code: "custom", message: "Please enter a question first." });
     } else if (last.content.length > MAX_MESSAGE_CHARS) {
-      ctx.addIssue({ code: "custom", message: `Questions are limited to ${MAX_MESSAGE_CHARS} characters.` });
+      ctx.addIssue({ code: "custom", message: "Please shorten your question to 2,000 characters and try again." });
     }
   });
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;

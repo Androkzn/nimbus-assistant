@@ -177,7 +177,7 @@ export function KnowledgeBasePortal() {
     });
     setSaving(false);
     if (!response.ok) {
-      setMessage(selected ? "Could not save this document." : "Could not create this document.");
+      setMessage(selected ? "We couldn't save this document. Please try again." : "We couldn't create this document. Please try again.");
       return;
     }
     const saved = (await response.json()) as KnowledgeDocument;
@@ -199,7 +199,7 @@ export function KnowledgeBasePortal() {
     if (!selected || !window.confirm(`Delete “${selected.title}”? This cannot be undone.`)) return;
     const response = await fetch(`/api/dev/knowledge-base/documents/${selected.id}`, { method: "DELETE" });
     if (!response.ok) {
-      setMessage("Could not delete this document.");
+      setMessage("We couldn't delete this document. Please try again.");
       return;
     }
     setMessage("Document deleted.");
@@ -214,7 +214,10 @@ export function KnowledgeBasePortal() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ title: reportTitle, summary: reportSummary, product: reportProduct || null, category: reportCategory, severity: reportSeverity }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      setMessage("We couldn't add that report. Please try again.");
+      return;
+    }
     setReportTitle("");
     setReportSummary("");
     setReportProduct("");

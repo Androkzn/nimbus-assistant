@@ -202,9 +202,9 @@ describe("live probes against the app's own handlers (RDY-003)", () => {
     const { results } = await run(appRoutes(quietDeps()), { includeAnswer: true });
     expect(results.health.detail).toMatchObject({ httpStatus: 200, mode: "mock", corpusFiles: 10, providers: "anthropic, google, openai", pricingVersion: catalog.pricingVersion });
     expect(results.models.detail).toMatchObject({ models: catalog.models.length, defaultModelId: catalog.defaultModelId, providers: "Anthropic Claude, Google Gemini, OpenAI" });
-    expect(results.blank.detail).toMatchObject({ httpStatus: 400, code: "invalid_input", message: "Please type a question first." });
-    expect(results.oversize.detail).toMatchObject({ httpStatus: 400, code: "invalid_input", message: `Questions are limited to ${MAX_MESSAGE_CHARS} characters.`, sentChars: 2001 });
-    expect(results["unknown-model"].detail).toMatchObject({ httpStatus: 400, code: "invalid_input", message: 'Unknown model "not-a-model".' });
+    expect(results.blank.detail).toMatchObject({ httpStatus: 400, code: "invalid_input", message: "Please enter a question first." });
+    expect(results.oversize.detail).toMatchObject({ httpStatus: 400, code: "invalid_input", message: "Please shorten your question to 2,000 characters and try again.", sentChars: 2001 });
+    expect(results["unknown-model"].detail).toMatchObject({ httpStatus: 400, code: "invalid_input", message: "Please choose one of the available models and try again." });
     expect(results["offtopic-guard"].detail).toMatchObject({ httpStatus: 200, answeredBy: KB_GUARD_ID, inputTokens: 0, outputTokens: 0, costUSD: 0, sources: 0 });
     expect(results["stream-headers"].detail).toMatchObject({ contentType: "application/x-ndjson; charset=utf-8", cacheControl: "no-store" });
     expect(Number(results["stream-headers"].detail?.deltas)).toBeGreaterThanOrEqual(2);

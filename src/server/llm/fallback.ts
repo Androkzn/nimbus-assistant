@@ -52,7 +52,7 @@ export async function* runWithFallback(opts: RunOptions): AsyncGenerator<RunnerE
   const trace = opts.trace ?? [];
 
   if (attempts.length === 0) {
-    yield { type: "error", code: "auth", message: "No AI provider is configured on the server." };
+    yield { type: "error", code: "auth", message: "The assistant isn't available right now. Please try again later or choose another model." };
     return;
   }
 

@@ -55,14 +55,14 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
 
   const parsed = ChatRequestSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return json(400, { error: { code: "invalid_input", message: parsed.error.issues[0]?.message ?? "Invalid request." } });
+    return json(400, { error: { code: "invalid_input", message: friendlyInputError(parsed.error.issues[0]) } });
   }
   const { modelId, messages } = parsed.data;
-  if (!getModel(modelId)) return json(400, { error: { code: "invalid_input", message: `Unknown model "${modelId}".` } });
+  if (!getModel(modelId)) return json(400, { error: { code: "invalid_input", message: "Please choose one of the available models and try again." } });
 
   const history = messages.slice(0, -1);
   const { text: question, faults } = extractFaults(messages[messages.length - 1].content, env);
-  if (!question) return json(400, { error: { code: "invalid_input", message: "Please type a question first." } });
+  if (!question) return json(400, { error: { code: "invalid_input", message: "Please enter a question first." } });
 
   const retrieval = await retrieveAsync(question, history);
   const today = (deps.today ?? (() => new Date().toISOString().slice(0, 10)))();
@@ -189,6 +189,16 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
 
 export const GUARD_ANSWER = `${NOT_IN_KB} I can answer questions about NimbusStack's products — Relay, Vault, Pulse and Ledger: pricing, features, integrations, release notes, troubleshooting and support SLAs.`;
 export const AMBIGUOUS_VERSION_ANSWER = `${NOT_IN_KB} Please specify a product and an exact release version.`;
+
+function friendlyInputError(issue?: { message?: string; path?: PropertyKey[] }): string {
+  if (!issue) return "We couldn't send that. Please check your question and try again.";
+  if (issue.message === "This chat is full. Start a new conversation to keep going.") return issue.message;
+  if (issue.message === "Please shorten your question to 2,000 characters and try again.") return issue.message;
+  if (issue.path?.includes("content") && issue.message?.includes("Too big")) return "Please shorten your question to 2,000 characters and try again.";
+  if (issue.message === "The last message must be from the user.") return "Please enter a question to continue.";
+  if (issue.message === "Please enter a question first.") return issue.message;
+  return "We couldn't send that. Please check your question and try again.";
+}
 
 function guardMessage(retrieval: RetrievalResult): string {
   if (retrieval.guardReason === "incomplete") {

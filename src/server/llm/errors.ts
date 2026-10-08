@@ -70,18 +70,18 @@ function parseRetryAfter(headers: Record<string, string> | undefined): number | 
 }
 
 /** User-facing copy (BRD §5). Names the problem and the action; never vendor error bodies. */
-export function userMessage(code: ErrorCode, providerName: string, retryAfterSec?: number): string {
+export function userMessage(code: ErrorCode, _providerName: string, retryAfterSec?: number): string {
   switch (code) {
     case "rate_limited":
-      return `${providerName} is rate-limited right now. Wait about ${retryAfterSec ?? 30} seconds and try again, or choose another model.`;
+      return `That model is busy right now. Wait about ${retryAfterSec ?? 30} seconds and try again, or choose another model.`;
     case "auth":
-      return `${providerName} can't be used right now (API key or billing problem on the server), and no backup model could answer. Choose another model.`;
+      return "That model isn't available right now. Choose another model or try again later.";
     case "bad_request":
-      return `${providerName} rejected the request. Try rephrasing, or choose another model.`;
+      return "That question couldn't be processed. Try rephrasing it or choose another model.";
     case "invalid_input":
-      return "Please type a question first.";
+      return "Please enter a question first.";
     case "unavailable":
     default:
-      return "No AI provider could answer right now. Your conversation is kept — try again in a minute, or choose another model.";
+      return "The assistant couldn't answer right now. Your conversation is kept — try again in a minute, or choose another model.";
   }
 }

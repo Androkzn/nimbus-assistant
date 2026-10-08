@@ -22,7 +22,8 @@ const REASON: Record<ErrorCode, string> = {
 /** Short headline above the server's message; plain messages (e.g. "Stopped.") need none. */
 const ERROR_TITLE: Partial<Record<ErrorCode, string>> = {
   rate_limited: "Rate limit reached",
-  auth: "Provider not available",
+  auth: "Model unavailable",
+  bad_request: "We couldn't process that",
   invalid_input: "Can't send that question",
 };
 

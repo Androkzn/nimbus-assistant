@@ -68,11 +68,11 @@ describe("POST /api/chat", () => {
     expect(d.factory).not.toHaveBeenCalled();
   });
 
-  it("NKA-CHAT-006: rejects messages over 2,000 characters, stating the limit", async () => {
+  it("NKA-CHAT-006: rejects messages that are too long with recovery guidance", async () => {
     const d = deps();
     const res = await handleChat(post({ modelId: "gemini-flash", messages: [{ role: "user", content: "x".repeat(2001) }] }), d.deps);
     expect(res.status).toBe(400);
-    expect((await res.json()).error.message).toContain("2000 characters");
+    expect((await res.json()).error.message).toBe("Please shorten your question to 2,000 characters and try again.");
     expect(d.factory).not.toHaveBeenCalled();
   });
 

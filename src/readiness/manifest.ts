@@ -251,8 +251,8 @@ const TEST_CHECKS: Check[] = [
 
   chat("chat.blank", "Blank message rejected, no provider call", "NKA-CHAT-005: rejects a ", ["NKA-CHAT-005"],
     "An empty or whitespace-only message gets a 400 'invalid_input' reply and no AI provider is called."),
-  chat("chat.oversize", "Over-long message rejected with the limit", "NKA-CHAT-006: rejects messages over 2,000 characters", ["NKA-CHAT-006"],
-    "A 2,001-character message is rejected with 400, the reply states the 2000-character limit, and no provider is called."),
+  chat("chat.oversize", "Over-long message gets recovery guidance", "NKA-CHAT-006: rejects messages that are too long with recovery guidance", ["NKA-CHAT-006"],
+    "A very long question is rejected with 400, the reply gives the 2,000-character next step, and no provider is called."),
   chat("chat.history-limit", "Long conversation gives recovery guidance", "explains how to recover when the conversation exceeds the history limit", ["R5"],
     "A full chat gives a plain recovery message and makes no provider call."),
   chat("chat.unknown-model", "Unknown model id rejected", "rejects an unknown model id", ["R5"],

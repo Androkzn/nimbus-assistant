@@ -103,8 +103,7 @@ describe("fallback runner", () => {
     expect(shown.status).toBe("error");
     expect(shown.error?.code).toBe("rate_limited");
     expect(shown.error?.retryAfterSec).toBe(12);
-    const provider = catalog.models.find((m) => m.id === PRIMARY)!.providerName;
-    expect(shown.error?.message).toMatch(new RegExp(`^${provider} is rate-limited right now\\. Wait about 12 seconds.*choose another model`));
+    expect(shown.error?.message).toBe("That model is busy right now. Wait about 12 seconds and try again, or choose another model.");
     expect(trace.every((t) => t.outcome === "rate_limited")).toBe(true);
   });
 
