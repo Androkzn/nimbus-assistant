@@ -69,7 +69,16 @@ The production deployment is intentionally customer-facing and excludes the inte
 
 ### Production monitoring and triage
 
-[`production-monitor.yml`](.github/workflows/production-monitor.yml) probes production every 15 minutes and on demand: homepage, health, model catalog, and the production-only Readiness `404`. Failures upload JSON evidence and create or update a GitHub bugfix-plan issue. With the optional `OPENAI_API_KEY` repository secret, Responses API Structured Outputs adds a schema-validated hypothesis plan; otherwise the deterministic safety plan is used. Sentry can trigger the same triage path with a trusted `repository_dispatch` event named `sentry-issue` carrying `issue_short_id`, `issue_url`, `issue_title`, `environment`, and `release`; human review is required before code changes, deployment, or issue resolution.
+The [`production-monitor.yml`](.github/workflows/production-monitor.yml) workflow runs every 15 minutes and on demand. It checks:
+
+- the homepage;
+- `/api/health`;
+- `/api/models`; and
+- the production-only `/readiness` `404`.
+
+When a check fails, the workflow uploads evidence and creates or updates a GitHub bugfix-plan issue. Sentry can start the same triage path through a trusted `repository_dispatch` event named `sentry-issue`, carrying the issue ID, URL, title, environment, and release.
+
+AI planning is optional. With `OPENAI_API_KEY`, the workflow generates a schema-validated hypothesis plan; otherwise it uses a deterministic safety plan. Human review is required before code changes, deployment, or issue resolution.
 
 GitHub Issues are the operational source of truth. New incidents receive `incident`, `bugfix-plan`, and `triage` labels; reviewers move them through `in-progress`, `blocked`, and `done`. Evidence stays in workflow artifacts and issue history rather than internal `todo/` folders in the public assessment branch.
 
