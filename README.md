@@ -87,6 +87,8 @@ The collector removes request bodies, headers, cookies, query strings, user iden
 
 Configure these protected values for automatic collection: `SENTRY_AUTH_TOKEN` with Sentry `event:read`, `SENTRY_ORG_SLUG`, `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_ORG_ID`. `SENTRY_API_BASE_URL` is optional for a regional or self-hosted Sentry instance.
 
+This is risk-controlled, not risk-free. Treat dispatch payloads and provider responses as untrusted; authenticate the Sentry-to-GitHub relay, prefer an exact deployment ID when available, and keep workflow dispatch restricted to trusted maintainers. Public issues and artifacts can still contain sensitive text despite filtering, so configure short artifact retention and do not enable collection until the repository's privacy policy permits it. The optional AI plan receives the sanitized bundle and never has permission to change code, deploy, or close an issue.
+
 AI planning is optional. With `OPENAI_API_KEY`, the workflow generates a schema-validated hypothesis plan; otherwise it uses a deterministic safety plan. Human review is required before code changes, deployment, or issue resolution.
 
 GitHub Issues are the operational source of truth. New incidents receive `incident`, `bugfix-plan`, and `triage` labels; reviewers move them through `in-progress`, `blocked`, and `done`. Evidence stays in workflow artifacts and issue history rather than internal `todo/` folders in the public assessment branch.
