@@ -9,6 +9,7 @@ import { buildInstructions, NOT_IN_KB } from "../prompt/build";
 import { retrieve } from "../retrieval/retrieve";
 import { unverifiedFigures } from "../verify/figures";
 import { slaQualifier } from "../verify/qualifiers";
+import { buildFinding, persistFinding, type FindingSink } from "../findings/googleDrive";
 
 export interface ChatDeps {
   env?: Env;
@@ -18,6 +19,8 @@ export interface ChatDeps {
   log?: (record: Record<string, unknown>) => void;
   /** Error monitoring (Sentry); tests inject their own. */
   monitor?: ChatMonitor;
+  /** Privacy-safe quality finding sink; tests inject a collector. */
+  findingSink?: FindingSink;
 }
 
 const defaultLimiter = createRateLimiter({
@@ -156,6 +159,20 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
         monitor.providerFailures({ requestId, requestedModel: modelId, outcome: done?.type ?? "aborted", attempts: trace, injectedFaults: faults.length });
         if (done?.type === "done" && unverified.length > 0 && faults.length === 0) {
           monitor.unverifiedFigures({ requestId, answeredBy: done.answeredBy, count: unverified.length });
+        }
+        const finding = buildFinding({
+          requestId,
+          observedAt: new Date().toISOString(),
+          retrieval,
+          modelOutcome: done?.type ?? "aborted",
+          unverifiedFigureCount: unverified.length,
+        });
+        if (finding) {
+          try {
+            await (deps.findingSink ?? persistFinding)(finding, env);
+          } catch (error) {
+            log({ event: "chat.finding_write_failed", requestId, error: String(error).slice(0, 200) });
+          }
         }
       }
     },

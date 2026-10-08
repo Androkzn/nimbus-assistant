@@ -86,8 +86,8 @@ Code Ship/
 ├── 01-products/          relay, vault, pulse, ledger
 ├── 02-release-notes/     product release notes
 ├── 03-shared/            security and support policy
-├── 04-improvement-findings/
-└── 05-daily-reports/
+├── 04-improvement-findings/  machine-updated daily finding aggregates
+└── 05-daily-reports/         human-readable daily review updates
 ```
 
 The backend uses `.generated/knowledge-base/` when the Drive snapshot is available and falls back to the checked-in corpus for offline tests. No Drive sync operation overwrites files in `knowledge-base/`. Set `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, and `GOOGLE_DRIVE_REFRESH_TOKEN` (or a short-lived `GOOGLE_DRIVE_ACCESS_TOKEN`) in the deployment environment. Then `npm run build` fetches the latest supported documents, validates them, and builds the server against that snapshot. `npm run kb:sync` performs the same operation locally.
@@ -139,21 +139,23 @@ Production is also a quality feedback loop:
 4. **Improve** — update the knowledge base, retrieval rules, prompts, or tests based on confirmed evidence.
 5. **Promote** — run the same CI gates and production probes before releasing the improvement.
 
-The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count—not the user's question or answer. This supports documentation improvements without creating a transcript database. High-risk changes remain human-reviewed and reversible.
+The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count—not the user's question or answer. When findings persistence is enabled, the backend also updates one daily JSON report in `04-improvement-findings` (for example, `2026-10-07-findings.json`). Repeated observations are aggregated by category, reason, product scope, and HTTP status; the report contains counters and privacy-safe evidence only. High-risk changes remain human-reviewed and reversible.
 
 Expected behavior is deterministic: the chatbot says that it could not find the answer in the NimbusStack knowledge base, does not call a model, and records zero token cost. Repeated documentation-gap findings are reviewed by a human and may produce a knowledge-base update plus a regression evaluation case; an out-of-scope finding does not automatically imply missing documentation.
 
 ### Non-technical documentation collaboration
 
-Google Drive can provide an editable collaboration layer for product and support users:
+Google Drive provides an editable collaboration layer for product and support users:
 
-- use a shared Google Sheet as the improvement findings backlog and Google Docs for proposed content;
+- keep one date-stamped JSON report per day in `04-improvement-findings`; each new finding updates its aggregate counters;
+- keep one concise human-readable update per day in `05-daily-reports`; this is the review and follow-up layer, not a source for answers;
+- use a shared Google Sheet as the human-friendly improvement backlog and Google Docs for proposed content;
 - capture a sanitized finding with category, date, impact, evidence link, affected area, proposed change, owner, and status;
 - use statuses such as `new`, `triage`, `accepted`, `in-progress`, `released`, `rejected`, and `duplicate`;
 - review findings periodically with a human, then promote accepted items into GitHub requirements, issues, knowledge-base changes, and evaluation cases;
 - keep GitHub as the source of truth for code, tests, CI evidence, releases, and rollback.
 
-Drive content must not directly deploy to production. Do not place secrets, raw user transcripts, or unredacted logs in shared documents; store only privacy-safe summaries and links to restricted evidence. This keeps findings available for human analysis without turning the shared backlog into an uncontrolled incident database.
+Drive content must not directly deploy to production. Do not place secrets, raw user transcripts, or unredacted logs in shared documents; store only privacy-safe summaries and links to restricted evidence. The write path is opt-in via `GOOGLE_DRIVE_FINDINGS_ENABLED=1` and requires a write-capable OAuth grant; if Drive is unavailable, the chat response still succeeds and the failure is logged for operations. This keeps findings available for human analysis without turning the shared backlog into an uncontrolled incident database.
 
 ## Agentic delivery approach
 

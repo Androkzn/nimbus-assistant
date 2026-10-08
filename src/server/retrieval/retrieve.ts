@@ -43,6 +43,8 @@ export interface RetrievalResult {
   ambiguousReleaseVersion: boolean;
   /** True when an API troubleshooting question uses an HTTP status not documented in the corpus. */
   unsupportedTroubleshootingStatus: boolean;
+  /** HTTP status detected in a troubleshooting question, retained without the original question text. */
+  troubleshootingStatus: string | null;
   /** True when an SLA question uses a priority outside the documented P1–P4 range. */
   unsupportedPriority: boolean;
   /** Deterministic policy decision made before any model call. */
@@ -191,6 +193,7 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
     unsupportedPricingTier,
     ambiguousReleaseVersion,
     unsupportedTroubleshootingStatus,
+    troubleshootingStatus: status ?? null,
     unsupportedPriority,
     answerability: guardReason === "incomplete" ? "clarify" : guardReason ? "abstain" : "answerable",
     guardReason,

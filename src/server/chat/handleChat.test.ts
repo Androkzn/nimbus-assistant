@@ -169,10 +169,18 @@ describe("deterministic grounding layers", () => {
 
   it("records weather as an out-of-scope statistic without creating a documentation gap", async () => {
     const d = deps();
-    const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Tell me about weather?" }] }), d.deps));
+    const findings: unknown[] = [];
+    const evs = await events(
+      await handleChat(
+        post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Tell me about weather?" }] }),
+        { ...d.deps, findingSink: async (finding) => { findings.push(finding); } },
+      ),
+    );
     expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
     expect(d.factory).not.toHaveBeenCalled();
     expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "out_of_scope" });
+    expect(findings).toHaveLength(1);
+    expect(JSON.stringify(findings)).not.toContain("weather");
   });
 
   it("records an undocumented API 500 as a troubleshooting documentation gap", async () => {
