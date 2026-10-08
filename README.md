@@ -130,13 +130,13 @@ Production is also a quality feedback loop:
 4. **Improve** — update the knowledge base, retrieval rules, prompts, or tests based on confirmed evidence.
 5. **Promote** — run the same CI gates and production probes before releasing the improvement.
 
-The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count—not the user's question or answer. Repeated observations are aggregated as privacy-safe reports in the knowledge-base database. High-risk changes remain human-reviewed and reversible.
+The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count in structured logs—not the user's question or answer. Actionable knowledge-gap and unknown-product reports additionally retain a normalized, capped question plus a deterministic analysis for human review; irrelevant/off-topic statistics remain question-free. Repeated observations are aggregated as privacy-safe reports in the knowledge-base database. High-risk changes remain human-reviewed and reversible.
 
 Expected behavior is deterministic: the chatbot says that it could not find the answer in the NimbusStack knowledge base, does not call a model, and records zero token cost. Repeated documentation-gap findings are reviewed by a human and may produce a knowledge-base update plus a regression evaluation case; an out-of-scope finding does not automatically imply missing documentation.
 
 ### Knowledge-base operations
 
-Use the Knowledge base portal to review documents and improvement reports. Keep raw user transcripts and provider credentials out of the database; reports store only privacy-safe classifications, structured evidence, status, priority, and proposed action. GitHub remains the source of truth for code, tests, CI evidence, releases, and rollback.
+Use the Knowledge base portal to review documents and improvement reports. Keep provider credentials and full chat transcripts out of the database; actionable reports store only a normalized question, deterministic analysis, privacy-safe classifications, structured evidence, status, priority, and proposed action. GitHub remains the source of truth for code, tests, CI evidence, releases, and rollback.
 
 ## Agentic delivery approach
 
@@ -208,12 +208,12 @@ npm run eval:live -- --base-url http://localhost:3300
 
 - Retrieval happens before every model call.
 - Answers cite the passages used to produce them.
-- Questions outside the knowledge base receive a clear not-found response instead of a guess.
+- Questions outside the knowledge base receive a clear not-found response instead of a guess; unknown product names such as `Walnut` are guarded before generic Salesforce terms can produce a misleading answer.
 - Follow-up questions retain the relevant product and topic from the conversation.
 - Conflicting source documents are identified and both sources are shown.
 - Provider failures, rate limits, and invalid keys produce a clear error or automatic fallback.
 - API keys are read only on the server and are never sent to the browser.
-- The knowledge base in `knowledge-base/` is treated as client-provided, read-only source material.
+- The checked-in `knowledge-base/` files seed the shared database; approved documents can be edited and published through the developer portal.
 
 ## Project layout
 
