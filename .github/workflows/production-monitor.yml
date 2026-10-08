@@ -1,0 +1,163 @@
+name: Production monitor and incident triage
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      production_url:
+        description: "Production URL to verify"
+        required: false
+        default: "https://nimbus-assistant-production.vercel.app"
+  repository_dispatch:
+    types: [sentry-issue]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-monitor
+  cancel-in-progress: false
+
+jobs:
+  smoke-test:
+    name: Probe production
+    if: github.event_name != 'repository_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PRODUCTION_URL: ${{ inputs.production_url || 'https://nimbus-assistant-production.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run production probes
+        id: probe
+        continue-on-error: true
+        run: node scripts/production-monitor.mjs "$PRODUCTION_URL" > production-monitor.json
+      - name: Upload monitor evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-monitor-${{ github.run_id }}
+          path: production-monitor.json
+      - name: Create or update incident issue
+        if: steps.probe.outcome == 'failure'
+        uses: actions/github-script@v7
+        env:
+          REPORT: ${{ github.workspace }}/production-monitor.json
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT, "utf8"));
+            const fingerprint = report.fingerprint || "unknown";
+            const title = `Production monitor failure: ${fingerprint}`;
+            const body = [
+              "## Detection",
+              `- Environment: production`,
+              `- URL: ${report.baseUrl}`,
+              `- Detected: ${report.generatedAt}`,
+              `- Workflow run: ${process.env.RUN_URL}`,
+              "",
+              "## Probe evidence",
+              "```json",
+              JSON.stringify(report, null, 2),
+              "```",
+              "",
+              "## Bugfix plan",
+              "- [ ] Confirm whether the failure reproduces outside the monitor",
+              "- [ ] Inspect Sentry/Vercel logs and identify the affected release/commit",
+              "- [ ] Add or update a regression test",
+              "- [ ] Implement the smallest safe fix",
+              "- [ ] Run CI and production smoke checks",
+              "- [ ] Deploy only after human review",
+            ].join("\n");
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = openIssues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.info(`Updated existing incident issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+              core.info(`Created incident issue #${created.data.number}`);
+            }
+
+  sentry-triage:
+    name: Create Sentry bugfix plan
+    if: github.event_name == 'repository_dispatch' && github.event.action == 'sentry-issue'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update bugfix-plan issue
+        uses: actions/github-script@v7
+        env:
+          PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        with:
+          script: |
+            const payload = JSON.parse(process.env.PAYLOAD || "{}");
+            const shortId = payload.issue_short_id || payload.short_id || "unknown";
+            const title = `Bugfix plan: ${shortId}`;
+            const body = [
+              "## Detection",
+              `- Source: Sentry`,
+              `- Issue: ${payload.issue_url || "not supplied"}`,
+              `- Short ID: ${shortId}`,
+              `- Title: ${payload.issue_title || payload.title || "not supplied"}`,
+              `- Environment: ${payload.environment || "not supplied"}`,
+              `- Release: ${payload.release || "not supplied"}`,
+              "",
+              "## Investigation plan",
+              "- [ ] Confirm the issue is production-impacting and not test/development traffic",
+              "- [ ] Inspect the Sentry stack trace, breadcrumbs, tags, and release",
+              "- [ ] Map the release to a commit and affected code path",
+              "- [ ] Reproduce with a safe test or production read-only probe",
+              "",
+              "## Bugfix plan",
+              "- [ ] State the root cause and smallest safe change",
+              "- [ ] Add a regression test",
+              "- [ ] Run CI and production smoke checks",
+              "- [ ] Request human review before deployment",
+              "",
+              "This issue is an investigation handoff. It does not authorize automatic code changes, deployment, or Sentry resolution.",
+            ].join("\n");
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = openIssues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.info(`Updated existing bugfix-plan issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+              core.info(`Created bugfix-plan issue #${created.data.number}`);
+            }

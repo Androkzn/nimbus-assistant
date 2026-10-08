@@ -67,6 +67,10 @@ Production deployment uses the protected GitHub `production` environment. Config
 
 The production deployment is intentionally customer-facing and excludes the internal Readiness tooling. The optional developer deployment is promoted separately to `nimbus-assistant-dev.vercel.app`, where the Readiness report runs recorded evidence plus live probes against the deployed environment.
 
+### Production monitoring and triage
+
+[`production-monitor.yml`](.github/workflows/production-monitor.yml) probes production every 15 minutes and on demand: homepage, health, model catalog, and the production-only Readiness `404`. Failures upload JSON evidence and create or update a GitHub bugfix-plan issue. Sentry can trigger the same triage path with a trusted `repository_dispatch` event named `sentry-issue` carrying `issue_short_id`, `issue_url`, `issue_title`, `environment`, and `release`; the workflow prepares a plan, but human review is required before code changes, deployment, or issue resolution.
+
 ## Agentic delivery approach
 
 The project follows a requirements-driven approach:
@@ -89,6 +93,7 @@ The project is organized as a set of reusable engineering workflows rather than 
 - **Requirements and documentation:** converted the brief into traceable decisions, acceptance criteria, and concise handoff notes.
 - **Readiness testing:** mapped requirements to automated checks, live probes, and deployment evidence.
 - **Security and observability:** checked server-side secrets, bundle exposure, rate limits, telemetry, and grounding signals.
+- **Incident triage:** converted monitor and Sentry evidence into a repeatable investigation and bugfix-plan handoff.
 - **Deployment orchestration:** promoted only passing `main` builds, verified production health, and kept Readiness tooling in the developer environment.
 
 Each skill produced evidence for the next step: brief → decision → implementation → verification → deployment.
