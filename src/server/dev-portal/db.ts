@@ -13,7 +13,7 @@ import type {
 } from "@/shared/knowledgeBase";
 
 const DB_ROOT = process.env.VERCEL ? "/tmp" : path.join(process.cwd(), ".data");
-const DB_FILE = process.env.NIMBUS_DEV_DB_PATH ?? path.join(DB_ROOT, "nimbus-dev.sqlite");
+const DB_FILE = process.env.NIMBUS_KB_DB_PATH ?? process.env.NIMBUS_DEV_DB_PATH ?? path.join(DB_ROOT, "nimbus-kb.sqlite");
 const KB_DIR = path.join(process.cwd(), "knowledge-base");
 type Row = Record<string, unknown>;
 let database: DatabaseSync | null = null;
@@ -22,17 +22,12 @@ export function devPortalEnabled(): boolean {
   return process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview" || process.env.NIMBUS_DEV_PORTAL === "1";
 }
 
-function requireDevelopment(): void {
-  if (!devPortalEnabled()) throw new Error("The knowledge portal is available in development only.");
-}
-
 function db(): DatabaseSync {
-  requireDevelopment();
   if (database) return database;
   mkdirSync(path.dirname(DB_FILE), { recursive: true });
   database = new DatabaseSync(DB_FILE);
   database.exec(`
-    PRAGMA journal_mode = WAL;
+    PRAGMA busy_timeout = 5000;
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
       file TEXT NOT NULL UNIQUE,
@@ -208,6 +203,37 @@ export function createQuestionReport(input: { question: string; analysis: string
     summary: input.category === "irrelevant" ? "The question is outside the NimbusStack product knowledge-base scope. Keep it for review, but do not add it to the approved corpus unless the scope changes." : "A product-related question was not covered by the published knowledge base. Add or update an approved support or troubleshooting entry.",
     question: normalized,
     analysis,
+    sourceKey,
+  });
+}
+
+export function createFindingReport(input: {
+  key: string;
+  observedAt: string;
+  category: "out_of_scope" | "documentation_gap" | "clarification_needed";
+  severity: "low" | "medium";
+  proposedAction: string;
+  evidence: Record<string, unknown>;
+}): KnowledgeReport | null {
+  const sourceKey = `finding:${input.observedAt.slice(0, 10)}:${input.key}`;
+  const existing = db().prepare("SELECT * FROM reports WHERE source_key = ?").get(sourceKey) as Row | undefined;
+  const label = input.category === "out_of_scope" ? "Irrelevant" : input.category === "clarification_needed" ? "Clarification needed" : "Knowledge gap";
+  const summaryBase = `${label}: ${input.proposedAction}`;
+  if (existing) {
+    const previous = String(existing.summary).match(/Observed (\d+) time/)?.[1];
+    const occurrences = Number(previous ?? 1) + 1;
+    db().prepare("UPDATE reports SET summary = ?, analysis = ?, detected_at = ? WHERE source_key = ?").run(
+      `${summaryBase} Observed ${occurrences} times today.`, JSON.stringify(input.evidence), input.observedAt, sourceKey,
+    );
+    return reportFromRow(db().prepare("SELECT * FROM reports WHERE source_key = ?").get(sourceKey) as Row);
+  }
+  return createReport({
+    title: `${label} detected`,
+    product: null,
+    severity: input.severity,
+    category: input.category === "out_of_scope" ? "irrelevant" : "knowledge-gap",
+    summary: `${summaryBase} Observed 1 time today.`,
+    analysis: JSON.stringify(input.evidence),
     sourceKey,
   });
 }

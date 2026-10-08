@@ -9,6 +9,7 @@ import { buildInstructions, NOT_IN_KB } from "../prompt/build";
 import { retrieve } from "../retrieval/retrieve";
 import { unverifiedFigures } from "../verify/figures";
 import { slaQualifier } from "../verify/qualifiers";
+import { buildFinding, persistFinding, type FindingSink } from "../findings/database";
 
 export interface ChatDeps {
   env?: Env;
@@ -18,6 +19,8 @@ export interface ChatDeps {
   log?: (record: Record<string, unknown>) => void;
   /** Error monitoring (Sentry); tests inject their own. */
   monitor?: ChatMonitor;
+  /** Privacy-safe quality finding sink; tests inject a collector. */
+  findingSink?: FindingSink;
 }
 
 const defaultLimiter = createRateLimiter({
@@ -67,12 +70,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   const modelMessages = [...history.slice(-HISTORY_MESSAGES), { role: "user" as const, content: question }];
   // Guard questions the documents cannot answer deterministically: no meaningful match with no product
   // in scope, or pricing questions using tier labels absent from the corpus (brief E2, the one rule).
-  const guarded =
-    (retrieval.noMatch && retrieval.products.length === 0) ||
-    retrieval.unsupportedPricingTier ||
-    retrieval.ambiguousReleaseVersion ||
-    retrieval.unsupportedTroubleshootingStatus ||
-    retrieval.unsupportedPriority;
+  const guarded = retrieval.answerability !== "answerable";
 
   const trace: AttemptTrace[] = [];
   let ttftMs: number | null = null;
@@ -93,7 +91,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
             : retrieval.passages.map((p) => ({ n: p.n, file: p.chunk.file, section: p.chunk.section, docDate: p.chunk.docDate, text: p.chunk.text })),
         });
         const events = guarded
-          ? guardAnswer(modelId, retrieval.ambiguousReleaseVersion ? AMBIGUOUS_VERSION_ANSWER : GUARD_ANSWER)
+          ? guardAnswer(modelId, guardMessage(retrieval))
           : runWithFallback({
               requestedModelId: modelId,
               instructions,
@@ -132,7 +130,6 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
         log({ event: "chat.unhandled", requestId, error: String(err).slice(0, 200) });
         monitor.unhandled(err, requestId);
       } finally {
-        controller.close();
         // Structured log: no message text, no keys (TRD §7).
         const done = final as StreamEvent | null;
         log({
@@ -152,12 +149,34 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
           historyTurns: history.length,
           faults,
           guarded,
+          answerability: retrieval.answerability,
+          guardReason: retrieval.guardReason,
+          retrievalBestScore: retrieval.retrievalBestScore,
+          retrievalFocusScore: retrieval.retrievalFocusScore,
           unverifiedFigures: unverified.length, // a count only: figures are answer content
         });
         monitor.providerFailures({ requestId, requestedModel: modelId, outcome: done?.type ?? "aborted", attempts: trace, injectedFaults: faults.length });
         if (done?.type === "done" && unverified.length > 0 && faults.length === 0) {
           monitor.unverifiedFigures({ requestId, answeredBy: done.answeredBy, count: unverified.length });
         }
+        const finding = buildFinding({
+          requestId,
+          observedAt: new Date().toISOString(),
+          retrieval,
+          modelOutcome: done?.type ?? "aborted",
+          unverifiedFigureCount: unverified.length,
+        });
+        if (finding) {
+          try {
+            await (deps.findingSink ?? persistFinding)(finding, env);
+          } catch (error) {
+            log({ event: "chat.finding_write_failed", requestId, error: String(error).slice(0, 200) });
+          }
+        }
+        // Keep the invocation alive until the optional operational write has completed.
+        // This matters on serverless runtimes, which may freeze immediately after the
+        // response stream is closed.
+        controller.close();
       }
     },
   });
@@ -169,6 +188,15 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
 
 export const GUARD_ANSWER = `${NOT_IN_KB} I can answer questions about NimbusStack's products — Relay, Vault, Pulse and Ledger: pricing, features, integrations, release notes, troubleshooting and support SLAs.`;
 export const AMBIGUOUS_VERSION_ANSWER = `${NOT_IN_KB} Please specify a product and an exact release version.`;
+
+function guardMessage(retrieval: ReturnType<typeof retrieve>): string {
+  if (retrieval.guardReason === "incomplete") {
+    const product = retrieval.products.length === 1 ? ` for Nimbus ${retrieval.products[0][0].toUpperCase()}${retrieval.products[0].slice(1)}` : " and the NimbusStack product";
+    return `Please specify the topic or feature you want to know about${product}.`;
+  }
+  if (retrieval.guardReason === "ambiguous_release") return AMBIGUOUS_VERSION_ANSWER;
+  return GUARD_ANSWER;
+}
 
 /** The deterministic off-topic answer, streamed like a model answer but with no model call and no cost. */
 async function* guardAnswer(requestedModel: string, answer = GUARD_ANSWER): AsyncGenerator<RunnerEvent> {

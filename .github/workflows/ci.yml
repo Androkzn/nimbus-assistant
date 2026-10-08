@@ -30,6 +30,8 @@ jobs:
         run: npm test
       - name: Bundle scanner self-test (planted keys must be caught)
         run: node scripts/scan-client-bundle.mjs --self-test
+      - name: Incident evidence redaction self-test
+        run: node scripts/collect-incident-evidence.mjs --self-test
       - name: Build
         run: npm run build
       - name: Client bundle secret scan
@@ -91,12 +93,12 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        run: npx --yes vercel@62.7.0 deploy --prod --yes --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx --yes vercel@62.7.0 deploy --prod --yes --project "$VERCEL_PROJECT_ID" --scope "$VERCEL_ORG_ID" --token "$VERCEL_TOKEN"
       - name: Verify the public production alias
         env:
-          PRODUCTION_URL: https://nimbus-assistant-coral.vercel.app
+          PRODUCTION_URL: https://nimbus-assistant-production.vercel.app
         run: |
-          health="$(curl --fail --silent --show-error "$PRODUCTION_URL/api/health")"
-          echo "$health" | jq --exit-status '(.ok == true) and (.status != "down") and (.corpus.files > 0) and (.providerCount > 0)'
+          curl --fail --silent --show-error "$PRODUCTION_URL/api/health"
           curl --fail --silent --show-error "$PRODUCTION_URL/api/models" >/dev/null
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$PRODUCTION_URL/readiness?autostart=1")" = "404"

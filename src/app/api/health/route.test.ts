@@ -19,11 +19,10 @@ describe("GET /api/health", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(body).toMatchObject({
       ok: true,
-      status: "ok",
       mode: "mock",
-      fallbackReady: true,
-      providerCount: 3,
       providersAvailable: expect.arrayContaining(["anthropic", "google", "openai"]),
+      corpusSource: { kind: expect.any(String) },
+      pricingVersion: expect.any(String),
     });
     expect(body.corpus.files).toBe(10);
     expect(body.corpus.chunks).toBeGreaterThan(0);

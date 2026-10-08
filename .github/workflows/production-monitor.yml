@@ -1,0 +1,224 @@
+name: Production monitor and incident triage
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      production_url:
+        description: "Production URL to verify"
+        required: false
+        default: "https://nimbus-assistant-production.vercel.app"
+  repository_dispatch:
+    types: [sentry-issue]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-monitor
+  cancel-in-progress: false
+
+jobs:
+  smoke-test:
+    name: Probe production
+    if: github.event_name != 'repository_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PRODUCTION_URL: ${{ inputs.production_url || 'https://nimbus-assistant-production.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run production probes
+        id: probe
+        continue-on-error: true
+        run: node scripts/production-monitor.mjs "$PRODUCTION_URL" > production-monitor.json
+      - name: Upload monitor evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-monitor-${{ github.run_id }}
+          path: production-monitor.json
+      - name: Collect redacted incident evidence
+        if: steps.probe.outcome == 'failure'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
+          SENTRY_API_BASE_URL: ${{ vars.SENTRY_API_BASE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PRODUCTION_URL: ${{ env.PRODUCTION_URL }}
+        run: node scripts/collect-incident-evidence.mjs --source monitor --input production-monitor.json > incident-evidence.json
+      - name: Upload incident evidence
+        if: steps.probe.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-incident-evidence-${{ github.run_id }}
+          path: incident-evidence.json
+      - name: Generate evidence-bound bugfix plan
+        if: steps.probe.outcome == 'failure'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TRIAGE_MODEL: ${{ vars.TRIAGE_MODEL || 'gpt-6-astra' }}
+        run: node scripts/create-bugfix-plan.mjs --source monitor --input incident-evidence.json > bugfix-plan.md
+      - name: Upload bugfix plan
+        if: steps.probe.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-bugfix-plan-${{ github.run_id }}
+          path: bugfix-plan.md
+      - name: Create or update incident issue
+        if: steps.probe.outcome == 'failure'
+        uses: actions/github-script@v7
+        env:
+          REPORT: ${{ github.workspace }}/production-monitor.json
+          PLAN: ${{ github.workspace }}/bugfix-plan.md
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT, "utf8"));
+            const plan = fs.readFileSync(process.env.PLAN, "utf8");
+            const fingerprint = report.fingerprint || "unknown";
+            const title = `Production monitor failure: ${fingerprint}`;
+            const body = `${plan}\n\nMonitor run: ${process.env.RUN_URL}`;
+            const labels = ["incident", "bugfix-plan", "triage"];
+            const labelDefinitions = [
+              ["incident", "b60205", "Production incident or monitor failure"],
+              ["bugfix-plan", "5319e7", "Evidence-bound investigation plan"],
+              ["triage", "fbca04", "Awaiting investigation and scope confirmation"],
+              ["in-progress", "0e8a16", "Fix is being implemented"],
+              ["blocked", "d93f0b", "Waiting on evidence or decision"],
+              ["done", "0e8a16", "Fix verified and released"],
+            ];
+            for (const [name, color, description] of labelDefinitions) {
+              try {
+                await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name, color, description });
+              }
+            }
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = openIssues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, labels });
+              core.info(`Updated existing incident issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels,
+              });
+              core.info(`Created incident issue #${created.data.number}`);
+            }
+
+  sentry-triage:
+    name: Create Sentry bugfix plan
+    if: github.event_name == 'repository_dispatch' && github.event.action == 'sentry-issue'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Collect redacted incident evidence
+        env:
+          TRIAGE_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
+          SENTRY_API_BASE_URL: ${{ vars.SENTRY_API_BASE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PRODUCTION_URL: https://nimbus-assistant-production.vercel.app
+        run: node scripts/collect-incident-evidence.mjs --source sentry > incident-evidence.json
+      - name: Upload incident evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentry-incident-evidence-${{ github.run_id }}
+          path: incident-evidence.json
+      - name: Generate evidence-bound bugfix plan
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TRIAGE_MODEL: ${{ vars.TRIAGE_MODEL || 'gpt-6-astra' }}
+        run: node scripts/create-bugfix-plan.mjs --source sentry --input incident-evidence.json > bugfix-plan.md
+      - name: Upload bugfix plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentry-bugfix-plan-${{ github.run_id }}
+          path: bugfix-plan.md
+      - name: Create or update bugfix-plan issue
+        uses: actions/github-script@v7
+        env:
+          PLAN: ${{ github.workspace }}/bugfix-plan.md
+          PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const payload = JSON.parse(process.env.PAYLOAD || "{}");
+            const shortId = String(payload.issue_short_id || payload.short_id || "unknown").replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 80);
+            const title = `Bugfix plan: ${shortId}`;
+            const body = fs.readFileSync(process.env.PLAN, "utf8");
+            const labels = ["incident", "bugfix-plan", "triage"];
+            const labelDefinitions = [
+              ["incident", "b60205", "Production incident or monitor failure"],
+              ["bugfix-plan", "5319e7", "Evidence-bound investigation plan"],
+              ["triage", "fbca04", "Awaiting investigation and scope confirmation"],
+              ["in-progress", "0e8a16", "Fix is being implemented"],
+              ["blocked", "d93f0b", "Waiting on evidence or decision"],
+              ["done", "0e8a16", "Fix verified and released"],
+            ];
+            for (const [name, color, description] of labelDefinitions) {
+              try {
+                await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name, color, description });
+              }
+            }
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = openIssues.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, labels });
+              core.info(`Updated existing bugfix-plan issue #${existing.number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels,
+              });
+              core.info(`Created bugfix-plan issue #${created.data.number}`);
+            }

@@ -1,0 +1,7 @@
+# Design-token migration workflow
+
+Plan or implement the migration described by `$ARGUMENTS` using the repository's actual token definitions and consumers.
+
+First inventory current tokens, aliases, hard-coded values, themes, platform variants, and visual tests. Define canonical names, compatibility aliases, phased replacement, and a removal condition. Search all consumers before changing a token and preserve contrast, responsive behavior, and accessibility semantics.
+
+Verify with typecheck/lint, targeted tests, visual or snapshot checks when available, and a repository-wide search proving that deprecated tokens are removed or intentionally documented. Avoid bulk replacement when semantic values differ.

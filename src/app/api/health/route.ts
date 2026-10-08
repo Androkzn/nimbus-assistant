@@ -1,7 +1,6 @@
 import "server-only";
 import { catalog, isAvailable, isMockMode } from "@/server/config/models";
-import { loadCorpus } from "@/server/kb/corpus";
-import { buildHealthPayload } from "@/server/http/health";
+import { corpusSource, loadCorpus } from "@/server/kb/corpus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,11 +9,15 @@ export const dynamic = "force-dynamic";
 export function GET(): Response {
   const chunks = loadCorpus();
   const providers = [...new Set(catalog.models.filter((m) => isAvailable(m)).map((m) => m.provider))];
-  return Response.json(buildHealthPayload({
-    mode: isMockMode() ? "mock" : "live",
-    corpusFiles: new Set(chunks.map((c) => c.file)).size,
-    corpusChunks: chunks.length,
-    providersAvailable: providers,
-    pricingVersion: catalog.pricingVersion,
-  }), { headers: { "cache-control": "no-store" } });
+  return Response.json(
+    {
+      ok: chunks.length > 0 && providers.length > 0,
+      mode: isMockMode() ? "mock" : "live",
+      corpus: { files: new Set(chunks.map((c) => c.file)).size, chunks: chunks.length },
+      corpusSource: corpusSource(),
+      providersAvailable: providers,
+      pricingVersion: catalog.pricingVersion,
+    },
+    { headers: { "cache-control": "no-store" } },
+  );
 }

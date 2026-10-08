@@ -7,6 +7,7 @@ import {
   isCrossProduct,
   isElliptical,
   hasNearMatch,
+  PRODUCT_ALIASES,
   productsInScope,
   tokenize,
   type HistoryMessage,
@@ -17,6 +18,16 @@ export interface Passage {
   chunk: Chunk;
   score: number;
 }
+
+export type Answerability = "answerable" | "clarify" | "abstain";
+export type GuardReason =
+  | "out_of_scope"
+  | "insufficient_evidence"
+  | "incomplete"
+  | "ambiguous_release"
+  | "unsupported_pricing_tier"
+  | "unsupported_troubleshooting_status"
+  | "unsupported_priority";
 
 export interface RetrievalResult {
   passages: Passage[];
@@ -32,8 +43,17 @@ export interface RetrievalResult {
   ambiguousReleaseVersion: boolean;
   /** True when an API troubleshooting question uses an HTTP status not documented in the corpus. */
   unsupportedTroubleshootingStatus: boolean;
+  /** HTTP status detected in a troubleshooting question, retained without the original question text. */
+  troubleshootingStatus: string | null;
   /** True when an SLA question uses a priority outside the documented P1–P4 range. */
   unsupportedPriority: boolean;
+  /** Deterministic policy decision made before any model call. */
+  answerability: Answerability;
+  /** Stable reason used for privacy-safe quality statistics and UI behavior. */
+  guardReason: GuardReason | null;
+  /** Retrieval signals retained for calibration and quality telemetry; never user text. */
+  retrievalBestScore: number;
+  retrievalFocusScore: number;
 }
 
 const MAX_PASSAGES = 10;
@@ -43,6 +63,7 @@ const B = 0.75;
 const RELATIVE_FLOOR = 0.2;
 /** Below this absolute best score the question likely has nothing to do with the corpus. */
 const NO_MATCH_SCORE = 2.5;
+const QUESTION_FILLER_TOKENS = new Set(["tell", "me", "describe", "information", "please", "want", "know", "give", "explain", "show"]);
 
 interface Index {
   chunks: Chunk[];
@@ -105,6 +126,9 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   });
   const ranked = [...scored].sort((a, b) => b.score - a.score);
   const best = ranked[0]?.score ?? 0;
+  const scopeTokens = new Set(products.flatMap((product) => [product, ...PRODUCT_ALIASES[product]]).flatMap(tokenize));
+  const focusTokens = expandQuery(queryText).filter((token) => !scopeTokens.has(token) && !QUESTION_FILLER_TOKENS.has(token));
+  const focusBest = focusTokens.length === 0 ? 0 : Math.max(...idx.docTokens.map((docTokens) => bm25(focusTokens, docTokens, idx)));
   const relevant = ranked.filter((r) => r.score > 0 && r.score >= best * RELATIVE_FLOOR);
 
   const picked: { chunk: Chunk; score: number }[] = [];
@@ -141,16 +165,40 @@ export function retrieve(question: string, history: HistoryMessage[] = []): Retr
   addConflictCompanions(picked, queryText, scored);
 
   const passages = picked.slice(0, MAX_PASSAGES).map((p, i) => ({ n: i + 1, chunk: p.chunk, score: p.score }));
+  const noMatch = best < NO_MATCH_SCORE;
+  const incompleteQuestion = (!topic && isElliptical(question)) || (products.length > 0 && focusTokens.length === 0);
+  const insufficientEvidence = !incompleteQuestion && focusTokens.length > 0 && focusBest < NO_MATCH_SCORE;
+  const guardReason: GuardReason | null = incompleteQuestion
+    ? "incomplete"
+    : ambiguousReleaseVersion
+      ? "ambiguous_release"
+      : unsupportedPricingTier
+        ? "unsupported_pricing_tier"
+        : unsupportedTroubleshootingStatus
+          ? "unsupported_troubleshooting_status"
+          : unsupportedPriority
+            ? "unsupported_priority"
+            : noMatch && products.length === 0
+              ? "out_of_scope"
+              : insufficientEvidence
+                ? "insufficient_evidence"
+                : null;
+
   return {
     passages,
     products,
     inheritedProducts: inherited,
     carriedTopic: topic,
-    noMatch: best < NO_MATCH_SCORE,
+    noMatch,
     unsupportedPricingTier,
     ambiguousReleaseVersion,
     unsupportedTroubleshootingStatus,
+    troubleshootingStatus: status ?? null,
     unsupportedPriority,
+    answerability: guardReason === "incomplete" ? "clarify" : guardReason ? "abstain" : "answerable",
+    guardReason,
+    retrievalBestScore: Number(best.toFixed(3)),
+    retrievalFocusScore: Number(focusBest.toFixed(3)),
   };
 }
 

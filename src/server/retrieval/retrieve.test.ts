@@ -117,7 +117,12 @@ describe("retrieval eval (golden cases)", () => {
   }
 
   it("flags an off-corpus question as noMatch", () => {
-    expect(retrieve("What's the weather in Paris tomorrow?").noMatch).toBe(true);
+    expect(retrieve("What's the weather in Paris tomorrow?")).toMatchObject({ noMatch: true, answerability: "abstain", guardReason: "out_of_scope" });
+  });
+
+  it("distinguishes incomplete product questions from unsupported evidence", () => {
+    expect(retrieve("What is Relay?")).toMatchObject({ answerability: "clarify", guardReason: "incomplete" });
+    expect(retrieve("Is there a free trial of Vault?")).toMatchObject({ answerability: "abstain", guardReason: "insufficient_evidence" });
   });
 
   it("NKA-GRD-013: flags pricing questions that use unsupported tier names", () => {

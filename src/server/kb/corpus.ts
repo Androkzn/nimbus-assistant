@@ -1,6 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { listPublishedDocuments } from "@/server/dev-portal/db";
+import { listPublishedDocuments } from "../dev-portal/db";
 
 export const PRODUCTS = ["relay", "vault", "pulse", "ledger"] as const;
 export type Product = (typeof PRODUCTS)[number];
@@ -20,7 +18,10 @@ export interface Chunk {
   text: string;
 }
 
-const KB_DIR = path.join(process.cwd(), "knowledge-base");
+export function corpusSource(): { kind: "database"; revision: string | null } {
+  const documents = listPublishedDocuments();
+  return { kind: "database", revision: documents.map((document) => `${document.id}:${document.updatedAt}`).join("|") || null };
+}
 
 function productFromFile(file: string): Product | null {
   const prefix = file.split(/[-.]/)[0];
@@ -73,6 +74,7 @@ export function parseDocument(file: string, markdown: string): Chunk[] {
 
 let cache: Chunk[] | null = null;
 
+/** Clear the in-process snapshot after a local knowledge-base mutation. */
 export function resetCorpusCache(): void {
   cache = null;
 }
@@ -80,21 +82,8 @@ export function resetCorpusCache(): void {
 /** Load and chunk every knowledge-base document once per process. */
 export function loadCorpus(): Chunk[] {
   if (cache) return cache;
-  if (process.env.NODE_ENV === "development") {
-    try {
-      const documents = listPublishedDocuments();
-      if (documents.length > 0) {
-        cache = documents.flatMap((document) => parseDocument(document.file, document.content));
-        return cache;
-      }
-    } catch {
-      // The file-backed corpus remains a safe fallback if the local dev database is unavailable.
-    }
-  }
-  // Paths stay statically scoped to knowledge-base/ so the bundler traces exactly these files.
-  cache = readdirSync(KB_DIR)
-    .filter((f) => f.endsWith(".md"))
-    .sort()
-    .flatMap((file) => parseDocument(file, readFileSync(path.join(process.cwd(), "knowledge-base", file), "utf8")));
+  cache = listPublishedDocuments()
+    .sort((a, b) => a.file.localeCompare(b.file))
+    .flatMap((document) => parseDocument(document.file, document.content));
   return cache;
 }

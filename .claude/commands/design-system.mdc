@@ -1,0 +1,7 @@
+# Design system workflow
+
+Use `$ARGUMENTS` to define the product or UI surface. Inspect the existing visual language, components, accessibility rules, assets, and theme configuration before proposing changes.
+
+Document reusable decisions for color, typography, spacing, layout, motion, states, responsive behavior, and accessibility. Reuse existing primitives and tokens before adding new ones. Keep the system framework-agnostic unless the repository establishes a specific UI stack.
+
+Deliver a short rationale, affected components, migration risks, visual acceptance criteria, and a verification plan. Do not change application code unless implementation is explicitly requested.

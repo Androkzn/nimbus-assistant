@@ -116,7 +116,7 @@ describe("POST /api/chat", () => {
 
   it("logs a structured record without any message text", async () => {
     const d = deps();
-    await (await handleChat(post({ modelId: "gemini-flash", messages: [{ role: "user", content: "SECRET-QUESTION-TEXT about Relay" }] }), d.deps)).text();
+    await (await handleChat(post({ modelId: "gemini-flash", messages: [{ role: "user", content: "SECRET-QUESTION-TEXT about Relay pricing" }] }), d.deps)).text();
     const record = d.logs.find((l) => l.event === "chat.request");
     expect(record).toMatchObject({ requestedModel: "gemini-flash", answeredBy: "gemini-flash", outcome: "done" });
     expect(JSON.stringify(d.logs)).not.toContain("SECRET-QUESTION-TEXT");
@@ -155,7 +155,7 @@ describe("POST /api/chat", () => {
 
 describe("deterministic grounding layers", () => {
   it.each(["hi", "What's the weather in Paris tomorrow?", "Tell me about Nimbus Edge.", "What are the key differences between the Profeccional and Company pricing tiers?", "What new features were released in v4?", "A client is getting a 500 on the API. What should they check first?", "What's the SLA for Priority 12 support tickets?"])(
-    "NKA-GRD-011: off-topic %j is answered 'not in the knowledge base' without calling any model",
+    "NKA-GRD-011: guarded %j is answered 'not in the knowledge base' without calling any model",
     async (question) => {
       const d = deps();
       const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: question }] }), d.deps));
@@ -167,10 +167,48 @@ describe("deterministic grounding layers", () => {
     },
   );
 
-  it("does not guard a question that names a product, even with a weak match", async () => {
+  it("records weather as an out-of-scope statistic without creating a documentation gap", async () => {
     const d = deps();
-    await (await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Is there a free trial of Vault?" }] }), d.deps)).text();
-    expect(d.factory).toHaveBeenCalled();
+    const findings: unknown[] = [];
+    const evs = await events(
+      await handleChat(
+        post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Tell me about weather?" }] }),
+        { ...d.deps, findingSink: async (finding) => { findings.push(finding); } },
+      ),
+    );
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "out_of_scope" });
+    expect(findings).toHaveLength(1);
+    expect(JSON.stringify(findings)).not.toContain("weather");
+  });
+
+  it("records an undocumented API 500 as a troubleshooting documentation gap", async () => {
+    const d = deps();
+    const evs = await events(
+      await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "A client is getting a 500 on the API. What should they check first?" }] }), d.deps),
+    );
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "unsupported_troubleshooting_status" });
+  });
+
+  it("abstains when a product question has no supporting evidence", async () => {
+    const d = deps();
+    const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Is there a free trial of Vault?" }] }), d.deps));
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "insufficient_evidence" });
+  });
+
+  it("asks for clarification when a product is named without a topic", async () => {
+    const d = deps();
+    const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "What is Relay?" }] }), d.deps));
+    const text = evs.filter((e) => e.type === "delta").map((e) => (e.type === "delta" ? e.text : "")).join("");
+    expect(text).toContain("Please specify the topic or feature");
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "clarify", guardReason: "incomplete" });
   });
 
   it("NKA-GRD-010: done carries the figure check — invented figures listed, sourced ones not", async () => {

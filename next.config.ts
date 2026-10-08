@@ -3,8 +3,6 @@ import type { NextConfig } from "next";
 
 // Vercel exposes VERCEL_ENV only at build time. Re-export it for observability metadata.
 const deploymentEnv = process.env.VERCEL_ENV ?? process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development";
-// Local and preview builds include the developer-only readiness/knowledge-base surfaces. Production
-// deployments stay locked down unless explicitly opted in for a local diagnostic run.
 const devSurfaceEnabled = process.env.NIMBUS_DEV_PORTAL === "1" || deploymentEnv !== "production" || process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
@@ -14,8 +12,7 @@ const nextConfig: NextConfig = {
   },
   // Allow isolated build tooling to choose a separate output directory when needed.
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  // The knowledge base is read from disk at runtime; make sure serverless
-  // bundles of the API routes ship with it.
+  // Include the seed corpus used to initialize the knowledge-base database.
   outputFileTracingIncludes: {
     "/api/**": ["./knowledge-base/**/*.md"],
   },
