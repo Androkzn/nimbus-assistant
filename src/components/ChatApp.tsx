@@ -8,7 +8,7 @@ import { useCountdown } from "@/client/useCountdown";
 import { toCSV, toJSON, totals, type UsageRow } from "@/client/usage";
 import { applyEvent, emptyAnswer, type AnswerState } from "@/shared/answer";
 import { contextLevel, estimateTokens } from "@/shared/context";
-import { HISTORY_MESSAGES, KB_GUARD_ID, MAX_MESSAGE_CHARS, type ChatMessage, type ModelsResponse, type PublicModel } from "@/shared/contracts";
+import { HISTORY_MESSAGES, KB_GUARD_ID, MAX_MESSAGE_CHARS, MAX_MESSAGES, type ChatMessage, type ModelsResponse, type PublicModel } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
 import { AnswerCard } from "./AnswerCard";
 import { BrandLockup } from "./BrandLockup";
@@ -141,9 +141,12 @@ export function ChatApp() {
     const question = text.trim();
     if (!question || busy || !modelId || cooling) return; // brief E10: blank never reaches the server
 
-    const history: ChatMessage[] = turns.flatMap((t) =>
+    const fullHistory: ChatMessage[] = turns.flatMap((t) =>
       t.answer.status === "done" ? [{ role: "user" as const, content: t.question }, { role: "assistant" as const, content: t.answer.text }] : [],
     );
+    // Keep the wire request within the 40-message contract during long browser sessions;
+    // the server forwards only the most recent HISTORY_MESSAGES entries anyway.
+    const history = fullHistory.slice(-(MAX_MESSAGES - 1));
     const id = crypto.randomUUID();
     const update = (next: AnswerState) => setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, answer: next } : t)));
     followRef.current = true;
@@ -200,13 +203,6 @@ export function ChatApp() {
             costUSD: done.costUSD ?? 0,
           },
         ]);
-        if (done.answeredBy === KB_GUARD_ID && !isProductionDeployment) {
-          void fetch("/api/dev/knowledge-base/gaps", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ question }),
-          }).catch(() => undefined);
-        }
       } else if (state.status === "streaming") {
         update({ ...state, status: "error", error: { code: "unavailable", message: "The answer was interrupted. Please try again." } });
       }
