@@ -69,6 +69,12 @@ The production deployment is intentionally customer-facing and excludes the inte
 
 ## Agentic delivery approach
 
+The project follows a requirements-driven approach:
+
+`source discovery → business requirements → technical requirements → phased build → acceptance checks → automated and live verification`
+
+Stable IDs such as `BR-01`, `NKA-GRD-001`, and `NKA-MDL-005` connect requirements to implementation and evidence. For example, grounded answers led to retrieval, citations, and figure checks; provider resilience led to fallback and reset events; cost transparency led to token and pricing totals; and public deployment led to rate limits, secret scanning, and privacy-safe telemetry.
+
 The project is organized as a set of reusable engineering workflows rather than a single implementation pass. Each workflow produces an artifact that the next one can verify:
 
 1. **Requirements and traceability** — turn the brief into explicit behavioral rules, edge cases, acceptance checks, and a golden evaluation set.
