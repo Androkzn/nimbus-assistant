@@ -1,0 +1,54 @@
+name: Sync Google Drive knowledge base
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: google-drive-knowledge-base
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync and validate Drive snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GOOGLE_DRIVE_FOLDER_ID: 1jZtIbeRwf58SPUkJxUkht_M8Os4UBlF6
+      GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
+      GOOGLE_DRIVE_REFRESH_TOKEN: ${{ secrets.GOOGLE_DRIVE_REFRESH_TOKEN }}
+      GOOGLE_DRIVE_REQUIRED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check Drive credentials
+        id: auth
+        run: |
+          if [ -n "$GOOGLE_DRIVE_REFRESH_TOKEN" ] && [ -n "$GOOGLE_DRIVE_CLIENT_ID" ] && [ -n "$GOOGLE_DRIVE_CLIENT_SECRET" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Google Drive secrets are not configured; leaving the current snapshot unchanged."
+          fi
+      - name: Sync validated build snapshot
+        if: steps.auth.outputs.configured == 'true'
+        run: node scripts/sync-google-drive.mjs --output .generated/knowledge-base --activate
+      - name: Test the synced snapshot
+        if: steps.auth.outputs.configured == 'true'
+        run: npm ci && npm test
+      - name: Build the Drive-backed server snapshot
+        if: steps.auth.outputs.configured == 'true'
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: steps.auth.outputs.configured == 'true'
+        with:
+          name: google-drive-kb-build-snapshot
+          path: .generated/knowledge-base/
+          retention-days: 7

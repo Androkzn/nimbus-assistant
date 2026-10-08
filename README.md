@@ -77,6 +77,23 @@ Production deployment uses the protected GitHub `production` environment. Config
 
 The production deployment is intentionally customer-facing and excludes the internal Readiness tooling. The optional developer deployment is promoted separately to `nimbus-assistant-dev.vercel.app`, where the Readiness report runs recorded evidence plus live probes against the deployed environment.
 
+### Google Drive knowledge source
+
+The supplied knowledge-base files remain read-only and are not edited by the sync process. Google Drive is the editorial source; a validated, temporary snapshot is staged outside `knowledge-base/` before a deployment build:
+
+```text
+Code Ship/
+├── 01-products/          relay, vault, pulse, ledger
+├── 02-release-notes/     product release notes
+├── 03-shared/            security and support policy
+├── 04-improvement-findings/
+└── 05-daily-reports/
+```
+
+The backend uses `.generated/knowledge-base/` when the Drive snapshot is available and falls back to the checked-in corpus for offline tests. No Drive sync operation overwrites files in `knowledge-base/`. Set `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, and `GOOGLE_DRIVE_REFRESH_TOKEN` (or a short-lived `GOOGLE_DRIVE_ACCESS_TOKEN`) in the deployment environment. Then `npm run build` fetches the latest supported documents, validates them, and builds the server against that snapshot. `npm run kb:sync` performs the same operation locally.
+
+The scheduled [`sync-knowledge-base.yml`](.github/workflows/sync-knowledge-base.yml) workflow validates the Drive snapshot, runs tests, builds the Drive-backed server, and stores an expiring artifact. Unsupported or empty Drive content fails safely without touching the repository corpus; the normal CI/deployment gates still require human-reviewed code changes.
+
 ### Production monitoring and triage
 
 The [`production-monitor.yml`](.github/workflows/production-monitor.yml) workflow runs every 15 minutes and on demand. It checks:
@@ -162,6 +179,7 @@ The project is organized as a set of reusable engineering workflows rather than 
 - **Security and observability:** checked server-side secrets, bundle exposure, rate limits, telemetry, and grounding signals.
 - **Incident triage:** converted monitor and Sentry evidence into a repeatable investigation and bugfix-plan handoff.
 - **Deployment orchestration:** promoted only passing `main` builds, verified production health, and kept Readiness tooling in the developer environment.
+- **Knowledge-source synchronization:** staged and validated the latest Google Drive snapshot without modifying the assessment's supplied knowledge-base files.
 
 Each skill produced evidence for the next step: brief → decision → implementation → verification → deployment.
 

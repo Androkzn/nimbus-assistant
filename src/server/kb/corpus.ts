@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 export const PRODUCTS = ["relay", "vault", "pulse", "ledger"] as const;
@@ -19,7 +19,27 @@ export interface Chunk {
   text: string;
 }
 
-const KB_DIR = path.join(process.cwd(), "knowledge-base");
+const REPOSITORY_KB_DIR = path.join(process.cwd(), "knowledge-base");
+const GENERATED_KB_DIR = path.join(process.cwd(), ".generated", "knowledge-base");
+
+/** Prefer the validated Drive snapshot staged during a deployment build. */
+export function corpusDirectory(): string {
+  if (process.env.NIMBUS_KB_DIR) return path.resolve(process.env.NIMBUS_KB_DIR);
+  return existsSync(GENERATED_KB_DIR) ? GENERATED_KB_DIR : REPOSITORY_KB_DIR;
+}
+
+export function corpusSource(): { kind: "google-drive" | "repository"; revision: string | null } {
+  const directory = corpusDirectory();
+  const manifestPath = path.join(directory, ".drive-kb-manifest.json");
+  if (!existsSync(manifestPath)) return { kind: "repository", revision: null };
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { syncedAt?: string; files?: Array<{ id: string; modifiedTime?: string | null; md5Checksum?: string | null }> };
+    const revision = manifest.files?.map((file) => `${file.id}:${file.modifiedTime ?? ""}:${file.md5Checksum ?? ""}`).sort().join("|") ?? null;
+    return { kind: "google-drive", revision };
+  } catch {
+    return { kind: "google-drive", revision: null };
+  }
+}
 
 function productFromFile(file: string): Product | null {
   const prefix = file.split(/[-.]/)[0];
@@ -75,10 +95,10 @@ let cache: Chunk[] | null = null;
 /** Load and chunk every knowledge-base document once per process. */
 export function loadCorpus(): Chunk[] {
   if (cache) return cache;
-  // Paths stay statically scoped to knowledge-base/ so the bundler traces exactly these files.
-  cache = readdirSync(KB_DIR)
+  const directory = corpusDirectory();
+  cache = readdirSync(directory)
     .filter((f) => f.endsWith(".md"))
     .sort()
-    .flatMap((file) => parseDocument(file, readFileSync(path.join(process.cwd(), "knowledge-base", file), "utf8")));
+    .flatMap((file) => parseDocument(file, readFileSync(path.join(directory, file), "utf8")));
   return cache;
 }

@@ -1,6 +1,6 @@
 import "server-only";
 import { catalog, isAvailable, isMockMode } from "@/server/config/models";
-import { loadCorpus } from "@/server/kb/corpus";
+import { corpusSource, loadCorpus } from "@/server/kb/corpus";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,7 @@ export function GET(): Response {
       ok: chunks.length > 0 && providers.length > 0,
       mode: isMockMode() ? "mock" : "live",
       corpus: { files: new Set(chunks.map((c) => c.file)).size, chunks: chunks.length },
+      corpusSource: corpusSource(),
       providersAvailable: providers,
       pricingVersion: catalog.pricingVersion,
     },

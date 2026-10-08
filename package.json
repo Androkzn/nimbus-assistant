@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/prepare-knowledge-base.mjs && next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint src scripts",
@@ -12,6 +12,7 @@
     "e2e": "playwright test",
     "scan:bundle": "node scripts/scan-client-bundle.mjs",
     "eval:live": "node scripts/eval-live.mjs",
+    "kb:sync": "node scripts/sync-google-drive.mjs --activate",
     "ci": "npm run typecheck && npm run lint && npm test && npm run build && npm run scan:bundle && npm run e2e"
   },
   "dependencies": {

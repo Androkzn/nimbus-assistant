@@ -10,10 +10,10 @@ const nextConfig: NextConfig = {
   },
   // Allow isolated build tooling to choose a separate output directory when needed.
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  // The knowledge base is read from disk at runtime; make sure serverless
-  // bundles of the API routes ship with it.
+  // The checked-in corpus is a test/development fallback. Production builds can
+  // stage a validated Google Drive snapshot in .generated/ before Next builds.
   outputFileTracingIncludes: {
-    "/api/**": ["./knowledge-base/**/*.md"],
+    "/api/**": ["./knowledge-base/**/*.md", "./.generated/knowledge-base/**/*.md", "./.generated/knowledge-base/.drive-kb-manifest.json"],
   },
   turbopack: {
     rules: {
