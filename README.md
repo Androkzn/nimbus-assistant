@@ -53,12 +53,6 @@ Deterministic knowledge-base findings are saved with:
 
 Repeated observations remain one issue record and increment that issue's occurrence count. Portal counters refresh from the shared API every five seconds and on window focus. Issue records can be filtered by type, priority, status, product, and date range.
 
-### Knowledge base portal screenshots
-
-![Developer portal readiness overview](docs/screenshots/readiness-overview.png)
-
-![Developer portal live deployment probes](docs/screenshots/readiness-live-probes.png)
-
 ## Local development
 
 Requirements: Node.js 22.12+ and npm.
@@ -145,6 +139,12 @@ The requirements package defines the product baseline and its evidence:
 - [Implementation plan](docs/requirements/03_Implementation_Plan.md)
 - [Acceptance matrix](docs/requirements/04_Acceptance_Matrix.md)
 - [Readiness report](docs/requirements/06_Readiness_Report.md)
+
+## Readiness screenshots
+
+![Readiness overview](docs/screenshots/readiness-overview.png)
+
+![Live deployment probes](docs/screenshots/readiness-live-probes.png)
 
 ## Project layout
 
