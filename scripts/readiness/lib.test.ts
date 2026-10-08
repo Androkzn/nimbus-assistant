@@ -188,10 +188,11 @@ describe("recorded live eval (I7)", () => {
   const ids = ["C-1", "C-2", "C-3"];
 
   it("shows the newest COMPLETE committed report: every current golden case, for at least two models", () => {
-    const all = readdirSync(path.join(lib.ROOT, "evals", "reports"))
+    const reportsDir = path.join(lib.ROOT, "evals", "reports");
+    const all = (existsSync(reportsDir) ? readdirSync(reportsDir) : [])
       .sort()
-      .filter((d) => existsSync(path.join(lib.ROOT, "evals", "reports", d, "results.json")))
-      .map((d) => ({ path: `evals/reports/${d}/results.json`, json: JSON.parse(readFileSync(path.join(lib.ROOT, "evals", "reports", d, "results.json"), "utf8")) }));
+      .filter((d) => existsSync(path.join(reportsDir, d, "results.json")))
+      .map((d) => ({ path: `evals/reports/${d}/results.json`, json: JSON.parse(readFileSync(path.join(reportsDir, d, "results.json"), "utf8")) }));
     const complete = all.filter((r) => lib.evalCoverage(r.json, caseIds).complete);
     if (!latest) {
       expect(complete).toHaveLength(0);
