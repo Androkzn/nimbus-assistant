@@ -12,7 +12,6 @@ Deployments:
 Quick links:
 
 - 🧑‍💻 [Run locally](#run-locally)
-- ✅ [Verify](#verify)
 - 🚀 [CI/CD approach](#cicd-approach)
 - 🛡️ [Production monitoring and triage](#production-monitoring-and-triage)
 - 🐞 [Error investigation and fix workflow](#error-investigation-and-fix-workflow)
