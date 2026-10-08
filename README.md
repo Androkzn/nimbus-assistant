@@ -29,8 +29,8 @@ The production deployment does not expose internal developer tooling. The develo
 
 - ⚙️ [CI/CD](#cicd)
 - 🧩 [Spec-driven approach](#spec-driven-approach)
-- 🗂️ [Knowledge base portal](#knowledge-base-portal)
 - 🧪 [Readiness](#readiness)
+- 🗂️ [Knowledge base portal](#knowledge-base-portal)
 - 💻 [Local development](#local-development)
 - ✅ [Verification](#verification)
 - 🧭 [Product behavior](#product-behavior)
