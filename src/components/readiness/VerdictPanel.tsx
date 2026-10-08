@@ -59,7 +59,7 @@ function Stat({ label, value, sub, explanation, details, testId, lower = false }
       <span
         id={testId ? `${testId}-tooltip` : undefined}
         role="tooltip"
-        className={`pointer-events-none invisible absolute left-0 z-30 w-64 rounded-lg border border-border bg-navy px-3 py-2.5 text-left text-[12px] leading-relaxed text-on-navy opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100 ${
+        className={`pointer-events-none invisible absolute left-0 z-30 w-64 rounded-lg border border-border bg-navy px-3 py-2.5 text-left text-[12px] leading-relaxed text-on-navy opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 ${
           lower ? "bottom-full mb-2" : "top-[calc(100%+8px)]"
         }`}
       >

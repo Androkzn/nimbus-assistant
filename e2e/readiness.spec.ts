@@ -122,6 +122,10 @@ test.describe("Readiness report", () => {
     expect(pipelineAfter?.y).toBe(pipelineBefore?.y);
     expect(timeAfter?.width).toBe(timeBefore?.width);
     expect(timeAfter?.height).toBe(timeBefore?.height);
+    await page.getByTestId("stat-cost").click();
+    await page.getByTestId("stat-tests").hover();
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: "breadth of verification" })).toBeVisible();
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: "provider cost of measured" })).toBeHidden();
     await page.getByTestId("stage-probes").hover();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "running deployment directly" })).toBeVisible();
 
