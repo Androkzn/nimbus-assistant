@@ -4,20 +4,6 @@
 
 NimbusStack Product Knowledge Assistant answers questions about Relay, Vault, Pulse, and Ledger using only the approved NimbusStack knowledge base. Every grounded answer shows its source passages, the model that answered, token usage, and estimated cost.
 
-## Spec-driven approach
-
-The product is built and verified from one traceable delivery flow:
-
-1. **Knowledge-base discovery** defines the approved source material, terminology, conflicts, and deliberate gaps.
-2. **Business requirements (BRD)** define the user outcomes and product behavior.
-3. **Technical requirements (TRD)** turn those outcomes into implementation, security, and operational contracts.
-4. **Implementation planning** sequences the work and names the verification for each phase.
-5. **Acceptance rows** convert the requirements into concrete checks.
-6. **Code and tests** implement and verify those checks.
-7. **Readiness** connects each requirement to its BRD item, acceptance row, automated check, and test evidence.
-
-Every requirement must have an acceptance row, every acceptance row must have a check, and every check must claim a real test. This keeps the assistant, the knowledge-base portal, and the deployment gates aligned with the specification.
-
 ## Deployments
 
 - [Production assistant](https://nimbus-assistant-production.vercel.app) — customer-facing assistant
@@ -61,6 +47,20 @@ LLM_MODE=mock npm run dev
 - 🔒 [Monitoring and security](#monitoring-and-security)
 - 📋 [Requirements and design documents](#requirements-and-design-documents)
 - 🧱 [Project layout](#project-layout)
+
+## Spec-driven approach
+
+The product is built and verified from one traceable delivery flow:
+
+1. **Knowledge-base discovery** defines the approved source material, terminology, conflicts, and deliberate gaps.
+2. **Business requirements (BRD)** define the user outcomes and product behavior.
+3. **Technical requirements (TRD)** turn those outcomes into implementation, security, and operational contracts.
+4. **Implementation planning** sequences the work and names the verification for each phase.
+5. **Acceptance rows** convert the requirements into concrete checks.
+6. **Code and tests** implement and verify those checks.
+7. **Readiness** connects each requirement to its BRD item, acceptance row, automated check, and test evidence.
+
+Every requirement must have an acceptance row, every acceptance row must have a check, and every check must claim a real test. This keeps the assistant, the knowledge-base portal, and the deployment gates aligned with the specification.
 
 ## Product behavior
 
