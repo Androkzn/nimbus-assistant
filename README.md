@@ -25,6 +25,30 @@ Every requirement must have an acceptance row, every acceptance row must have a 
 
 The production deployment does not expose internal developer tooling. The developer deployment provides `/knowledge-base` and `/readiness`.
 
+## Local development
+
+Requirements: Node.js 22.12+ and npm.
+
+```bash
+git clone https://github.com/Androkzn/nimbus-assistant.git
+cd nimbus-assistant
+npm ci
+cp .env.example .env.local
+npm run dev
+```
+
+Add at least one server-side provider key to `.env.local`:
+
+- `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY`
+- `GOOGLE_GENERATIVE_AI_API_KEY`
+
+The application runs at `http://localhost:3000`. To run without provider keys:
+
+```bash
+LLM_MODE=mock npm run dev
+```
+
 ## Quick links
 
 - 🧩 [Spec-driven approach](#spec-driven-approach)
@@ -74,30 +98,6 @@ Repeated observations remain one issue record and increment that issue's occurre
 ![Knowledge base portal issues view](docs/screenshots/knowledge-base-issues.png)
 
 ![Knowledge base portal documents view](docs/screenshots/knowledge-base-documents.png)
-
-## Local development
-
-Requirements: Node.js 22.12+ and npm.
-
-```bash
-git clone https://github.com/Androkzn/nimbus-assistant.git
-cd nimbus-assistant
-npm ci
-cp .env.example .env.local
-npm run dev
-```
-
-Add at least one server-side provider key to `.env.local`:
-
-- `ANTHROPIC_API_KEY`
-- `OPENAI_API_KEY`
-- `GOOGLE_GENERATIVE_AI_API_KEY`
-
-The application runs at `http://localhost:3000`. To run without provider keys:
-
-```bash
-LLM_MODE=mock npm run dev
-```
 
 ## Readiness
 
