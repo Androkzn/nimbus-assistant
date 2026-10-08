@@ -113,6 +113,15 @@ test.describe("Readiness report", () => {
 
     await page.getByTestId("stat-requirements").hover();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "main release-readiness measure" })).toBeVisible();
+    const pipelineBefore = await page.getByTestId("pipeline").boundingBox();
+    const timeBefore = await page.getByTestId("stat-time").boundingBox();
+    await page.getByTestId("stat-time").hover();
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: "slow checks and release-gate delays" })).toBeVisible();
+    const pipelineAfter = await page.getByTestId("pipeline").boundingBox();
+    const timeAfter = await page.getByTestId("stat-time").boundingBox();
+    expect(pipelineAfter?.y).toBe(pipelineBefore?.y);
+    expect(timeAfter?.width).toBe(timeBefore?.width);
+    expect(timeAfter?.height).toBe(timeBefore?.height);
     await page.getByTestId("stage-probes").hover();
     await expect(page.locator('[role="tooltip"]').filter({ hasText: "running deployment directly" })).toBeVisible();
 

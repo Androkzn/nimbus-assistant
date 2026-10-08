@@ -61,11 +61,6 @@
   animation: rdy-sweep 1.4s linear infinite;
 }
 
-/* Lower verdict cards have detailed tooltips. Reserve room for the expanded explanation so it does not cover the gate pipeline. */
-.rdy-verdict-reserve:has(.rdy-stat-lower:hover),
-.rdy-verdict-reserve:has(.rdy-stat-lower:focus-within) {
-  padding-bottom: 18rem;
-}
 @keyframes rdy-sweep {
   from { background-position: 100% 0; }
   to { background-position: -100% 0; }

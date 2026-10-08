@@ -51,7 +51,7 @@ function Stat({ label, value, sub, explanation, details, testId, lower = false }
       data-testid={testId}
       tabIndex={0}
       aria-describedby={testId ? `${testId}-tooltip` : undefined}
-      className={`group relative isolate z-0 h-24 min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3 outline-none transition-[border-color,box-shadow] focus-within:z-20 focus-within:border-orange-strong focus-within:ring-2 focus-within:ring-orange-soft focus:z-20 focus:border-orange-strong focus:ring-2 focus:ring-orange-soft group-hover:z-20 ${lower ? "rdy-stat-lower" : ""}`}
+      className="group relative isolate z-0 h-24 min-w-0 rounded-xl border border-border bg-surface-2 px-4 py-3 outline-none transition-[border-color,box-shadow] focus-within:z-20 focus-within:border-orange-strong focus-within:ring-2 focus-within:ring-orange-soft focus:z-20 focus:border-orange-strong focus:ring-2 focus:ring-orange-soft group-hover:z-20"
     >
       <p className="text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">{label}</p>
       <p className="mt-1 font-display text-[22px] leading-tight font-bold text-text tabular-nums">{value}</p>
@@ -59,7 +59,9 @@ function Stat({ label, value, sub, explanation, details, testId, lower = false }
       <span
         id={testId ? `${testId}-tooltip` : undefined}
         role="tooltip"
-        className="pointer-events-none invisible absolute top-[calc(100%+8px)] left-0 z-30 w-64 rounded-lg border border-border bg-navy px-3 py-2.5 text-left text-[12px] leading-relaxed text-on-navy opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
+        className={`pointer-events-none invisible absolute left-0 z-30 w-64 rounded-lg border border-border bg-navy px-3 py-2.5 text-left text-[12px] leading-relaxed text-on-navy opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100 ${
+          lower ? "bottom-full mb-2" : "top-[calc(100%+8px)]"
+        }`}
       >
         <span className="block font-semibold text-white">{label}</span>
         <span className="mt-0.5 block text-on-navy-muted">{explanation}</span>
@@ -117,7 +119,7 @@ export function VerdictPanel({
           : "wall clock, start to verdict";
 
   return (
-    <section aria-labelledby="verdict-heading" className="rdy-verdict-reserve rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgb(15_23_42/0.05)]">
+    <section aria-labelledby="verdict-heading" className="rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgb(15_23_42/0.05)]">
       <div className="flex flex-col gap-3 border-b border-border px-5 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-6 sm:px-6">
         <div className="min-w-0">
           <h2 id="verdict-heading" className="text-[11px] font-semibold tracking-[0.16em] text-muted uppercase">
