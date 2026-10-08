@@ -11,7 +11,7 @@ import { createRateLimiter } from "@/server/http/rateLimit";
 import { mockModel } from "@/server/llm/providers";
 import { redactSecrets } from "@/server/observability/report";
 import { KB_GUARD_ID, MAX_MESSAGE_CHARS } from "@/shared/contracts";
-import { GROUNDED_QUESTION, KEY_SHAPES, keyShapesIn, OFFTOPIC_QUESTION, PROBES, redact, runProbes, scriptUrls, type ProbeOptions } from "./probes";
+import { GROUNDED_QUESTION, INJECTION_QUESTION, KEY_SHAPES, keyShapesIn, OFFTOPIC_QUESTION, PROBES, redact, runProbes, scriptUrls, type ProbeOptions } from "./probes";
 import { PROBE_IDS, ReadinessEventSchema, type ProbeId, type ReadinessEvent, type TestResult } from "./schema";
 
 const ORIGIN = "https://nimbus.example.test";
@@ -183,7 +183,7 @@ describe("live probes against the app's own handlers (RDY-003)", () => {
     const results = events.filter((e) => e.type === "test-result").map((e) => e.result);
     expect(results.map((r) => [r.status, r.stage, r.file, r.source])).toEqual(PROBE_IDS.map(() => ["passed", "probes", ORIGIN, "live"]));
     expect(results.map((r) => r.fullName)).toEqual(PROBES.map((p) => p.title));
-    expect(events.at(-1)).toMatchObject({ type: "stage-end", stage: "probes", status: "passed", source: "live", counts: { passed: 9, failed: 0, skipped: 0 }, note: `live · ${ORIGIN}` });
+    expect(events.at(-1)).toMatchObject({ type: "stage-end", stage: "probes", status: "passed", source: "live", counts: { passed: PROBE_IDS.length, failed: 0, skipped: 0 }, note: `live · ${ORIGIN}` });
     expect(events.some((e) => e.type === "run-start" || e.type === "run-end")).toBe(false);
   });
 
@@ -194,7 +194,7 @@ describe("live probes against the app's own handlers (RDY-003)", () => {
     expect(calls.filter((c) => c === "POST /api/chat")).toHaveLength(4);
     expect(results["grounded-answer"]).toMatchObject({ status: "skipped", detail: { note: "disabled by direct caller" } });
     expect(results["grounded-answer"].error).toBeUndefined();
-    expect(events.at(-1)).toMatchObject({ type: "stage-end", status: "passed", counts: { passed: 8, failed: 0, skipped: 1 } });
+    expect(events.at(-1)).toMatchObject({ type: "stage-end", status: "passed", counts: { passed: 8, failed: 0, skipped: 2 } });
     // I6: the only text sent is the fixed probe questions (and filler for the size limit).
     const sent = (bodies as { messages: { content: string }[] }[]).map((b) => b.messages[0].content);
     expect(sent).toEqual(["   ", "x".repeat(MAX_MESSAGE_CHARS + 1), OFFTOPIC_QUESTION, OFFTOPIC_QUESTION]);
@@ -232,7 +232,24 @@ describe("live probes against the app's own handlers (RDY-003)", () => {
     expect(r.detail?.vaultCited).toMatch(/^\d+$/);
     expect(r.detail?.securityCited).toMatch(/^\d+$/);
     expect(Number(r.detail?.ttftMs)).toBeGreaterThanOrEqual(0);
-    expect(bodies.at(-1)).toEqual({ modelId: catalog.defaultModelId, messages: [{ role: "user", content: GROUNDED_QUESTION }] });
+    expect(bodies).toContainEqual({ modelId: catalog.defaultModelId, messages: [{ role: "user", content: GROUNDED_QUESTION }] });
+  });
+
+  it("DR-INJECTION / NKA-GRD-007: with a live model, passes when the injection is declined from the knowledge base", async () => {
+    for (const [k, v] of Object.entries(LIVE_KEYS)) vi.stubEnv(k, v);
+    vi.stubEnv("LLM_MODE", "");
+    const model = scriptedModel(() => "I couldn't find this in the NimbusStack knowledge base. It covers Vault's AWS Secrets Manager sync, not AWS pricing.");
+    const { results, bodies } = await run(appRoutes(quietDeps({ env: LIVE_KEYS, modelFactory: model })), { includeAnswer: true });
+    expect(results["injection-declined"].status, results["injection-declined"].error).toBe("passed");
+    expect(bodies).toContainEqual({ modelId: catalog.defaultModelId, messages: [{ role: "user", content: INJECTION_QUESTION }] });
+  });
+
+  it("DR-INJECTION: fails when a live answer quotes an AWS price from general knowledge", async () => {
+    for (const [k, v] of Object.entries(LIVE_KEYS)) vi.stubEnv(k, v);
+    vi.stubEnv("LLM_MODE", "");
+    const model = scriptedModel(() => "Per the knowledge base, AWS Secrets Manager costs $0.40 per secret per month.");
+    const { results } = await run(appRoutes(quietDeps({ env: LIVE_KEYS, modelFactory: model })), { includeAnswer: true });
+    expect(results["injection-declined"]).toMatchObject({ status: "failed", error: "the answer quotes an AWS Secrets Manager price from general knowledge" });
   });
 
   it("NKA-GRD-001: fails when the answer cites a passage that was never sent", async () => {
@@ -259,10 +276,10 @@ describe("live probes against the app's own handlers (RDY-003)", () => {
     const deps = quietDeps({ limiter: createRateLimiter({ max: 2, windowMs: 300_000, now: () => 0 }) });
     const { results, events } = await run(appRoutes(deps), { includeAnswer: true });
     expect([results.blank.status, results.oversize.status]).toEqual(["passed", "passed"]);
-    for (const id of ["unknown-model", "offtopic-guard", "stream-headers", "grounded-answer"] as const) {
+    for (const id of ["unknown-model", "offtopic-guard", "stream-headers", "grounded-answer", "injection-declined"] as const) {
       expect(results[id]).toMatchObject({ status: "skipped", error: "rate-limited by the app's own per-IP limit — retry in 300 s", detail: { httpStatus: 429, retryAfterSec: 300 } });
     }
-    expect(events.at(-1)).toMatchObject({ type: "stage-end", status: "passed", counts: { passed: 5, failed: 0, skipped: 4 } });
+    expect(events.at(-1)).toMatchObject({ type: "stage-end", status: "passed", counts: { passed: 5, failed: 0, skipped: 5 } });
   });
 });
 

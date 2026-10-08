@@ -366,7 +366,7 @@ export function useReadinessRun(options: ReadinessOptions) {
       if (mode === "probes" || options.probes) {
         const origin = window.location.origin;
         patch({ probeOrigin: origin });
-        // The grounded-answer probe (one real question, ~3k tokens) always runs; the checkbox only switches the live eval.
+        // The two real-answer probes (grounded answer, injection refusal; ~3k tokens each) always run; the checkbox only switches the live eval.
         await runProbes({ origin, includeAnswer: true, signal }, push);
         if (!live()) return;
       }

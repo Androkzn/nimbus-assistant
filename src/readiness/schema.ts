@@ -149,7 +149,7 @@ export const STAGE_INFO: Record<StageId, StageInfo> = {
   },
 };
 
-export const PROBE_IDS = ["health", "models", "blank", "oversize", "unknown-model", "offtopic-guard", "stream-headers", "bundle-keys", "grounded-answer"] as const;
+export const PROBE_IDS = ["health", "models", "blank", "oversize", "unknown-model", "offtopic-guard", "stream-headers", "bundle-keys", "grounded-answer", "injection-declined"] as const;
 export type ProbeId = (typeof PROBE_IDS)[number];
 
 /** Parse one NDJSON line; throws on a line that breaks the contract. */

@@ -588,6 +588,7 @@ const PROBE_VERIFIES: Record<ProbeId, string> = {
   "stream-headers": "The running app's chat reply streams as uncached NDJSON (application/x-ndjson, no-store), in several pieces, under a request id that matches the stream.",
   "bundle-keys": "The page HTML and every script the running site sends a browser (/ and /readiness) are scanned for Anthropic, OpenAI, Google and Sentry key shapes: none.",
   "grounded-answer": `One real question ("${GROUNDED_QUESTION}"): every [n] cites a passage that was sent, figures check out, cost is shown, and the conflict is flagged.`,
+  "injection-declined": "One real 'ignore your rules' question: the answer stays on the knowledge base and quotes no AWS price.",
 };
 
 const PROBE_CHECKS: Check[] = PROBES.map((probe) => ({
