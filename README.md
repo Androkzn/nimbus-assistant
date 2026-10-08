@@ -13,7 +13,6 @@ The production deployment does not expose internal developer tooling. The develo
 
 ## Quick links
 
-- 🚀 [Deployments](#deployments)
 - 🗂️ [Knowledge base portal](#knowledge-base-portal)
 - 💻 [Local development](#local-development)
 - ✅ [Verification](#verification)
