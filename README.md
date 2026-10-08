@@ -13,17 +13,17 @@ The production deployment does not expose internal developer tooling. The develo
 
 ## Quick links
 
-- [Deployments](#deployments)
-- [Product behavior](#product-behavior)
-- [Knowledge base portal](#knowledge-base-portal)
-- [Shared data storage](#shared-data-storage)
-- [Local development](#local-development)
-- [Verification](#verification)
-- [CI/CD](#cicd)
-- [Monitoring and security](#monitoring-and-security)
-- [Requirements and design documents](#requirements-and-design-documents)
-- [Screenshots](#screenshots)
-- [Project layout](#project-layout)
+- 🚀 [Deployments](#deployments)
+- 🗂️ [Knowledge base portal](#knowledge-base-portal)
+- 💻 [Local development](#local-development)
+- ✅ [Verification](#verification)
+- 🧭 [Product behavior](#product-behavior)
+- 🗄️ [Shared data storage](#shared-data-storage)
+- ⚙️ [CI/CD](#cicd)
+- 🔒 [Monitoring and security](#monitoring-and-security)
+- 📋 [Requirements and design documents](#requirements-and-design-documents)
+- 🖼️ [Screenshots](#screenshots)
+- 🧱 [Project layout](#project-layout)
 
 ## Product behavior
 
