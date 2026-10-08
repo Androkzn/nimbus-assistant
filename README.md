@@ -76,7 +76,16 @@ The [`production-monitor.yml`](.github/workflows/production-monitor.yml) workflo
 - `/api/models`; and
 - the production-only `/readiness` `404`.
 
-When a check fails, the workflow uploads evidence and creates or updates a GitHub bugfix-plan issue. Sentry can start the same triage path through a trusted `repository_dispatch` event named `sentry-issue`, carrying the issue ID, URL, title, environment, and release.
+When a check fails, the workflow collects a redacted incident bundle, uploads it as evidence, and creates or updates a GitHub bugfix-plan issue. Sentry can start the same triage path through a trusted `repository_dispatch` event named `sentry-issue`, carrying the issue ID, event ID, URL, title, environment, and release.
+
+If the optional read-only credentials are configured, the bundle also includes:
+
+- Sentry event metadata, exception values, stack frames, tags, contexts, and the latest breadcrumbs;
+- warning/error/fatal Vercel runtime logs for the matching deployment.
+
+The collector removes request bodies, headers, cookies, query strings, user identity, breadcrumb data values, and provider credentials. Without provider credentials it records the missing-evidence reason and continues with the probe or Sentry payload.
+
+Configure these protected values for automatic collection: `SENTRY_AUTH_TOKEN` with Sentry `event:read`, `SENTRY_ORG_SLUG`, `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_ORG_ID`. `SENTRY_API_BASE_URL` is optional for a regional or self-hosted Sentry instance.
 
 AI planning is optional. With `OPENAI_API_KEY`, the workflow generates a schema-validated hypothesis plan; otherwise it uses a deterministic safety plan. Human review is required before code changes, deployment, or issue resolution.
 
@@ -85,7 +94,7 @@ GitHub Issues are the operational source of truth. New incidents receive `incide
 ### Error investigation and fix workflow
 
 1. **Detect** — Sentry or the production monitor reports an error.
-2. **Collect evidence** — capture the environment, release, commit, logs, probe output, and reproduction path.
+2. **Collect evidence** — capture the environment, release, commit, redacted Sentry event details, stack trace, breadcrumbs, Vercel runtime logs, probe output, and reproduction path.
 3. **Create a plan** — generate a structured, evidence-bound bugfix plan; AI output remains a hypothesis.
 4. **Fix safely** — confirm root cause, add a regression test, and implement the smallest change in a PR.
 5. **Verify and release** — pass CI, deploy the tested commit, run production smoke checks, and document rollback.
@@ -177,6 +186,6 @@ src/components/          chat interface and answer presentation
 src/client/              browser-side streaming, usage, and session helpers
 e2e/                     Playwright browser tests
 evals/                   deterministic golden questions and live evaluation runner
-scripts/                 CI support, including the client-bundle secret scanner
+scripts/                 CI support, incident evidence collection, and the client-bundle secret scanner
 .github/workflows/       GitHub Actions CI
 ```

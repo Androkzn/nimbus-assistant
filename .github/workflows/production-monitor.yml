@@ -43,12 +43,29 @@ jobs:
         with:
           name: production-monitor-${{ github.run_id }}
           path: production-monitor.json
+      - name: Collect redacted incident evidence
+        if: steps.probe.outcome == 'failure'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
+          SENTRY_API_BASE_URL: ${{ vars.SENTRY_API_BASE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PRODUCTION_URL: ${{ env.PRODUCTION_URL }}
+        run: node scripts/collect-incident-evidence.mjs --source monitor --input production-monitor.json > incident-evidence.json
+      - name: Upload incident evidence
+        if: steps.probe.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-incident-evidence-${{ github.run_id }}
+          path: incident-evidence.json
       - name: Generate evidence-bound bugfix plan
         if: steps.probe.outcome == 'failure'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TRIAGE_MODEL: ${{ vars.TRIAGE_MODEL || 'gpt-6-astra' }}
-        run: node scripts/create-bugfix-plan.mjs --source monitor --input production-monitor.json > bugfix-plan.md
+        run: node scripts/create-bugfix-plan.mjs --source monitor --input incident-evidence.json > bugfix-plan.md
       - name: Upload bugfix plan
         if: steps.probe.outcome == 'failure'
         uses: actions/upload-artifact@v4
@@ -123,12 +140,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Collect redacted incident evidence
+        env:
+          TRIAGE_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG_SLUG: ${{ vars.SENTRY_ORG_SLUG }}
+          SENTRY_API_BASE_URL: ${{ vars.SENTRY_API_BASE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PRODUCTION_URL: https://nimbus-assistant-production.vercel.app
+        run: node scripts/collect-incident-evidence.mjs --source sentry > incident-evidence.json
+      - name: Upload incident evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentry-incident-evidence-${{ github.run_id }}
+          path: incident-evidence.json
       - name: Generate evidence-bound bugfix plan
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TRIAGE_MODEL: ${{ vars.TRIAGE_MODEL || 'gpt-6-astra' }}
-          TRIAGE_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
-        run: node scripts/create-bugfix-plan.mjs --source sentry > bugfix-plan.md
+        run: node scripts/create-bugfix-plan.mjs --source sentry --input incident-evidence.json > bugfix-plan.md
       - name: Upload bugfix plan
         uses: actions/upload-artifact@v4
         with:

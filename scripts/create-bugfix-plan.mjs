@@ -7,6 +7,7 @@ const rawInput = inputPath
   ? await fs.readFile(inputPath, "utf8")
   : process.env.TRIAGE_PAYLOAD ?? "{}";
 const evidence = JSON.parse(rawInput);
+const trigger = evidence.trigger?.fields ?? evidence;
 
 const planSchema = {
   type: "object",
@@ -138,7 +139,7 @@ if (process.env.OPENAI_API_KEY) {
 const bulletList = (items) => items.map((item) => `- ${item}`).join("\n");
 const detection = source === "monitor"
   ? `- Source: scheduled/manual production monitor\n- Base URL: ${evidence.baseUrl ?? "not supplied"}\n- Detected: ${evidence.generatedAt ?? "not supplied"}`
-  : `- Source: Sentry\n- Issue: ${evidence.issue_url ?? "not supplied"}\n- Short ID: ${evidence.issue_short_id ?? evidence.short_id ?? "not supplied"}\n- Environment: ${evidence.environment ?? "not supplied"}\n- Release: ${evidence.release ?? "not supplied"}`;
+  : `- Source: Sentry\n- Issue: ${trigger.issue_url ?? "not supplied"}\n- Short ID: ${trigger.issue_short_id ?? trigger.short_id ?? "not supplied"}\n- Environment: ${trigger.environment ?? "not supplied"}\n- Release: ${trigger.release ?? "not supplied"}`;
 
 process.stdout.write([
   "## Detection",

@@ -30,6 +30,8 @@ jobs:
         run: npm test
       - name: Bundle scanner self-test (planted keys must be caught)
         run: node scripts/scan-client-bundle.mjs --self-test
+      - name: Incident evidence redaction self-test
+        run: node scripts/collect-incident-evidence.mjs --self-test
       - name: Build
         run: npm run build
       - name: Client bundle secret scan
