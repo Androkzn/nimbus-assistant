@@ -155,7 +155,7 @@ describe("POST /api/chat", () => {
 
 describe("deterministic grounding layers", () => {
   it.each(["hi", "What's the weather in Paris tomorrow?", "Tell me about Nimbus Edge.", "What are the key differences between the Profeccional and Company pricing tiers?", "What new features were released in v4?", "A client is getting a 500 on the API. What should they check first?", "What's the SLA for Priority 12 support tickets?"])(
-    "NKA-GRD-011: off-topic %j is answered 'not in the knowledge base' without calling any model",
+    "NKA-GRD-011: guarded %j is answered 'not in the knowledge base' without calling any model",
     async (question) => {
       const d = deps();
       const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: question }] }), d.deps));
@@ -166,6 +166,24 @@ describe("deterministic grounding layers", () => {
       expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ guarded: true });
     },
   );
+
+  it("records weather as an out-of-scope statistic without creating a documentation gap", async () => {
+    const d = deps();
+    const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Tell me about weather?" }] }), d.deps));
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "out_of_scope" });
+  });
+
+  it("records an undocumented API 500 as a troubleshooting documentation gap", async () => {
+    const d = deps();
+    const evs = await events(
+      await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "A client is getting a 500 on the API. What should they check first?" }] }), d.deps),
+    );
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "unsupported_troubleshooting_status" });
+  });
 
   it("abstains when a product question has no supporting evidence", async () => {
     const d = deps();

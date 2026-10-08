@@ -117,12 +117,14 @@ GitHub Issues are the operational source of truth. New incidents receive `incide
 Production is also a quality feedback loop:
 
 1. **Observe** — record privacy-safe answerability and grounding signals in backend logs.
-2. **Classify** — separate `out_of_scope`, `insufficient_evidence`, `incomplete`, and `ambiguous` cases; review conflicting-document cases separately.
+2. **Classify** — separate `out_of_scope`, `insufficient_evidence`, `incomplete`, and `ambiguous` cases; review conflicting-document cases separately. Out-of-scope questions such as “Tell me about weather?” are counted for quality statistics, while an in-scope but undocumented issue such as an API `500` becomes a documentation-gap finding.
 3. **Evaluate** — turn representative failures into deterministic retrieval and answerability cases; review them against the golden set.
 4. **Improve** — update the knowledge base, retrieval rules, prompts, or tests based on confirmed evidence.
 5. **Promote** — run the same CI gates and production probes before releasing the improvement.
 
 The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count—not the user's question or answer. This supports documentation improvements without creating a transcript database. High-risk changes remain human-reviewed and reversible.
+
+Expected behavior is deterministic: the chatbot says that it could not find the answer in the NimbusStack knowledge base, does not call a model, and records zero token cost. Repeated documentation-gap findings are reviewed by a human and may produce a knowledge-base update plus a regression evaluation case; an out-of-scope finding does not automatically imply missing documentation.
 
 ### Non-technical documentation collaboration
 
