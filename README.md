@@ -41,7 +41,6 @@ LLM_MODE=mock npm run dev
 - ⚙️ [CI/CD](#cicd)
 - 🧪 [Readiness](#readiness)
 - 🗂️ [Knowledge base portal](#knowledge-base-portal)
-- 💻 [Local development](#local-development)
 - ✅ [Verification](#verification)
 - 🧭 [Product behavior](#product-behavior)
 - 🔒 [Monitoring and security](#monitoring-and-security)
@@ -62,42 +61,21 @@ The product is built and verified from one traceable delivery flow:
 
 Every requirement must have an acceptance row, every acceptance row must have a check, and every check must claim a real test. This keeps the assistant, the knowledge-base portal, and the deployment gates aligned with the specification.
 
-## Product behavior
+## CI/CD
 
-- Retrieval runs before every model call.
-- Answers cite the passages used to produce them.
-- Questions without reliable knowledge-base evidence receive a clear not-found response instead of an invented answer. The deterministic guard makes no model call and reports zero tokens and zero cost.
-- Unknown products, unsupported pricing tiers, incomplete release versions, undocumented HTTP statuses, and unsupported priorities are guarded instead of being mapped to nearby documented values.
-- Follow-up questions retain the relevant product and topic from the conversation.
-- Conflicting source documents are identified and both sources are shown.
-- Provider failures use a labelled fallback when another configured provider is available.
-- User-facing errors use plain recovery guidance; provider and implementation details remain server-side.
-- Questions are limited to 2,000 characters and requests contain at most 40 messages. Long browser sessions keep the most recent allowed history.
+The pipeline is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-## Knowledge base portal
+- Pull requests run the offline quality gates.
+- Pushes to `main` run the quality gates and deploy the tested commit to production.
+- Production smoke checks verify `/api/health`, `/api/models`, and that production `/readiness` is unavailable.
+- Manual workflow dispatch can run the live answer evaluation against a supplied URL.
 
-The developer portal manages the shared knowledge base and issue reports.
+Production deployment requires these GitHub environment secrets:
 
-Documents can be created, edited, published, drafted, and deleted. Published documents are retrieved by both deployments after the retrieval cache refreshes.
-
-Deterministic knowledge-base findings are saved with:
-
-- issue type;
-- priority;
-- status;
-- product scope;
-- triggering question;
-- deterministic analysis;
-- proposed action;
-- occurrence count for the day.
-
-Repeated observations remain one issue record and increment that issue's occurrence count. Portal counters refresh from the shared API every five seconds and on window focus. Issue records can be filtered by type, priority, status, product, and date range.
-
-### Portal examples
-
-![Knowledge base portal issues view](docs/screenshots/knowledge-base-issues.png)
-
-![Knowledge base portal documents view](docs/screenshots/knowledge-base-documents.png)
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `EVAL_BYPASS_TOKEN` for manual live evaluation
 
 ## Readiness
 
@@ -153,6 +131,31 @@ This example shows how Readiness helps developers separate an HTTP transport suc
 
 Developers use the report as a delivery gate: start with the failed requirement, open its linked BRD item and acceptance row, inspect the automated check and test evidence, fix the code or deployment configuration, and rerun the gates. Delivery is complete only when every requirement has passing evidence—for this project, `39 / 39` verified—not merely when the code builds.
 
+## Knowledge base portal
+
+The developer portal manages the shared knowledge base and issue reports.
+
+Documents can be created, edited, published, drafted, and deleted. Published documents are retrieved by both deployments after the retrieval cache refreshes.
+
+Deterministic knowledge-base findings are saved with:
+
+- issue type;
+- priority;
+- status;
+- product scope;
+- triggering question;
+- deterministic analysis;
+- proposed action;
+- occurrence count for the day.
+
+Repeated observations remain one issue record and increment that issue's occurrence count. Portal counters refresh from the shared API every five seconds and on window focus. Issue records can be filtered by type, priority, status, product, and date range.
+
+### Portal examples
+
+![Knowledge base portal issues view](docs/screenshots/knowledge-base-issues.png)
+
+![Knowledge base portal documents view](docs/screenshots/knowledge-base-documents.png)
+
 ## Verification
 
 Run the complete local quality suite:
@@ -183,21 +186,17 @@ npx next start -p 3300
 npm run eval:live -- --base-url http://localhost:3300
 ```
 
-## CI/CD
+## Product behavior
 
-The pipeline is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
-- Pull requests run the offline quality gates.
-- Pushes to `main` run the quality gates and deploy the tested commit to production.
-- Production smoke checks verify `/api/health`, `/api/models`, and that production `/readiness` is unavailable.
-- Manual workflow dispatch can run the live answer evaluation against a supplied URL.
-
-Production deployment requires these GitHub environment secrets:
-
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-- `EVAL_BYPASS_TOKEN` for manual live evaluation
+- Retrieval runs before every model call.
+- Answers cite the passages used to produce them.
+- Questions without reliable knowledge-base evidence receive a clear not-found response instead of an invented answer. The deterministic guard makes no model call and reports zero tokens and zero cost.
+- Unknown products, unsupported pricing tiers, incomplete release versions, undocumented HTTP statuses, and unsupported priorities are guarded instead of being mapped to nearby documented values.
+- Follow-up questions retain the relevant product and topic from the conversation.
+- Conflicting source documents are identified and both sources are shown.
+- Provider failures use a labelled fallback when another configured provider is available.
+- User-facing errors use plain recovery guidance; provider and implementation details remain server-side.
+- Questions are limited to 2,000 characters and requests contain at most 40 messages. Long browser sessions keep the most recent allowed history.
 
 ## Monitoring and security
 
