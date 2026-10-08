@@ -267,7 +267,7 @@ describe("summarize and unclaimedResults", () => {
     expect(summarize(m, state)).toEqual({
       status: "running",
       requirements: { total: 3, verified: 1, failed: 1, pending: 1 },
-      checks: { total: 4, passed: 1, failed: 1, pending: 2 },
+      checks: { total: 4, passed: 1, failed: 1, skipped: 0, pending: 2 },
       tests: { passed: 2, failed: 1, skipped: 1, live: 2, recorded: 2 },
     });
   });

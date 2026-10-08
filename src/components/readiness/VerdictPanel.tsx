@@ -105,8 +105,11 @@ export function VerdictPanel({
   usage: UsageSummary;
 }) {
   const { requirements, checks, tests } = summary;
-  const done = Math.max(0, checks.total - checks.pending);
-  const pct = checks.total > 0 ? Math.round((done / checks.total) * 100) : 0;
+  // The bar measures the checks meant to run: a skipped stage's checks (the live answer eval with "Include live answers"
+  // off) are named beside it, not shown as missing.
+  const counted = checks.total - checks.skipped;
+  const done = Math.max(0, counted - checks.pending);
+  const pct = counted > 0 ? Math.round((done / counted) * 100) : 0;
   const running = verdict.kind === "running";
   const testsTotal = tests.passed + tests.failed + tests.skipped;
   const tokensUsed = usage.inputTokens + usage.outputTokens;
@@ -171,25 +174,27 @@ export function VerdictPanel({
                 {running || session.phase === "idle" ? "Checks complete" : "Checks with a result"}
               </span>
               <span className="text-muted tabular-nums">
-                {done} / {checks.total} · {pct}%
+                {done} / {counted} · {pct}%
+                {checks.skipped > 0 && <span> · {checks.skipped} skipped</span>}
               </span>
             </div>
             <div
               role="progressbar"
               aria-labelledby="progress-label"
               aria-valuemin={0}
-              aria-valuemax={checks.total}
+              aria-valuemax={counted}
               aria-valuenow={done}
-              aria-valuetext={`${done} of ${checks.total} checks complete`}
+              aria-valuetext={`${done} of ${counted} checks complete`}
+              data-total={checks.total}
               className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-[var(--rdy-track)]"
             >
               <span
                 className="h-full bg-[var(--rdy-pass)] transition-[width] duration-500 ease-out"
-                style={{ width: `${checks.total ? (checks.passed / checks.total) * 100 : 0}%` }}
+                style={{ width: `${counted ? (checks.passed / counted) * 100 : 0}%` }}
               />
               <span
                 className="h-full bg-[var(--rdy-fail)] transition-[width] duration-500 ease-out"
-                style={{ width: `${checks.total ? (checks.failed / checks.total) * 100 : 0}%` }}
+                style={{ width: `${counted ? (checks.failed / counted) * 100 : 0}%` }}
               />
               {running && <span className="rdy-indeterminate h-full flex-1" />}
             </div>
@@ -237,7 +242,7 @@ export function VerdictPanel({
                   <span className="text-[15px] font-semibold text-muted"> passed</span>
                 </>
               }
-              sub={`${checks.failed} failed · ${checks.pending} ${running ? "running or queued" : "without a result"}`}
+              sub={`${checks.failed} failed · ${checks.pending} ${running ? "running or queued" : "without a result"}${checks.skipped ? ` · ${checks.skipped} skipped` : ""}`}
               explanation="The individual automated checks that passed. This shows how much of the requirement coverage has concrete evidence."
               details={[
                 { label: "Counts", text: "Manifest checks, such as an acceptance rule or a deployment check." },

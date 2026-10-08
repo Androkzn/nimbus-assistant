@@ -25,13 +25,15 @@ export function verdictOf(summary: Summary, session: RunSession, coverage: Requi
     return { kind: "idle", label: "Idle", tone: "idle", sentence: "Nothing has run yet. Start a run to stream every gate." };
   }
   if (session.phase === "connecting" || session.phase === "running") {
-    const done = Math.max(0, checks.total - checks.pending);
+    // Checks of a skipped stage are not counted: they will not run, so they are neither done nor missing.
+    const counted = checks.total - checks.skipped;
+    const done = Math.max(0, counted - checks.pending);
     const failedNote = checks.failed > 0 ? ` ${checks.failed} failed so far.` : "";
     return {
       kind: "running",
       label: "Running",
       tone: "run",
-      sentence: `${done} of ${checks.total} checks complete — each test appears below as it finishes.${failedNote}`,
+      sentence: `${done} of ${counted} checks complete — each test appears below as it finishes.${failedNote}`,
     };
   }
   const failed = coverage.filter((v) => v.status === "failed");

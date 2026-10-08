@@ -62,7 +62,8 @@ export interface RequirementView {
 export interface Summary {
   status: RunState["status"];
   requirements: { total: number; verified: number; failed: number; pending: number };
-  checks: { total: number; passed: number; failed: number; pending: number };
+  /** skipped: not evaluated in this run (their stage was skipped, or only skipped results); not counted as missing. */
+  checks: { total: number; passed: number; failed: number; skipped: number; pending: number };
   tests: { passed: number; failed: number; skipped: number; live: number; recorded: number };
 }
 
@@ -188,6 +189,9 @@ function checkStatus(results: TestResult[], stage: Status | undefined): Status {
   if (results.some((r) => r.status === "failed")) return "failed";
   if (results.some((r) => r.status === "passed")) return "passed";
   if (results.length > 0) return "skipped";
+  // A stage skipped on purpose (e.g. the live answer eval with "Include live answers" off) leaves its checks skipped,
+  // not pending: they were never meant to run, so they are not missing.
+  if (stage === "skipped") return "skipped";
   return stage === "running" ? "running" : "pending";
 }
 
@@ -242,10 +246,11 @@ export function summarize(m: Manifest, state: RunState): Summary {
   const failedRequirements = count(requirements, (r) => r.status === "failed");
   const passedChecks = count(checks, (c) => c.status === "passed");
   const failedChecks = count(checks, (c) => c.status === "failed");
+  const skippedChecks = count(checks, (c) => c.status === "skipped");
   return {
     status: state.status,
     requirements: { total: requirements.length, verified, failed: failedRequirements, pending: requirements.length - verified - failedRequirements },
-    checks: { total: checks.length, passed: passedChecks, failed: failedChecks, pending: checks.length - passedChecks - failedChecks },
+    checks: { total: checks.length, passed: passedChecks, failed: failedChecks, skipped: skippedChecks, pending: checks.length - passedChecks - failedChecks - skippedChecks },
     tests: {
       passed: count(results, (r) => r.status === "passed"),
       failed: count(results, (r) => r.status === "failed"),

@@ -86,8 +86,7 @@ test.describe("Readiness report", () => {
     await expect(page.getByText("Runs only in a local run; this page replays the recorded eval")).toBeVisible();
 
     // The tabs count checks, the headline's unit ("N of 174 checks complete"); the list groups them by requirement.
-    const progress = await page.locator('[aria-valuetext$="checks complete"]').getAttribute("aria-valuetext");
-    const checksTotal = progress?.match(/of (\d+) checks/)?.[1];
+    const checksTotal = await page.locator('[aria-valuetext$="checks complete"]').getAttribute("data-total");
     expect(checksTotal).toBeTruthy();
     await expect(page.getByTestId("filter-all")).toHaveText(new RegExp(`^All\\s*${checksTotal}$`));
     await expect(page.getByTestId("trace-summary")).toHaveText(`Showing ${checksTotal} checks across ${manifest.requirements.length} requirements`);
