@@ -1,6 +1,6 @@
 import type { Env } from "../config/models";
 import type { GuardReason, RetrievalResult } from "../retrieval/retrieve";
-import { createFindingReport } from "../dev-portal/db";
+import { createFindingReportAsync } from "../dev-portal/db";
 
 export type FindingCategory = "out_of_scope" | "documentation_gap" | "clarification_needed";
 
@@ -84,7 +84,7 @@ export function buildFinding(input: {
 
 export async function persistFinding(finding: FindingRecord, env: Env): Promise<void> {
   void env;
-  createFindingReport({
+  await createFindingReportAsync({
     key: finding.key,
     observedAt: finding.observedAt,
     category: finding.category,

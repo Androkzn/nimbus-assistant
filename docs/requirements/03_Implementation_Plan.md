@@ -142,7 +142,7 @@ Scope: `05_Retrospective.md` — shipped vs cut, defects found by which gate, as
 
 ## 5. Data and migration plan
 
-No database; no migrations. Corpus is static and versioned in git. Rollback = Vercel previous deployment.
+The shared Neon/Postgres database is the runtime source for published knowledge documents and privacy-safe improvement reports. The checked-in `knowledge-base/` Markdown files are the seed source for an empty database; seeding is idempotent and never overwrites an existing document. Schema creation is idempotent and runs on first server-side access. Local development falls back to SQLite so tests and offline work do not require network credentials. Rollback is still a Vercel deployment rollback; document edits are independently reversible through the portal.
 
 ---
 

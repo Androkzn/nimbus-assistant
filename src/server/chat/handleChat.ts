@@ -6,7 +6,7 @@ import { runWithFallback, type AttemptTrace, type RunnerEvent } from "../llm/fal
 import { extractFaults } from "../llm/faults";
 import { sentryChatMonitor, type ChatMonitor } from "../observability/report";
 import { buildInstructions, NOT_IN_KB } from "../prompt/build";
-import { retrieve } from "../retrieval/retrieve";
+import { retrieveAsync, type RetrievalResult } from "../retrieval/retrieve";
 import { unverifiedFigures } from "../verify/figures";
 import { slaQualifier } from "../verify/qualifiers";
 import { buildFinding, persistFinding, type FindingSink } from "../findings/database";
@@ -64,7 +64,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   const { text: question, faults } = extractFaults(messages[messages.length - 1].content, env);
   if (!question) return json(400, { error: { code: "invalid_input", message: "Please type a question first." } });
 
-  const retrieval = retrieve(question, history);
+  const retrieval = await retrieveAsync(question, history);
   const today = (deps.today ?? (() => new Date().toISOString().slice(0, 10)))();
   const instructions = buildInstructions(retrieval, today);
   const modelMessages = [...history.slice(-HISTORY_MESSAGES), { role: "user" as const, content: question }];
@@ -189,7 +189,7 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
 export const GUARD_ANSWER = `${NOT_IN_KB} I can answer questions about NimbusStack's products — Relay, Vault, Pulse and Ledger: pricing, features, integrations, release notes, troubleshooting and support SLAs.`;
 export const AMBIGUOUS_VERSION_ANSWER = `${NOT_IN_KB} Please specify a product and an exact release version.`;
 
-function guardMessage(retrieval: ReturnType<typeof retrieve>): string {
+function guardMessage(retrieval: RetrievalResult): string {
   if (retrieval.guardReason === "incomplete") {
     const product = retrieval.products.length === 1 ? ` for Nimbus ${retrieval.products[0][0].toUpperCase()}${retrieval.products[0].slice(1)}` : " and the NimbusStack product";
     return `Please specify the topic or feature you want to know about${product}.`;

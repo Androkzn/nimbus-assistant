@@ -12,7 +12,7 @@ describe("GET /api/health", () => {
   it("returns an operational, no-store smoke-check payload in mock mode", async () => {
     process.env.LLM_MODE = "mock";
 
-    const response = GET();
+    const response = await GET();
     const body = await response.json();
 
     expect(response.status).toBe(200);

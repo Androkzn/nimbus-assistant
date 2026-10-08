@@ -19,6 +19,7 @@
     "@ai-sdk/anthropic": "^4.0.75",
     "@ai-sdk/google": "^4.0.90",
     "@ai-sdk/openai": "^4.0.87",
+    "@neondatabase/serverless": "^1.2.0",
     "@sentry/nextjs": "^11.5.0",
     "ai": "^7.0.131",
     "next": "16.4.0",

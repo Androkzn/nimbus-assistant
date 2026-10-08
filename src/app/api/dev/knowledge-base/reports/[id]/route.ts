@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { devPortalEnabled, updateReport } from "@/server/dev-portal/db";
+import { devPortalEnabled, updateReportAsync } from "@/server/dev-portal/db";
 import type { KnowledgeReportCategory, KnowledgeReportSeverity, KnowledgeReportStatus } from "@/shared/knowledgeBase";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!devPortalEnabled()) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = (await request.json().catch(() => null)) as { status?: unknown; severity?: unknown; category?: unknown; product?: unknown } | null;
   const report = body
-    ? updateReport((await context.params).id, {
+    ? await updateReportAsync((await context.params).id, {
         status: body.status as KnowledgeReportStatus,
         severity: body.severity as KnowledgeReportSeverity,
         category: body.category as KnowledgeReportCategory,

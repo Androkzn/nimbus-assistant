@@ -1,4 +1,4 @@
-import { listPublishedDocuments } from "../dev-portal/db";
+import { listPublishedDocuments, listPublishedDocumentsAsync } from "../dev-portal/db";
 
 export const PRODUCTS = ["relay", "vault", "pulse", "ledger"] as const;
 export type Product = (typeof PRODUCTS)[number];
@@ -73,10 +73,12 @@ export function parseDocument(file: string, markdown: string): Chunk[] {
 }
 
 let cache: Chunk[] | null = null;
+let asyncCache: Chunk[] | null = null;
 
 /** Clear the in-process snapshot after a local knowledge-base mutation. */
 export function resetCorpusCache(): void {
   cache = null;
+  asyncCache = null;
 }
 
 /** Load and chunk every knowledge-base document once per process. */
@@ -86,4 +88,18 @@ export function loadCorpus(): Chunk[] {
     .sort((a, b) => a.file.localeCompare(b.file))
     .flatMap((document) => parseDocument(document.file, document.content));
   return cache;
+}
+
+/** Load the shared database corpus for serverless requests. */
+export async function loadCorpusAsync(): Promise<Chunk[]> {
+  if (asyncCache) return asyncCache;
+  asyncCache = (await listPublishedDocumentsAsync())
+    .sort((a, b) => a.file.localeCompare(b.file))
+    .flatMap((document) => parseDocument(document.file, document.content));
+  return asyncCache;
+}
+
+export async function corpusSourceAsync(): Promise<{ kind: "database"; revision: string | null }> {
+  const documents = await listPublishedDocumentsAsync();
+  return { kind: "database", revision: documents.map((document) => `${document.id}:${document.updatedAt}`).join("|") || null };
 }

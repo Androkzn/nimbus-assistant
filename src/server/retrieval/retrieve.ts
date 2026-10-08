@@ -1,4 +1,4 @@
-import { loadCorpus, PRODUCTS, type Chunk, type Product } from "../kb/corpus";
+import { loadCorpus, loadCorpusAsync, PRODUCTS, type Chunk, type Product } from "../kb/corpus";
 import {
   carriedTopic,
   detectTopics,
@@ -73,6 +73,12 @@ interface Index {
 }
 
 let index: Index | null = null;
+let asyncIndex: Index | null = null;
+
+export function resetRetrievalCache(): void {
+  index = null;
+  asyncIndex = null;
+}
 
 function getIndex(): Index {
   if (index) return index;
@@ -83,6 +89,17 @@ function getIndex(): Index {
   const avgLen = docTokens.reduce((sum, t) => sum + t.length, 0) / docTokens.length;
   index = { chunks, docTokens, df, avgLen };
   return index;
+}
+
+async function getIndexAsync(): Promise<Index> {
+  if (asyncIndex) return asyncIndex;
+  const chunks = await loadCorpusAsync();
+  const docTokens = chunks.map((c) => tokenize(c.text));
+  const df = new Map<string, number>();
+  for (const tokens of docTokens) for (const t of new Set(tokens)) df.set(t, (df.get(t) ?? 0) + 1);
+  const avgLen = docTokens.reduce((sum, t) => sum + t.length, 0) / docTokens.length;
+  asyncIndex = { chunks, docTokens, df, avgLen };
+  return asyncIndex;
 }
 
 function bm25(queryTokens: string[], docTokens: string[], idx: Index): number {
@@ -105,7 +122,14 @@ function bm25(queryTokens: string[], docTokens: string[], idx: Index): number {
  * yields the same passages, which is what makes the retrieval eval a reliable CI gate.
  */
 export function retrieve(question: string, history: HistoryMessage[] = []): RetrievalResult {
-  const idx = getIndex();
+  return retrieveFromIndex(question, history, getIndex());
+}
+
+export async function retrieveAsync(question: string, history: HistoryMessage[] = []): Promise<RetrievalResult> {
+  return retrieveFromIndex(question, history, await getIndexAsync());
+}
+
+function retrieveFromIndex(question: string, history: HistoryMessage[], idx: Index): RetrievalResult {
   const { products, inherited } = productsInScope(question, history);
   const topic = isElliptical(question) ? carriedTopic(history) : null;
   const queryText = topic ? `${question} ${topic}` : question;

@@ -77,11 +77,13 @@ Production deployment uses the protected GitHub `production` environment. Config
 
 The production deployment is intentionally customer-facing and excludes the internal Readiness tooling. The optional developer deployment is promoted separately to `nimbus-assistant-dev.vercel.app`, where the Readiness report runs recorded evidence plus live probes against the deployed environment.
 
-### Knowledge-base database
+### Shared knowledge-base database
 
-The assistant reads published documents from the SQLite knowledge-base database. On first use, the database is seeded from the checked-in `knowledge-base/` Markdown files; the Knowledge base portal can then create, edit, publish, draft, and delete documents. Published changes invalidate the retrieval cache immediately.
+Production and developer deployments use the same persistent Postgres database (provisioned through Vercel Marketplace/Neon) for published documents and privacy-safe improvement reports. On first connection, it is seeded from the checked-in `knowledge-base/` Markdown files. The Knowledge base portal can then create, edit, publish, draft, and delete documents; those changes invalidate the retrieval cache and become visible to both deployments.
 
-Set `NIMBUS_KB_DB_PATH` when the database should live outside the default local `.data/nimbus-kb.sqlite` path. The same database stores privacy-safe improvement reports, so issue creation and updates remain available through the portal without a separate content service.
+Set `DATABASE_URL` (or `POSTGRES_URL`) in both Vercel Production and Preview environments. The app creates the `documents` and `reports` tables automatically on first use. Local development keeps a SQLite fallback at `.data/nimbus-kb.sqlite`; set `NIMBUS_KB_DB_PATH` to choose another local file. Do not commit database credentials.
+
+The developer portal polls the shared API every five seconds and refreshes on window focus, so issue counts, filters, document counts, and published totals update without a page reload. The database stores issue type, priority, status, product, dates, evidence, and document content; raw user transcripts and provider credentials are not stored.
 
 ### Production monitoring and triage
 
@@ -160,7 +162,7 @@ The project is organized as a set of reusable engineering workflows rather than 
 - **Security and observability:** checked server-side secrets, bundle exposure, rate limits, telemetry, and grounding signals.
 - **Incident triage:** converted monitor and Sentry evidence into a repeatable investigation and bugfix-plan handoff.
 - **Deployment orchestration:** promoted only passing `main` builds, verified production health, and kept Readiness tooling in the developer environment.
-- **Knowledge-base operations:** connected document retrieval and privacy-safe improvement reports to the SQLite knowledge-base database.
+- **Knowledge-base operations:** connected document retrieval and privacy-safe improvement reports to the shared Postgres knowledge-base database, with a local SQLite fallback.
 
 Each skill produced evidence for the next step: brief → decision → implementation → verification → deployment.
 

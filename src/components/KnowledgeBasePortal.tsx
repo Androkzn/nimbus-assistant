@@ -109,6 +109,23 @@ export function KnowledgeBasePortal() {
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const refreshCounters = () => {
+      void fetch("/api/dev/knowledge-base", { cache: "no-store" })
+        .then((response) => (response.ok ? (response.json() as Promise<KnowledgeBasePayload>) : null))
+        .then((next) => {
+          if (next) setData(next);
+        })
+        .catch(() => undefined);
+    };
+    const interval = window.setInterval(refreshCounters, 5000);
+    window.addEventListener("focus", refreshCounters);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshCounters);
+    };
+  }, []);
+
   const selected = useMemo(() => data.documents.find((document) => document.id === selectedId), [data.documents, selectedId]);
 
   const issueTypeCounts = useMemo(() => ({
@@ -228,14 +245,14 @@ export function KnowledgeBasePortal() {
           </Link>
           <div><p className="font-display text-sm font-semibold">NimbusStack</p><p className="text-[10px] font-semibold tracking-[0.18em] text-on-navy-muted uppercase">Knowledge portal · Dev</p></div>
         </div>
-        <span className="rounded-full border border-orange/40 bg-orange/10 px-3 py-1 text-xs font-semibold text-orange">Local database</span>
+        <span className="rounded-full border border-green-500/40 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Shared database · live counters</span>
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-8 lg:py-12">
         <div className="mb-8 max-w-3xl"><p className="mb-3 text-xs font-bold tracking-[0.2em] text-orange-ink uppercase">Content operations</p><h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Knowledge base portal</h1><p className="mt-3 text-base leading-relaxed text-muted">Update approved product documents and keep a clear trail of issues found during review. Changes here feed the dev assistant after publication.</p></div>
 
         <section className="mb-6 grid gap-3 sm:grid-cols-3" aria-label="Knowledge base summary">
-          <Stat label="Documents" value={data.stats.documentCount} detail="in the local database" icon={<DocIcon />} />
+          <Stat label="Documents" value={data.stats.documentCount} detail="in the shared database" icon={<DocIcon />} />
           <Stat label="Published" value={data.stats.publishedCount} detail="available to the assistant" icon={<CheckIcon />} />
           <Stat label="New issues today" value={data.stats.newIssuesToday} detail="open or investigating" icon={<AlertIcon />} accent />
         </section>
