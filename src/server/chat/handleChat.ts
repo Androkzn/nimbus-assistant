@@ -130,7 +130,6 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
         log({ event: "chat.unhandled", requestId, error: String(err).slice(0, 200) });
         monitor.unhandled(err, requestId);
       } finally {
-        controller.close();
         // Structured log: no message text, no keys (TRD §7).
         const done = final as StreamEvent | null;
         log({
@@ -174,6 +173,10 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
             log({ event: "chat.finding_write_failed", requestId, error: String(error).slice(0, 200) });
           }
         }
+        // Keep the invocation alive until the optional operational write has completed.
+        // This matters on serverless runtimes, which may freeze immediately after the
+        // response stream is closed.
+        controller.close();
       }
     },
   });
