@@ -14,6 +14,7 @@ The production deployment does not expose internal developer tooling. The develo
 ## Quick links
 
 - ⚙️ [CI/CD](#cicd)
+- 🧩 [Spec-driven approach](#spec-driven-approach)
 - 🗂️ [Knowledge base portal](#knowledge-base-portal)
 - 🧪 [Readiness](#readiness)
 - 💻 [Local development](#local-development)
@@ -22,6 +23,20 @@ The production deployment does not expose internal developer tooling. The develo
 - 🔒 [Monitoring and security](#monitoring-and-security)
 - 📋 [Requirements and design documents](#requirements-and-design-documents)
 - 🧱 [Project layout](#project-layout)
+
+## Spec-driven approach
+
+The product is built and verified from one traceable delivery flow:
+
+1. **Knowledge-base discovery** defines the approved source material, terminology, conflicts, and deliberate gaps.
+2. **Business requirements (BRD)** define the user outcomes and product behavior.
+3. **Technical requirements (TRD)** turn those outcomes into implementation, security, and operational contracts.
+4. **Implementation planning** sequences the work and names the verification for each phase.
+5. **Acceptance rows** convert the requirements into concrete checks.
+6. **Code and tests** implement and verify those checks.
+7. **Readiness** connects each requirement to its BRD item, acceptance row, automated check, and test evidence.
+
+Every requirement must have an acceptance row, every acceptance row must have a check, and every check must claim a real test. This keeps the assistant, the knowledge-base portal, and the deployment gates aligned with the specification.
 
 ## Product behavior
 
