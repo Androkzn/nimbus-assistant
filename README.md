@@ -21,7 +21,6 @@ The production deployment does not expose internal developer tooling. The develo
 - ⚙️ [CI/CD](#cicd)
 - 🔒 [Monitoring and security](#monitoring-and-security)
 - 📋 [Requirements and design documents](#requirements-and-design-documents)
-- 🖼️ [Knowledge base portal screenshots](#knowledge-base-portal-screenshots)
 - 🧱 [Project layout](#project-layout)
 
 ## Product behavior
