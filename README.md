@@ -22,7 +22,7 @@ The production deployment does not expose internal developer tooling. The develo
 - ⚙️ [CI/CD](#cicd)
 - 🔒 [Monitoring and security](#monitoring-and-security)
 - 📋 [Requirements and design documents](#requirements-and-design-documents)
-- 🖼️ [Screenshots](#screenshots)
+- 🖼️ [Knowledge base portal screenshots](#knowledge-base-portal-screenshots)
 - 🧱 [Project layout](#project-layout)
 
 ## Product behavior
@@ -55,6 +55,12 @@ Deterministic knowledge-base findings are saved with:
 - occurrence count for the day.
 
 Repeated observations remain one issue record and increment that issue's occurrence count. Portal counters refresh from the shared API every five seconds and on window focus. Issue records can be filtered by type, priority, status, product, and date range.
+
+### Knowledge base portal screenshots
+
+![Developer portal readiness overview](docs/screenshots/readiness-overview.png)
+
+![Developer portal live deployment probes](docs/screenshots/readiness-live-probes.png)
 
 ## Shared data storage
 
@@ -159,16 +165,6 @@ The requirements package defines the product baseline and its evidence:
 - [Implementation plan](docs/requirements/03_Implementation_Plan.md)
 - [Acceptance matrix](docs/requirements/04_Acceptance_Matrix.md)
 - [Readiness report](docs/requirements/06_Readiness_Report.md)
-
-## Screenshots
-
-### Readiness overview
-
-![Readiness overview](docs/screenshots/readiness-overview.png)
-
-### Live deployment probes
-
-![Live deployment probes](docs/screenshots/readiness-live-probes.png)
 
 ## Project layout
 
