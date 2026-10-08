@@ -13,11 +13,17 @@ The production deployment does not expose internal developer tooling. The develo
 
 ## Quick links
 
-- [Production assistant](https://nimbus-assistant-production.vercel.app/)
-- [Developer assistant](https://nimbus-assistant-dev.vercel.app/)
-- [Knowledge base portal](https://nimbus-assistant-dev.vercel.app/knowledge-base)
-- [Readiness report](https://nimbus-assistant-dev.vercel.app/readiness)
-- [GitHub repository](https://github.com/Androkzn/nimbus-assistant)
+- [Deployments](#deployments)
+- [Product behavior](#product-behavior)
+- [Knowledge base portal](#knowledge-base-portal)
+- [Shared data storage](#shared-data-storage)
+- [Local development](#local-development)
+- [Verification](#verification)
+- [CI/CD](#cicd)
+- [Monitoring and security](#monitoring-and-security)
+- [Requirements and design documents](#requirements-and-design-documents)
+- [Screenshots](#screenshots)
+- [Project layout](#project-layout)
 
 ## Product behavior
 
