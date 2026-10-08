@@ -11,6 +11,34 @@ NimbusStack Product Knowledge Assistant answers questions about Relay, Vault, Pu
 
 The production deployment does not expose internal developer tooling. The developer deployment provides `/knowledge-base` and `/readiness`.
 
+## Quick links
+
+- [Production assistant](https://nimbus-assistant-production.vercel.app)
+- [Developer assistant](https://nimbus-assistant-dev.vercel.app)
+- [Knowledge base portal](https://nimbus-assistant-dev.vercel.app/knowledge-base)
+- [Readiness report](https://nimbus-assistant-dev.vercel.app/readiness)
+- [GitHub repository](https://github.com/Androkzn/nimbus-assistant)
+
+### Example: failed live readiness check
+
+A deployment can return HTTP `200` from `/api/health` while still failing readiness. The health endpoint uses its JSON body to report application health; an empty provider list means the server has a knowledge base but cannot answer questions.
+
+Example failure evidence:
+
+```text
+Health: knowledge base loaded, providers configured — FAILED
+httpStatus 200   mode live   providers none   corpusFiles 10   chunks 38
+ok is false — the server reports it cannot answer
+```
+
+Inspect the live response with:
+
+```bash
+curl --silent --show-error https://nimbus-assistant-dev.vercel.app/api/health
+```
+
+The corresponding diagnostic payload contains `"ok": false` and `"providersAvailable": []`. Configure at least one server-side provider key in the Vercel Production environment, redeploy, and verify that `/api/models` reports the provider as `"available": true` and `/api/health` reports `"ok": true`. Never put provider keys in client-exposed variables or commit them to the repository.
+
 ## Product behavior
 
 - Retrieval runs before every model call.
@@ -145,6 +173,16 @@ The requirements package defines the product baseline and its evidence:
 - [Implementation plan](docs/requirements/03_Implementation_Plan.md)
 - [Acceptance matrix](docs/requirements/04_Acceptance_Matrix.md)
 - [Readiness report](docs/requirements/06_Readiness_Report.md)
+
+## Screenshots
+
+### Readiness overview
+
+![Readiness overview](docs/screenshots/readiness-overview.png)
+
+### Live deployment probes
+
+![Live deployment probes](docs/screenshots/readiness-live-probes.png)
 
 ## Project layout
 
