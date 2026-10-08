@@ -33,5 +33,6 @@ export interface KnowledgeBasePayload {
     documentCount: number;
     publishedCount: number;
     newIssuesToday: number;
+    observationsToday: number;
   };
 }

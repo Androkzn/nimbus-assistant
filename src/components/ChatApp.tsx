@@ -32,7 +32,7 @@ const devSurfaceEnabled = process.env.NEXT_PUBLIC_DEV_SURFACE === "1" || process
 const isProductionDeployment = !devSurfaceEnabled;
 export function ChatApp() {
   const [catalog, setCatalog] = useState<ModelsResponse | null>(null);
-  const [newIssuesToday, setNewIssuesToday] = useState(0);
+  const [issueDetectionsToday, setIssueDetectionsToday] = useState(0);
   const [catalogError, setCatalogError] = useState(false);
   const [modelId, setModelId] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -66,12 +66,12 @@ export function ChatApp() {
     let active = true;
     const refreshIssueCount = () => {
       void fetch("/api/dev/knowledge-base", { cache: "no-store" })
-        .then((response) => (response.ok ? (response.json() as Promise<{ stats?: { newIssuesToday?: number } }>) : null))
+        .then((response) => (response.ok ? (response.json() as Promise<{ stats?: { observationsToday?: number; newIssuesToday?: number } }>) : null))
         .then((payload) => {
-          if (active) setNewIssuesToday(payload?.stats?.newIssuesToday ?? 0);
+          if (active) setIssueDetectionsToday(payload?.stats?.observationsToday ?? payload?.stats?.newIssuesToday ?? 0);
         })
         .catch(() => {
-          if (active) setNewIssuesToday(0);
+          if (active) setIssueDetectionsToday(0);
         });
     };
     refreshIssueCount();
@@ -265,9 +265,9 @@ export function ChatApp() {
             </a>
           )}
           {devSurfaceEnabled && (
-            <Link href="/knowledge-base" className={`hidden h-10 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold shadow-[0_0_0_1px_rgba(244,161,43,0.08)] transition-colors focus-visible:ring-2 focus-visible:ring-orange focus-visible:outline-none sm:inline-flex ${newIssuesToday === 0 ? "border-green-400/60 bg-green-400/15 text-green-100 hover:border-green-300 hover:bg-green-400/25" : "border-orange/55 bg-orange/10 text-on-navy hover:border-orange hover:bg-orange/20 hover:text-orange"}`}>
-              <AlertIcon className={newIssuesToday === 0 ? "text-green-300" : "text-orange"} />
-              <span>{newIssuesToday} new issues today</span>
+            <Link href="/knowledge-base" className={`hidden h-10 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold shadow-[0_0_0_1px_rgba(244,161,43,0.08)] transition-colors focus-visible:ring-2 focus-visible:ring-orange focus-visible:outline-none sm:inline-flex ${issueDetectionsToday === 0 ? "border-green-400/60 bg-green-400/15 text-green-100 hover:border-green-300 hover:bg-green-400/25" : "border-orange/55 bg-orange/10 text-on-navy hover:border-orange hover:bg-orange/20 hover:text-orange"}`}>
+              <AlertIcon className={issueDetectionsToday === 0 ? "text-green-300" : "text-orange"} />
+              <span>{issueDetectionsToday} detections today</span>
             </Link>
           )}
           <button

@@ -13,7 +13,7 @@ import type {
 } from "@/shared/knowledgeBase";
 import { AlertIcon, CheckIcon, ChevronRightIcon, DocIcon, PlusIcon } from "./icons";
 
-const EMPTY: KnowledgeBasePayload = { documents: [], reports: [], stats: { documentCount: 0, publishedCount: 0, newIssuesToday: 0 } };
+const EMPTY: KnowledgeBasePayload = { documents: [], reports: [], stats: { documentCount: 0, publishedCount: 0, newIssuesToday: 0, observationsToday: 0 } };
 type PortalTab = "knowledge-base" | "issues";
 type IssueTypeFilter = "auto" | "all" | KnowledgeReportCategory;
 type IssuePriorityFilter = "all" | KnowledgeReportSeverity;
@@ -257,11 +257,11 @@ export function KnowledgeBasePortal() {
         <section className="mb-6 grid gap-3 sm:grid-cols-3" aria-label="Knowledge base summary">
           <Stat label="Documents" value={data.stats.documentCount} detail="in the shared database" icon={<DocIcon />} />
           <Stat label="Published" value={data.stats.publishedCount} detail="available to the assistant" icon={<CheckIcon />} />
-          <Stat label="New issues today" value={data.stats.newIssuesToday} detail="open or investigating" icon={<AlertIcon />} accent />
+          <Stat label="Detections today" value={data.stats.observationsToday} detail={`${data.stats.newIssuesToday} open issues`} icon={<AlertIcon />} accent />
         </section>
 
         <div role="tablist" aria-label="Portal sections" className="mb-8 grid gap-2 rounded-2xl border border-border bg-surface-2 p-2 sm:grid-cols-2">
-          <PortalTabButton active={activeTab === "issues"} onClick={() => setActiveTab("issues")} icon={<AlertIcon />} label="Issues" detail={`${data.stats.newIssuesToday} new today`} count={data.reports.length} />
+          <PortalTabButton active={activeTab === "issues"} onClick={() => setActiveTab("issues")} icon={<AlertIcon />} label="Issues" detail={`${data.stats.observationsToday} detections today`} count={data.reports.length} />
           <PortalTabButton active={activeTab === "knowledge-base"} onClick={() => setActiveTab("knowledge-base")} icon={<DocIcon />} label="Knowledge base" detail={`${data.stats.publishedCount} published documents`} />
         </div>
 
@@ -278,7 +278,7 @@ export function KnowledgeBasePortal() {
         </div>}
 
         {activeTab === "issues" && <section className="rounded-2xl border border-border bg-surface shadow-sm">
-          <div className="border-b border-border px-5 py-5 sm:px-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold tracking-[0.16em] text-orange-ink uppercase">Improvements control center</p><h2 className="mt-1 font-display text-xl font-bold">Review reports</h2><p className="mt-1 max-w-xl text-sm text-muted">Prioritize what needs attention, inspect the evidence, and move each improvement through review.</p></div><span className="inline-flex items-center gap-2 rounded-full bg-orange-soft px-3 py-1.5 text-xs font-bold text-orange-ink"><AlertIcon /> {data.stats.newIssuesToday} detected today</span></div>
+          <div className="border-b border-border px-5 py-5 sm:px-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold tracking-[0.16em] text-orange-ink uppercase">Improvements control center</p><h2 className="mt-1 font-display text-xl font-bold">Review reports</h2><p className="mt-1 max-w-xl text-sm text-muted">Prioritize what needs attention, inspect the evidence, and move each improvement through review.</p></div><span className="inline-flex items-center gap-2 rounded-full bg-orange-soft px-3 py-1.5 text-xs font-bold text-orange-ink"><AlertIcon /> {data.stats.observationsToday} detected today</span></div>
             <div role="tablist" aria-label="Issue type" className="mt-5 flex flex-wrap gap-2">
               {visibleIssueTypes.map((type) => <IssueTypeTab key={type} label={ISSUE_TYPE_LABELS[type]} value={type} count={issueTypeCounts[type]} active={selectedIssueType === type} onClick={() => setIssueType(type)} />)}
               <IssueTypeTab label="All issues" value="all" count={issueTypeCounts.all} active={selectedIssueType === "all"} onClick={() => setIssueType("all")} />

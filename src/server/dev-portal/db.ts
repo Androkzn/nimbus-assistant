@@ -101,6 +101,20 @@ function reportFromRow(row: Row): KnowledgeReport {
   };
 }
 
+function observationCount(report: KnowledgeReport): number {
+  const match = report.summary.match(/Observed (\d+) time/);
+  const count = match ? Number(match[1]) : 1;
+  return Number.isFinite(count) && count > 0 ? count : 1;
+}
+
+function reportStats(reports: KnowledgeReport[], today: string): { newIssuesToday: number; observationsToday: number } {
+  const activeToday = reports.filter((report) => report.detectedAt.startsWith(today) && report.status !== "resolved");
+  return {
+    newIssuesToday: activeToday.length,
+    observationsToday: activeToday.reduce((total, report) => total + observationCount(report), 0),
+  };
+}
+
 export function listPublishedDocuments(): KnowledgeDocument[] {
   return (db().prepare("SELECT * FROM documents WHERE status = 'published' ORDER BY file").all() as Row[]).map(documentFromRow);
 }
@@ -110,8 +124,8 @@ export function getKnowledgeBase(): KnowledgeBasePayload {
   const documents = (target.prepare("SELECT * FROM documents ORDER BY title").all() as Row[]).map(documentFromRow);
   const reports = (target.prepare("SELECT * FROM reports ORDER BY detected_at DESC").all() as Row[]).map(reportFromRow);
   const today = new Date().toISOString().slice(0, 10);
-  const newIssuesToday = reports.filter((report) => report.detectedAt.startsWith(today) && report.status !== "resolved").length;
-  return { documents, reports, stats: { documentCount: documents.length, publishedCount: documents.filter((document) => document.status === "published").length, newIssuesToday } };
+  const reportStatsToday = reportStats(reports, today);
+  return { documents, reports, stats: { documentCount: documents.length, publishedCount: documents.filter((document) => document.status === "published").length, ...reportStatsToday } };
 }
 
 function documentFileName(title: string): string {
@@ -363,8 +377,8 @@ export async function getKnowledgeBaseAsync(): Promise<KnowledgeBasePayload> {
   const documents = documentRows.map(sharedDocumentFromRow);
   const reports = reportRows.map(sharedReportFromRow);
   const today = new Date().toISOString().slice(0, 10);
-  const newIssuesToday = reports.filter((report) => report.detectedAt.startsWith(today) && report.status !== "resolved").length;
-  return { documents, reports, stats: { documentCount: documents.length, publishedCount: documents.filter((document) => document.status === "published").length, newIssuesToday } };
+  const reportStatsToday = reportStats(reports, today);
+  return { documents, reports, stats: { documentCount: documents.length, publishedCount: documents.filter((document) => document.status === "published").length, ...reportStatsToday } };
 }
 
 async function sharedDocumentFileName(title: string): Promise<string> {
