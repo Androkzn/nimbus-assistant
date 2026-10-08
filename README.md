@@ -17,7 +17,6 @@ The production deployment does not expose internal developer tooling. The develo
 - 💻 [Local development](#local-development)
 - ✅ [Verification](#verification)
 - 🧭 [Product behavior](#product-behavior)
-- 🗄️ [Shared data storage](#shared-data-storage)
 - ⚙️ [CI/CD](#cicd)
 - 🔒 [Monitoring and security](#monitoring-and-security)
 - 📋 [Requirements and design documents](#requirements-and-design-documents)
@@ -59,23 +58,6 @@ Repeated observations remain one issue record and increment that issue's occurre
 ![Developer portal readiness overview](docs/screenshots/readiness-overview.png)
 
 ![Developer portal live deployment probes](docs/screenshots/readiness-live-probes.png)
-
-## Shared data storage
-
-Production and developer deployments use the same Postgres database for:
-
-- published knowledge-base documents;
-- issue reports and occurrence counts; and
-- browser-owned saved chat conversations.
-
-The database creates its tables on first use and seeds the knowledge base from the checked-in Markdown files when the document table is empty. Conversations are scoped by an anonymous browser owner cookie; they are not public or shared between users.
-
-Local development uses SQLite fallbacks:
-
-- `.data/nimbus-kb.sqlite` for documents and reports;
-- `.data/nimbus-chat.sqlite` for saved conversations.
-
-Set `DATABASE_URL` or `POSTGRES_URL` for the shared Postgres database. Optional local paths are `NIMBUS_KB_DB_PATH` and `NIMBUS_CHAT_DB_PATH`. Database credentials must not be committed.
 
 ## Local development
 
