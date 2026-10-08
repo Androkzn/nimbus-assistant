@@ -166,12 +166,12 @@ export function mergeFinding(report: DailyFindingReport | null, finding: Finding
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 async function authToken(env: Env): Promise<string> {
-  const direct = env.GOOGLE_DRIVE_ACCESS_TOKEN?.trim();
+  const direct = env.GOOGLE_DRIVE_FINDINGS_ACCESS_TOKEN?.trim();
   if (direct) return direct;
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) return cachedToken.value;
-  const refreshToken = env.GOOGLE_DRIVE_REFRESH_TOKEN?.trim();
-  const clientId = env.GOOGLE_DRIVE_CLIENT_ID?.trim();
-  const clientSecret = env.GOOGLE_DRIVE_CLIENT_SECRET?.trim();
+  const refreshToken = env.GOOGLE_DRIVE_FINDINGS_REFRESH_TOKEN?.trim();
+  const clientId = (env.GOOGLE_DRIVE_FINDINGS_CLIENT_ID ?? env.GOOGLE_DRIVE_CLIENT_ID)?.trim();
+  const clientSecret = (env.GOOGLE_DRIVE_FINDINGS_CLIENT_SECRET ?? env.GOOGLE_DRIVE_CLIENT_SECRET)?.trim();
   if (!refreshToken || !clientId || !clientSecret) throw new Error("Google Drive findings write is enabled but OAuth credentials are incomplete.");
   const response = await fetch(env.GOOGLE_DRIVE_TOKEN_URL ?? DEFAULT_TOKEN_URL, {
     method: "POST",

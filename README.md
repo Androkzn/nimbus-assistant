@@ -155,7 +155,7 @@ Google Drive provides an editable collaboration layer for product and support us
 - review findings periodically with a human, then promote accepted items into GitHub requirements, issues, knowledge-base changes, and evaluation cases;
 - keep GitHub as the source of truth for code, tests, CI evidence, releases, and rollback.
 
-Drive content must not directly deploy to production. Do not place secrets, raw user transcripts, or unredacted logs in shared documents; store only privacy-safe summaries and links to restricted evidence. The write path is opt-in via `GOOGLE_DRIVE_FINDINGS_ENABLED=1` and requires a write-capable OAuth grant; if Drive is unavailable, the chat response still succeeds and the failure is logged for operations. This keeps findings available for human analysis without turning the shared backlog into an uncontrolled incident database.
+Drive content must not directly deploy to production. Do not place secrets, raw user transcripts, or unredacted logs in shared documents; store only privacy-safe summaries and links to restricted evidence. The write path is opt-in via `GOOGLE_DRIVE_FINDINGS_ENABLED=1` and uses a separate `GOOGLE_DRIVE_FINDINGS_REFRESH_TOKEN` with a write-capable OAuth grant; the read-only knowledge-base token is never reused for writes. If Drive is unavailable, the chat response still succeeds and the failure is logged for operations. This keeps findings available for human analysis without turning the shared backlog into an uncontrolled incident database.
 
 ## Agentic delivery approach
 
