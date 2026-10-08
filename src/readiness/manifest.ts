@@ -339,6 +339,8 @@ const TEST_CHECKS: Check[] = [
     "For 'How much is Relay Pro?' the model is shown Relay 4.2's $59 per seat price change alongside relay.md."),
   hints("hints.agree", "No conflict hint where documents agree", "adds no change hint where documents agree: ", ["NKA-GRD-009"],
     "No disagreement hint is added where documents agree: the P1 SLA table, Ledger SSO, Pulse with Salesforce, Pulse SAML."),
+  hints("hints.checklist", "Full 403 checklists pointed out to the model", "C5: ", ["NKA-RET-010"],
+    "For a 403 question each product's checklist is named with its step count, so the answer lists every step, step 1 marked first."),
   hints("hints.confirm", "Agreeing security overview named as confirmation", "C3: names an agreeing company-wide summary as confirmation", ["E4", "E5", "Q5"],
     "For 'Does Pulse support SAML SSO?' the model is told the security overview confirms pulse.md, so its silence on SAML is not called a disagreement."),
 

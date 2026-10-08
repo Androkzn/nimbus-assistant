@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { retrieve } from "../retrieval/retrieve";
-import { comparisonHints } from "./build";
+import { checklistHints, comparisonHints } from "./build";
 
 describe("comparison hints (rule 4 support, brief E4)", () => {
   it("C1: quotes Vault 3.1's change and points at the product doc and the older company summary", () => {
@@ -42,5 +42,23 @@ describe("comparison hints (rule 4 support, brief E4)", () => {
       "Nimbus Ledger",
     ]);
     expect(all.some((h) => h.includes("records a change for Nimbus Vault"))).toBe(true);
+  });
+});
+
+describe("checklist hints (rule 8 support, brief Q4)", () => {
+  it("C5: names each 403 checklist with its step count, so no model stops after step 1 (NKA-RET-010)", () => {
+    const hints = checklistHints(retrieve("A client is getting a 403 on the API. What should they check first?"));
+    expect(hints).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/Nimbus Relay · "403 Forbidden on an API call" is a 3-step checklist: write all 3 steps/),
+        expect.stringMatching(/Nimbus Pulse · "403 Forbidden on an API call" is a 2-step checklist: write all 2 steps/),
+      ]),
+    );
+    expect(hints).toHaveLength(2);
+  });
+
+  it("C5: adds no checklist hint for a status whose documents have no numbered checklist", () => {
+    expect(checklistHints(retrieve("Relay keeps returning 429. What should we do?"))).toEqual([]);
+    expect(checklistHints(retrieve("Which Vault tiers support SAML?"))).toEqual([]);
   });
 });

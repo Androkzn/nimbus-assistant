@@ -48,6 +48,30 @@ export function comparisonHints(retrieval: RetrievalResult): string[] {
   return hints;
 }
 
+/**
+ * Rule 8 support (brief A9 v1.2, Q4). For a troubleshooting question about an HTTP status, each retrieved checklist
+ * for that status is named with its step count. A live eval caught the lightest model stopping after step 1 when
+ * asked "what should they check first?", although rule 8 asks for every step; a count is harder to skip.
+ */
+export function checklistHints(retrieval: RetrievalResult): string[] {
+  const status = retrieval.troubleshootingStatus;
+  if (!status) return [];
+  const hints: string[] = [];
+  for (const p of retrieval.passages) {
+    // A checklist block: "**403 Forbidden on an API call.** Check, in this order:" followed by "1. …", "2. …".
+    for (const block of p.chunk.text.split(/\n(?=\*\*)/)) {
+      const title = block.match(/^\*\*(.+?)\.?\*\*/)?.[1];
+      const steps = block.match(/^\d+\.\s/gm)?.length ?? 0;
+      if (!title || steps < 2 || !title.includes(status)) continue;
+      const owner = p.chunk.product ? `${productName(p.chunk.product)} · ` : "";
+      hints.push(
+        `[${p.n}] ${owner}"${title}" is a ${steps}-step checklist: write all ${steps} steps in the documented order and label step 1 "check first" (rule 8). Never stop after step 1.`,
+      );
+    }
+  }
+  return hints;
+}
+
 export const NOT_IN_KB = "I couldn't find this in the NimbusStack knowledge base.";
 
 /**
@@ -72,6 +96,7 @@ export function buildInstructions(retrieval: RetrievalResult, today: string): st
   }
   if (retrieval.noMatch) hints.push("Retrieval found no strong match; the knowledge base may not cover this question.");
   hints.push(...comparisonHints(retrieval));
+  hints.push(...checklistHints(retrieval));
 
   const passages = retrieval.passages
     .map((p) => `[${p.n}] source: ${p.chunk.file}\n${p.chunk.text}`)

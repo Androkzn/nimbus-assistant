@@ -67,8 +67,12 @@ export function POST(req: Request): Response {
   });
   active = child;
 
+  // A disconnect fires both the request abort and the stream cancel. Signal once: the runner reads a second
+  // SIGTERM as "stop waiting" and exits without its graceful shutdown, so the run would end with no summary.
+  let stopping = false;
   const stop = () => {
-    if (child.exitCode !== null || child.signalCode !== null) return;
+    if (stopping || child.exitCode !== null || child.signalCode !== null) return;
+    stopping = true;
     child.kill("SIGTERM");
     setTimeout(() => {
       if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
