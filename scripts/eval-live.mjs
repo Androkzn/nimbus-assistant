@@ -13,6 +13,7 @@ import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { gradeAnswer, readChatStream } from "../src/readiness/grade.mjs";
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, arg, i, all) => {
@@ -24,7 +25,6 @@ const baseUrl = (args["base-url"] ?? process.env.EVAL_BASE_URL ?? "http://localh
 const golden = JSON.parse(readFileSync("evals/golden-set.json", "utf8"));
 const cases = args.cases ? golden.cases.filter((c) => args.cases.split(",").includes(c.id)) : golden.cases;
 
-const re = (p) => (p.startsWith("(?i)") ? new RegExp(p.slice(4), "i") : new RegExp(p));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const sh = (cmd) => {
   try {
@@ -69,11 +69,7 @@ const results = [];
 async function runCase(modelId, c) {
   const started = Date.now();
   let ttftMs = null;
-  let text = "";
-  let done = null;
-  let error = null;
-  let sources = [];
-  const fallbacks = [];
+  let answer = { text: "", done: null, error: null, sources: [], fallbacks: [] };
   try {
     const res = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
@@ -85,44 +81,16 @@ async function runCase(modelId, c) {
       body: JSON.stringify({ modelId, messages: [...(c.history ?? []), { role: "user", content: c.question }] }),
     });
     if (!res.ok) {
-      error = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
+      answer.error = `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
     } else {
-      for (const line of (await res.text()).split("\n").filter(Boolean)) {
-        const ev = JSON.parse(line);
-        if (ev.type === "delta") {
-          ttftMs ??= Date.now() - started;
-          text += ev.text;
-        } else if (ev.type === "reset") text = "";
-        else if (ev.type === "sources") sources = ev.passages;
-        else if (ev.type === "fallback") fallbacks.push(ev);
-        else if (ev.type === "done") done = ev;
-        else if (ev.type === "error") error = `${ev.code}: ${ev.message}`;
-      }
+      answer = readChatStream((await res.text()).split("\n"));
+      if (answer.text) ttftMs = Date.now() - started;
     }
   } catch (e) {
-    error = String(e);
+    answer.error = String(e);
   }
-
-  const failed = [];
-  if (!done) failed.push(`no answer (${error ?? "stream ended early"})`);
-  // Brief E2: the answer must *clearly* say it is not in the knowledge base (any clear phrasing).
-  if (c.expectNotInKb && !re(golden.notInKbPattern).test(text)) failed.push("does not clearly say the answer is not in the knowledge base");
-  for (const p of c.mustInclude ?? []) if (!re(p).test(text)) failed.push(`missing /${p}/`);
-  for (const p of c.mustNotInclude ?? []) if (re(p).test(text)) failed.push(`must not contain /${p}/`);
-  // Figure check (server-side, TRD §4.6): any number that appears in no retrieved passage fails the case.
-  if (done?.unverifiedFigures?.length) failed.push(`figures not in sources: ${done.unverifiedFigures.join(", ")}`);
-  // Soft checks: better answers include these, but the brief does not require them (see case.note).
-  const warnings = (c.shouldInclude ?? []).filter((p) => !re(p).test(text)).map((p) => `nice-to-have missing /${p}/`);
-  // A clear "not in the knowledge base" answer has nothing to cite.
-  const saysNotInKb = re(golden.notInKbPattern).test(text);
-  if (!c.expectNotInKb && !c.noCitationRequired && !saysNotInKb) {
-    const cited = [...text.matchAll(/\[(\d+)(?:\s*,\s*(\d+))*\]/g)].flatMap((m) => m[0].match(/\d+/g).map(Number));
-    if (cited.length === 0) failed.push("no citations");
-    const bad = cited.filter((n) => !sources.some((s) => s.n === n));
-    if (bad.length) failed.push(`cites passages not shown: ${[...new Set(bad)].join(", ")}`);
-  }
-  // "kb-guard" = the off-topic guard answered with no model call: the intended path, not a fallback.
-  const verdict = failed.length ? "fail" : done && done.answeredBy !== modelId && done.answeredBy !== "kb-guard" ? "fallback" : "pass";
+  const { verdict, failed, warnings } = gradeAnswer(c, answer, golden.notInKbPattern, modelId);
+  const done = answer.done;
   return {
     caseId: c.id,
     brief: c.brief,
@@ -132,12 +100,12 @@ async function runCase(modelId, c) {
     failed,
     warnings,
     answeredBy: done?.answeredBy ?? null,
-    fallbacks,
+    fallbacks: answer.fallbacks,
     ttftMs,
     totalMs: Date.now() - started,
     usage: done?.usage ?? null,
     costUSD: done?.costUSD ?? 0,
-    answer: text,
+    answer: answer.text,
   };
 }
 

@@ -171,7 +171,8 @@ export function ReadinessReport({ options }: { options: ReadinessOptions }) {
           now={now}
           probesPlanned={probesPlanned}
           runMode={state.meta?.mode}
-          liveEvalPlan={!active && plannedMode(options.mode, run.availability) === "local" ? run.includeAnswer : undefined}
+          planned={plannedMode(options.mode, run.availability)}
+          liveEvalPlan={!active && ["local", "probes"].includes(plannedMode(options.mode, run.availability) ?? "") ? run.includeAnswer : undefined}
         />
 
         <section aria-labelledby="trace-heading" className="min-w-0">

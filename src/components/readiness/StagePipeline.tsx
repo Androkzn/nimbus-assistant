@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { StageState } from "@/readiness/coverage";
 import { STAGE_IDS, STAGE_INFO, type Counts, type Source, type StageId, type StageInfo, type Status } from "@/readiness/schema";
-import type { RunSession } from "@/readiness/useReadinessRun";
+import type { RunSession, RunMode } from "@/readiness/useReadinessRun";
 import { LayerBadge, SourceBadge, StatusIcon, StatusPill, TONE_TEXT, toneOf, type Tone } from "./badges";
 import { CardTooltip, type TooltipDetail } from "./CardTooltip";
 import { formatDuration } from "./format";
@@ -89,9 +89,10 @@ interface StageView {
   planned?: boolean;
 }
 
-function viewsOf(stages: StageState[], session: RunSession, probesPlanned: boolean): StageView[] {
+function viewsOf(stages: StageState[], session: RunSession, probesPlanned: boolean, planned?: RunMode): StageView[] {
   if (stages.length === 0) {
-    const ids = session.mode === "probes" ? (["probes"] as StageId[]) : STAGE_IDS.filter((id) => id !== "probes" || probesPlanned);
+    // Live checks against a deployment: only the stages that can run there (no local gates).
+    const ids = (session.mode ?? planned) === "probes" ? (["live-eval", "probes"] as StageId[]) : STAGE_IDS.filter((id) => id !== "probes" || probesPlanned);
     return ids.map((id) => ({ info: STAGE_INFO[id], status: "pending", planned: true }));
   }
   const views: StageView[] = stages.map((s) => ({
@@ -154,6 +155,7 @@ export function StagePipeline({
   now,
   probesPlanned,
   runMode,
+  planned,
   liveEvalPlan,
 }: {
   stages: StageState[];
@@ -162,11 +164,13 @@ export function StagePipeline({
   probesPlanned: boolean;
   /** The run's mode: a stage whose source differs from it (live probes in a replay, the recorded eval in a live run) is marked. */
   runMode?: "local" | "replay" | "probes";
+  /** What Start will run (before a run, a deployment shows only the stages its live checks run). */
+  planned?: RunMode;
   /** "Include live answers" for the next local run, while no run is in progress; undefined where it does not apply. */
   liveEvalPlan?: boolean;
 }) {
   const [openId, setOpenId] = useState<StageId | null>(null);
-  const views = previewLiveEval(viewsOf(stages, session, probesPlanned), liveEvalPlan);
+  const views = previewLiveEval(viewsOf(stages, session, probesPlanned, planned), liveEvalPlan);
   const halted = session.phase === "stopped" || session.phase === "error";
   const open = views.find((v) => v.info.id === openId);
 

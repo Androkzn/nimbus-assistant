@@ -276,6 +276,8 @@ const TEST_CHECKS: Check[] = [
     "An answer inventing '99.95% uptime' is flagged in the final event; an answer quoting the documented 30 minutes is not."),
   chat("chat.rate-window", "20 questions per 5 minutes per client", "allows 20 requests per window and rejects the 21st", ["NKA-SEC-003"],
     "Each client gets 20 questions per 5 minutes; the 21st is refused with a 300-second retry time, and other clients are unaffected.", "unit"),
+  chat("chat.rate-eval", "Readiness live eval has its own allowance on dev only", "gives the readiness live eval its own allowance on the developer deployment", ["DR-ABUSE"],
+    "The readiness page's live eval draws on a separate dev-only allowance; production ignores the header and keeps the public limit."),
   chat("chat.rate-429", "HTTP 429 with Retry-After when over the limit", "returns 429 JSON from the endpoint when exceeded", ["NKA-SEC-003"],
     "Over the limit, the chat API answers HTTP 429 with a Retry-After header."),
 

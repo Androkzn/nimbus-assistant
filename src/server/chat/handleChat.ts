@@ -10,10 +10,13 @@ import { retrieveAsync, type RetrievalResult } from "../retrieval/retrieve";
 import { unverifiedFigures } from "../verify/figures";
 import { slaQualifier, sourceLine } from "../verify/qualifiers";
 import { buildFinding, persistFinding, type FindingSink } from "../findings/database";
+import { devPortalEnabled } from "../dev-portal/enabled";
 
 export interface ChatDeps {
   env?: Env;
   limiter?: RateLimiter;
+  /** The readiness live eval's allowance on the developer surface; tests inject their own. */
+  evalLimiter?: RateLimiter;
   modelFactory?: (entry: ModelEntry) => LanguageModel;
   today?: () => string;
   log?: (record: Record<string, unknown>) => void;
@@ -26,6 +29,12 @@ export interface ChatDeps {
 const defaultLimiter = createRateLimiter({
   max: Number(process.env.RATE_LIMIT_MAX ?? 20),
   windowMs: 5 * 60_000,
+});
+
+/** The readiness page's live answer eval on the developer deployment: about one full eval (~170 questions) per 10 minutes per client. */
+const defaultEvalLimiter = createRateLimiter({
+  max: Number(process.env.READINESS_EVAL_MAX ?? 200),
+  windowMs: 10 * 60_000,
 });
 
 function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {
@@ -48,7 +57,11 @@ export async function handleChat(req: Request, deps: ChatDeps = {}): Promise<Res
   // The live eval runs many questions from one IP; it may bypass the limiter with a shared secret.
   const evalToken = env.EVAL_BYPASS_TOKEN;
   const isEval = Boolean(evalToken) && req.headers.get("x-eval-token") === evalToken;
-  const limit = isEval ? ({ ok: true } as const) : (deps.limiter ?? defaultLimiter).check(ip);
+  // The readiness page's live answer eval asks ~170 questions from one browser. On the developer surface only it
+  // draws on its own allowance; production ignores the header, so the public limit there is unchanged (BR-26).
+  const readinessEval = req.headers.get("x-nimbus-test-run") === "readiness-eval" && devPortalEnabled(env);
+  const limiter = readinessEval ? (deps.evalLimiter ?? defaultEvalLimiter) : (deps.limiter ?? defaultLimiter);
+  const limit = isEval ? ({ ok: true } as const) : limiter.check(ip);
   if (!limit.ok) {
     return json(
       429,

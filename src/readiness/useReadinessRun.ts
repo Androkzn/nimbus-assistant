@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { initialRunState, reduceRun, type RunState } from "./coverage";
 import { readReadinessEvents } from "./ndjson";
 import { runProbes } from "./probes";
+import { runLiveEval } from "./liveEval";
 import { parseNdjson, replay } from "./replay";
 import { STAGE_INFO, type ReadinessEvent, type RunMeta, type StageId } from "./schema";
 import { deleteSavedAssessment, loadSavedAssessments, saveAssessment, type SavedAssessment } from "./storage";
@@ -269,12 +270,11 @@ export function useReadinessRun(options: ReadinessOptions) {
         const avail = await fetchRunnerAvailability(signal);
         if (!live()) return;
         setAvailability(avail);
+        // A deployment has no local runner: it runs the live checks against itself instead of a replay.
         if (avail.available && !avail.running) mode = "local";
         else {
-          mode = "replay";
-          notice = avail.available
-            ? "A local run is already in progress elsewhere, so this page replays the last recorded run."
-            : undefined;
+          mode = "probes";
+          notice = avail.available ? "A local run is already in progress elsewhere, so this page runs the live checks against this server." : undefined;
         }
       }
 
@@ -282,8 +282,8 @@ export function useReadinessRun(options: ReadinessOptions) {
         patch({ mode, notice, phase: "running" });
         const res = await fetch(runAnswer ? RUN_ENDPOINT : `${RUN_ENDPOINT}?answers=0`, { method: "POST", cache: "no-store", signal });
         if (res.status === 404) {
-          mode = "replay";
-          notice = "The local runner is not available here, so this page replays the last recorded run.";
+          mode = "probes";
+          notice = "The local runner is not available here, so this page runs the live checks against this server.";
         } else if (res.status === 409) {
           throw new Error("Another readiness run is already in progress on this machine. Wait for it to finish, then re-run.");
         } else if (!res.ok || !res.body) {
@@ -331,7 +331,16 @@ export function useReadinessRun(options: ReadinessOptions) {
           build: await probeBuild(signal),
         };
         if (!live()) return;
-        push({ type: "run-start", meta, stages: [STAGE_INFO.probes] });
+        push({ type: "run-start", meta, stages: [STAGE_INFO["live-eval"], STAGE_INFO.probes] });
+        // "Include live answers": the golden questions, asked of this server for real (~170 answers, real tokens).
+        if (runAnswer) await runLiveEval({ origin, signal }, push);
+        else {
+          const at = new Date().toISOString();
+          push({ type: "stage-start", stage: "live-eval", at });
+          const note = 'skipped: "Include live answers" is off, so no provider tokens were spent';
+          push({ type: "stage-end", stage: "live-eval", status: "skipped", durationMs: 0, counts: { passed: 0, failed: 0, skipped: 0 }, source: "live", at, note });
+        }
+        if (!live()) return;
       }
 
       if (mode === "probes" || options.probes) {

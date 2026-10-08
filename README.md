@@ -84,7 +84,7 @@ Readiness is the developer verification feature for checking the application aga
 ### Features
 
 - **Live quality gates:** runs typecheck, lint, unit/integration/retrieval tests, production build, client-bundle scanning, and browser E2E tests.
-- **Recorded evidence:** replays the latest published local run with a `recorded` label, including its build and date.
+- **Recorded evidence:** with `mode=replay`, replays the latest published local run with a `recorded` label, including its build and date.
 - **Live deployment probes:** checks the running server for health, model availability, chat behavior, bundle exposure, and other public-route guarantees.
 - **Traceability:** maps requirements to BRD items, acceptance rows, automated checks, and individual test results.
 - **Failure-focused review:** shows All requirements by default and also supports Needs improvement, Failed, Live, Recorded, and text search filters.
@@ -94,7 +94,7 @@ Readiness is the developer verification feature for checking the application aga
 
 ### How to use it
 
-Use the **Readiness test** button in the developer assistant header. It opens the report and starts the available local or replay flow automatically. The button is the supported user entry point; the runner behind it is internal developer tooling.
+Use the **Readiness test** button in the developer assistant header. It opens the report and starts automatically: a local run of every gate where the runner is available, and on a deployment the live checks (live probes, plus the live answer eval when **Include live answers** is ticked). The button is the supported user entry point; the runner behind it is internal developer tooling.
 
 For local development, open the browser report directly when needed:
 
@@ -102,7 +102,7 @@ For local development, open the browser report directly when needed:
 http://localhost:3000/readiness?autostart=1
 ```
 
-The report can replay the latest published evidence and then run live probes against the current browser origin. Maintainers publish the recorded artifact through the internal readiness runner; end users do not need a separate readiness command.
+On a deployment the report runs the live probes against the current browser origin; the latest published evidence stays available with `mode=replay`. Maintainers publish the recorded artifact through the internal readiness runner; end users do not need a separate readiness command.
 
 For example, a live health probe can return HTTP `200` but still fail if the JSON says `ok: false` or no model providers are available. The report keeps that distinction visible instead of treating the HTTP status alone as success.
 

@@ -23,11 +23,17 @@ export interface ReplayOptions {
   signal?: AbortSignal;
   /** Longest pause between two events after scaling (default 1200 ms), so a 60 s build doesn't stall the page. */
   maxGapMs?: number;
+  /**
+   * Longest whole replay: every pause shrinks in proportion to fit. Default 12 s above 1x, none at 1x (the recorded
+   * pace). A 5-minute live answer eval has 170 results, and per-pause caps alone still replayed it for 80 s at 4x.
+   */
+  maxTotalMs?: number;
   /** Default true. The page passes false to run live probes before it shows the final verdict. */
   includeRunEnd?: boolean;
 }
 
 const DEFAULT_MAX_GAP_MS = 1200;
+const DEFAULT_MAX_TOTAL_MS = 12_000;
 
 const toMs = (iso: string): number | null => {
   const t = Date.parse(iso);
@@ -103,25 +109,33 @@ function relabel(e: ReadinessEvent, meta: RunMeta | null): ReadinessEvent {
 
 /**
  * Re-emits a recorded run at `speed`: pauses come from the recorded timestamps, are divided by
- * `speed` and capped at `maxGapMs`. Original durations, runId, startedAt and build are kept; run-start
+ * `speed`, capped at `maxGapMs`, and shrunk together to fit `maxTotalMs`. Original durations, runId, startedAt and build are kept; run-start
  * says mode "replay", and every result and stage-end says source "recorded". Always asynchronous
  * (nothing is emitted before the first await). An abort stops promptly and resolves without throwing.
  */
 export async function replay(events: ReadinessEvent[], emit: (e: ReadinessEvent) => void, opts: ReplayOptions): Promise<void> {
   const { speed, signal, maxGapMs = DEFAULT_MAX_GAP_MS, includeRunEnd = true } = opts;
   if (!(speed > 0)) throw new RangeError(`replay speed must be > 0 (got ${speed})`);
+  const maxTotalMs = opts.maxTotalMs ?? (speed > 1 ? DEFAULT_MAX_TOTAL_MS : Infinity);
   const times = recordedTimeline(events);
+  // Every pause first, so a long recording can be shrunk evenly instead of cut short.
+  const waits: number[] = [];
+  let last: number | null = null;
+  for (let i = 0; i < events.length; i++) {
+    const t = times[i];
+    const gap = t !== null && last !== null ? Math.max(0, t - last) : 0;
+    if (t !== null) last = t;
+    waits.push(events[i].type === "run-end" && !includeRunEnd ? 0 : Math.min(gap / speed, maxGapMs));
+  }
+  const total = waits.reduce((sum, w) => sum + w, 0);
+  const fit = total > maxTotalMs ? maxTotalMs / total : 1;
   const meta = events.find((e): e is Extract<ReadinessEvent, { type: "run-start" }> => e.type === "run-start")?.meta ?? null;
   await Promise.resolve();
-  let previous: number | null = null;
   for (let i = 0; i < events.length; i++) {
     const e = events[i];
     if (signal?.aborted) return;
     if (e.type === "run-end" && !includeRunEnd) continue;
-    const t = times[i];
-    const gap = t !== null && previous !== null ? Math.max(0, t - previous) : 0;
-    if (t !== null) previous = t;
-    const wait = Math.min(gap / speed, maxGapMs);
+    const wait = waits[i] * fit;
     if (wait > 0 && !(await sleep(wait, signal))) return;
     emit(relabel(e, meta));
   }

@@ -52,7 +52,9 @@ test.describe("Readiness report", () => {
     const url = new URL(popup.url());
     expect(url.pathname + url.search).toBe("/readiness?autostart=1");
     await expect(popup.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
-    await expect(popup.getByTestId("mode-banner")).toHaveAttribute("data-mode", "replay");
+    // A deployment has no local runner: it runs the live checks against itself, never a replay.
+    await expect(popup.getByTestId("mode-banner")).toHaveAttribute("data-mode", "probes");
+    await expect(popup.getByTestId("stage-live-eval")).toHaveAttribute("data-status", "skipped");
 
     // The chat stays where it was.
     expect(new URL(page.url()).pathname).toBe("/");
@@ -76,6 +78,10 @@ test.describe("Readiness report", () => {
     await expect(filters.first()).toHaveAttribute("data-testid", "filter-all");
     await expect(filters.last()).toHaveAttribute("data-testid", "filter-recorded");
     await expect(page.getByTestId("filter-all")).toHaveAttribute("aria-pressed", "true");
+    // A replay cannot run the live answer eval: the box is shown off and disabled, saying why.
+    await expect(page.getByTestId("include-answer")).toBeDisabled();
+    await expect(page.getByTestId("include-answer")).not.toBeChecked();
+    await expect(page.getByText("Runs only in a local run; this page replays the recorded eval")).toBeVisible();
 
     // The tabs count checks, the headline's unit ("N of 174 checks complete"); the list groups them by requirement.
     const progress = await page.locator('[aria-valuetext$="checks complete"]').getAttribute("aria-valuetext");
@@ -114,9 +120,11 @@ test.describe("Readiness report", () => {
       await expect(item, `probe ${id}`).toHaveAttribute("data-status", "passed");
       await expect(item, `probe ${id}`).toHaveAttribute("data-source", "live");
     }
-    // The real-answer probe always runs; "Include live answers" only switches a local run's live eval, so it is not offered here.
+    // The real-answer probe always runs. "Include live answers" (off by default) switches the live answer eval here too.
     await expect(feedItem(page, "probe::grounded-answer")).toHaveAttribute("data-status", "passed");
-    await expect(page.getByTestId("include-answer")).toHaveCount(0);
+    await expect(page.getByTestId("include-answer")).toBeEnabled();
+    await expect(page.getByTestId("include-answer")).not.toBeChecked();
+    await expect(page.getByTestId("stage-live-eval")).toHaveAttribute("data-status", "skipped");
     await expect(page.getByTestId("stage-probes")).toHaveAttribute("data-status", "passed");
 
     // A visible tooltip can still be painted under the next card; the hovered card must stack above its neighbours.
@@ -152,23 +160,25 @@ test.describe("Readiness report", () => {
     expect(calls, "a probe-only run never touches the runner").toEqual([]);
   });
 
-  test("RDY-005: the page never starts a local run unless asked; where the runner is unavailable it replays, then probes live", async ({ page }) => {
+  test("RDY-005: the page never starts a local run unless asked; where the runner is unavailable it runs the live checks", async ({ page }) => {
     const calls = await stubRunner(page.context());
 
     await page.goto("/readiness");
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", "idle");
-    await expect(page.getByTestId("start-run")).toHaveText(/Replay recorded run/);
+    await expect(page.getByTestId("start-run")).toHaveText(/Run live checks/);
+    // Only the stages a deployment can run: no local gates, and no replay speed.
+    await expect(page.getByTestId("stage-typecheck")).toHaveCount(0);
+    await expect(page.getByRole("group", { name: "Replay speed" })).toHaveCount(0);
 
     // The header button's URL, on a deployment without the runner (GET → unavailable).
-    await page.goto("/readiness?autostart=1&speed=instant");
+    await page.goto("/readiness?autostart=1");
     await page.getByTestId("filter-all").click();
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
-    await expect(page.getByTestId("mode-banner")).toHaveAttribute("data-mode", "replay");
-    await expect(page.getByTestId("mode-banner")).toContainText("Live probes");
+    await expect(page.getByTestId("mode-banner")).toHaveAttribute("data-mode", "probes");
 
-    // Recorded gates stay recorded; only the probes, which ran now, are live.
+    // Everything here ran now, against this server: nothing is recorded.
     await expect(feedItem(page, "probe::health")).toHaveAttribute("data-source", "live");
-    await expect(page.locator('[data-testid="feed-item"][data-source="live"]:not([data-result-id^="probe::"])')).toHaveCount(0);
+    await expect(page.locator('[data-testid="feed-item"][data-source="recorded"]')).toHaveCount(0);
 
     expect(calls).toContain("GET");
     expect(calls, "no POST, so no gate run was spawned").not.toContain("POST");

@@ -91,6 +91,25 @@ describe("replay of a recorded run (spec I7, RDY-003)", () => {
     expect((await play({ speed: 4, maxGapMs: 300 })).map((e) => e.t)).toEqual([0, 125, 425, 425, 450, 450, 575, 700, 700, 825, 950, 950, 975]);
   });
 
+  it("fits a long recording into maxTotalMs at 4x (default 12 s) by shrinking every pause evenly", async () => {
+    // A 5-minute live answer eval: 170 results, about 1.8 s apart, so 4x alone would take about 76 s.
+    const many: ReadinessEvent[] = [
+      { type: "run-start", meta: { runId: "r", mode: "local", startedAt: at(0), platform: "p", environment: "e", build: "b" }, stages: [] },
+      { type: "stage-start", stage: "live-eval", at: at(0) },
+      ...Array.from({ length: 170 }, (_, k) => result(`eval::c${k}::m`, "live-eval", 1000)),
+      { type: "stage-end", stage: "live-eval", status: "passed", durationMs: 310_000, counts: counts(170), source: "live", at: at(310_000) },
+      { type: "run-end", status: "passed", durationMs: 310_000, at: at(310_000) },
+    ];
+    const emitted: number[] = [];
+    const started = Date.now();
+    const done = replay(many, () => emitted.push(Date.now() - started), { speed: 4 });
+    await vi.advanceTimersByTimeAsync(20_000);
+    await done;
+    expect(emitted).toHaveLength(many.length);
+    expect(emitted.at(-1)).toBeLessThanOrEqual(12_001);
+    expect(emitted.at(-1)).toBeGreaterThan(11_000);
+  });
+
   it("speed Infinity never waits but still emits asynchronously", async () => {
     const emitted: ReadinessEvent[] = [];
     const done = replay(RECORDED, (e) => emitted.push(e), { speed: Infinity });

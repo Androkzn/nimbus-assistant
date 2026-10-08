@@ -263,6 +263,16 @@ describe("rate limiter (NKA-SEC-003)", () => {
     expect(limiter.check("1.2.3.4").ok).toBe(true); // window slides
   });
 
+  it("gives the readiness live eval its own allowance on the developer deployment, never in production", async () => {
+    const ask = (env: Record<string, string | undefined>) =>
+      handleChat(
+        post({ modelId: "gemini-flash", messages: [{ role: "user", content: "hi" }] }, { "x-nimbus-test-run": "readiness-eval" }),
+        deps({ env: { ...ENV, ...env }, limiter: createRateLimiter({ max: 0, windowMs: 1000 }), evalLimiter: createRateLimiter({ max: 1, windowMs: 1000 }) }).deps,
+      );
+    expect((await ask({ NIMBUS_DEV_PORTAL: "1" })).status).toBe(200);
+    expect((await ask({ NIMBUS_DEV_PORTAL: undefined, VERCEL_ENV: "production", NODE_ENV: "production" })).status).toBe(429);
+  });
+
   it("returns 429 JSON from the endpoint when exceeded", async () => {
     const d = deps({ limiter: createRateLimiter({ max: 0, windowMs: 1000 }) });
     const res = await handleChat(post({ modelId: "gemini-flash", messages: [{ role: "user", content: "hi" }] }), d.deps);

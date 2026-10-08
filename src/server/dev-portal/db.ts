@@ -26,9 +26,7 @@ export function sharedDatabaseEnabled(): boolean {
   return Boolean(sharedSql);
 }
 
-export function devPortalEnabled(): boolean {
-  return process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview" || process.env.NIMBUS_DEV_PORTAL === "1";
-}
+export { devPortalEnabled } from "./enabled";
 
 function db(): DatabaseSync {
   if (database) return database;
