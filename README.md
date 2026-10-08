@@ -130,9 +130,11 @@ For example, a live health probe can return HTTP `200` but still fail if the JSO
 
 ![Readiness overview](docs/screenshots/readiness-overview.png)
 
-### Live deployment probes
+### Example: failed readiness check
 
-![Live deployment probes](docs/screenshots/readiness-live-probes.png)
+The report can show a failed health check even when the endpoint returns HTTP `200`. In this example, the deployment loaded all 10 knowledge-base documents, but `providers: none` caused `ok: false`, so the deployment could not answer questions. The failed result is shown in the traceability matrix and the live feed with the reason exposed for review.
+
+![Failed readiness health check](docs/screenshots/readiness-live-probes.png)
 
 ## Verification
 
