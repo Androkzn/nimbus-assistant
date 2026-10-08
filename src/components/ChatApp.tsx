@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readEvents } from "@/client/stream";
 import { deadlineIn, formatWait } from "@/client/cooldown";
@@ -12,7 +13,7 @@ import { formatUSD } from "@/shared/cost";
 import { AnswerCard } from "./AnswerCard";
 import { BrandLockup } from "./BrandLockup";
 import { EmptyState } from "./EmptyState";
-import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, PlusIcon, StopIcon } from "./icons";
+import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, PlusIcon, StopIcon } from "./icons";
 import { ModelPicker } from "./ModelPicker";
 import { SessionPanel } from "./SessionPanel";
 
@@ -27,8 +28,11 @@ const BASE_PROMPT_TOKENS = 1500;
 
 /** How close to the bottom (px) still counts as "following" the conversation. */
 const FOLLOW_THRESHOLD = 96;
+const devSurfaceEnabled = process.env.NEXT_PUBLIC_DEV_SURFACE === "1" || process.env.NODE_ENV === "development";
+const isProductionDeployment = !devSurfaceEnabled;
 export function ChatApp() {
   const [catalog, setCatalog] = useState<ModelsResponse | null>(null);
+  const [newIssuesToday, setNewIssuesToday] = useState(0);
   const [catalogError, setCatalogError] = useState(false);
   const [modelId, setModelId] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -54,6 +58,32 @@ export function ChatApp() {
         setModelId((prev) => prev || c.defaultModelId);
       })
       .catch(() => setCatalogError(true));
+  }, []);
+
+  // Dev-only portal metric: poll as a fallback and listen for instant cross-tab updates.
+  useEffect(() => {
+    if (!devSurfaceEnabled) return;
+    let active = true;
+    const refreshIssueCount = () => {
+      void fetch("/api/dev/knowledge-base", { cache: "no-store" })
+        .then((response) => (response.ok ? (response.json() as Promise<{ stats?: { newIssuesToday?: number } }>) : null))
+        .then((payload) => {
+          if (active) setNewIssuesToday(payload?.stats?.newIssuesToday ?? 0);
+        })
+        .catch(() => {
+          if (active) setNewIssuesToday(0);
+        });
+    };
+    refreshIssueCount();
+    const interval = window.setInterval(refreshIssueCount, 3000);
+    const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("nimbus-knowledge-base");
+    channel?.addEventListener("message", refreshIssueCount);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      channel?.removeEventListener("message", refreshIssueCount);
+      channel?.close();
+    };
   }, []);
 
   // Follow the streaming answer only while the user is at the bottom — never yank them away from what they're reading.
@@ -170,6 +200,13 @@ export function ChatApp() {
             costUSD: done.costUSD ?? 0,
           },
         ]);
+        if (done.answeredBy === KB_GUARD_ID && !isProductionDeployment) {
+          void fetch("/api/dev/knowledge-base/gaps", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ question }),
+          }).catch(() => undefined);
+        }
       } else if (state.status === "streaming") {
         update({ ...state, status: "error", error: { code: "unavailable", message: "The answer was interrupted. Please try again." } });
       }
@@ -216,6 +253,27 @@ export function ChatApp() {
       <header className="brand-glow relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-navy-3 bg-navy px-4 text-on-navy sm:px-6">
         <BrandLockup size="header" />
         <div className="flex items-center gap-2">
+          {!isProductionDeployment && (
+            <a
+              href="/readiness?autostart=1"
+              target="nimbus-readiness"
+              data-testid="readiness-link"
+              title="Readiness test: every quality gate, run live and mapped to the brief"
+              onClick={(event) => {
+                if (window.open("/readiness?autostart=1", "nimbus-readiness", "popup,width=1440,height=900")) event.preventDefault();
+              }}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-orange/60 bg-navy-2 px-4 text-sm font-bold text-on-navy shadow-[0_0_0_1px_rgba(244,161,43,0.08)] transition-colors hover:border-orange hover:bg-orange/10 hover:text-orange focus-visible:ring-2 focus-visible:ring-orange focus-visible:outline-none"
+            >
+              <CheckIcon className="text-orange" />
+              <span className="max-sm:sr-only">Readiness test</span>
+            </a>
+          )}
+          {devSurfaceEnabled && (
+            <Link href="/knowledge-base" className={`hidden h-10 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold shadow-[0_0_0_1px_rgba(244,161,43,0.08)] transition-colors focus-visible:ring-2 focus-visible:ring-orange focus-visible:outline-none sm:inline-flex ${newIssuesToday === 0 ? "border-green-400/60 bg-green-400/15 text-green-100 hover:border-green-300 hover:bg-green-400/25" : "border-orange/55 bg-orange/10 text-on-navy hover:border-orange hover:bg-orange/20 hover:text-orange"}`}>
+              <AlertIcon className={newIssuesToday === 0 ? "text-green-300" : "text-orange"} />
+              <span>{newIssuesToday} new issues today</span>
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => setPanelOpen(true)}

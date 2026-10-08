@@ -3,10 +3,14 @@ import type { NextConfig } from "next";
 
 // Vercel exposes VERCEL_ENV only at build time. Re-export it for observability metadata.
 const deploymentEnv = process.env.VERCEL_ENV ?? process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development";
+// Local and preview builds include the developer-only readiness/knowledge-base surfaces. Production
+// deployments stay locked down unless explicitly opted in for a local diagnostic run.
+const devSurfaceEnabled = process.env.NIMBUS_DEV_PORTAL === "1" || deploymentEnv !== "production" || process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_VERCEL_ENV: deploymentEnv,
+    NEXT_PUBLIC_DEV_SURFACE: devSurfaceEnabled ? "1" : "0",
   },
   // Allow isolated build tooling to choose a separate output directory when needed.
   distDir: process.env.NEXT_DIST_DIR || ".next",

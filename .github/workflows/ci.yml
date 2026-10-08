@@ -96,6 +96,7 @@ jobs:
         env:
           PRODUCTION_URL: https://nimbus-assistant-coral.vercel.app
         run: |
-          curl --fail --silent --show-error "$PRODUCTION_URL/api/health"
+          health="$(curl --fail --silent --show-error "$PRODUCTION_URL/api/health")"
+          echo "$health" | jq --exit-status '(.ok == true) and (.status != "down") and (.corpus.files > 0) and (.providerCount > 0)'
           curl --fail --silent --show-error "$PRODUCTION_URL/api/models" >/dev/null
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$PRODUCTION_URL/readiness?autostart=1")" = "404"

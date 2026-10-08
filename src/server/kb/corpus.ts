@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { listPublishedDocuments } from "@/server/dev-portal/db";
 
 export const PRODUCTS = ["relay", "vault", "pulse", "ledger"] as const;
 export type Product = (typeof PRODUCTS)[number];
@@ -72,9 +73,24 @@ export function parseDocument(file: string, markdown: string): Chunk[] {
 
 let cache: Chunk[] | null = null;
 
+export function resetCorpusCache(): void {
+  cache = null;
+}
+
 /** Load and chunk every knowledge-base document once per process. */
 export function loadCorpus(): Chunk[] {
   if (cache) return cache;
+  if (process.env.NODE_ENV === "development") {
+    try {
+      const documents = listPublishedDocuments();
+      if (documents.length > 0) {
+        cache = documents.flatMap((document) => parseDocument(document.file, document.content));
+        return cache;
+      }
+    } catch {
+      // The file-backed corpus remains a safe fallback if the local dev database is unavailable.
+    }
+  }
   // Paths stay statically scoped to knowledge-base/ so the bundler traces exactly these files.
   cache = readdirSync(KB_DIR)
     .filter((f) => f.endsWith(".md"))

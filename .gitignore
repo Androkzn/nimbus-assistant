@@ -53,5 +53,8 @@ next-env.d.ts
 # local developer-only artifacts
 /readiness/
 
+# local dev knowledge portal database
+/.data/
+
 # live evaluation reports are generated artifacts
 /evals/reports/
