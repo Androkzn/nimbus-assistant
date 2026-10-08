@@ -69,7 +69,7 @@ The production deployment is intentionally customer-facing and excludes the inte
 
 ### Production monitoring and triage
 
-[`production-monitor.yml`](.github/workflows/production-monitor.yml) probes production every 15 minutes and on demand: homepage, health, model catalog, and the production-only Readiness `404`. Failures upload JSON evidence and create or update a GitHub bugfix-plan issue. Sentry can trigger the same triage path with a trusted `repository_dispatch` event named `sentry-issue` carrying `issue_short_id`, `issue_url`, `issue_title`, `environment`, and `release`; the workflow prepares a plan, but human review is required before code changes, deployment, or issue resolution.
+[`production-monitor.yml`](.github/workflows/production-monitor.yml) probes production every 15 minutes and on demand: homepage, health, model catalog, and the production-only Readiness `404`. Failures upload JSON evidence and create or update a GitHub bugfix-plan issue. With the optional `OPENAI_API_KEY` repository secret, Responses API Structured Outputs adds a schema-validated hypothesis plan; otherwise the deterministic safety plan is used. Sentry can trigger the same triage path with a trusted `repository_dispatch` event named `sentry-issue` carrying `issue_short_id`, `issue_url`, `issue_title`, `environment`, and `release`; human review is required before code changes, deployment, or issue resolution.
 
 ## Agentic delivery approach
 

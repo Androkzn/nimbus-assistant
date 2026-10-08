@@ -43,38 +43,33 @@ jobs:
         with:
           name: production-monitor-${{ github.run_id }}
           path: production-monitor.json
+      - name: Generate evidence-bound bugfix plan
+        if: steps.probe.outcome == 'failure'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TRIAGE_MODEL: ${{ vars.TRIAGE_MODEL || 'gpt-6-astra' }}
+        run: node scripts/create-bugfix-plan.mjs --source monitor --input production-monitor.json > bugfix-plan.md
+      - name: Upload bugfix plan
+        if: steps.probe.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-bugfix-plan-${{ github.run_id }}
+          path: bugfix-plan.md
       - name: Create or update incident issue
         if: steps.probe.outcome == 'failure'
         uses: actions/github-script@v7
         env:
           REPORT: ${{ github.workspace }}/production-monitor.json
+          PLAN: ${{ github.workspace }}/bugfix-plan.md
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
             const fs = require("node:fs");
             const report = JSON.parse(fs.readFileSync(process.env.REPORT, "utf8"));
+            const plan = fs.readFileSync(process.env.PLAN, "utf8");
             const fingerprint = report.fingerprint || "unknown";
             const title = `Production monitor failure: ${fingerprint}`;
-            const body = [
-              "## Detection",
-              `- Environment: production`,
-              `- URL: ${report.baseUrl}`,
-              `- Detected: ${report.generatedAt}`,
-              `- Workflow run: ${process.env.RUN_URL}`,
-              "",
-              "## Probe evidence",
-              "```json",
-              JSON.stringify(report, null, 2),
-              "```",
-              "",
-              "## Bugfix plan",
-              "- [ ] Confirm whether the failure reproduces outside the monitor",
-              "- [ ] Inspect Sentry/Vercel logs and identify the affected release/commit",
-              "- [ ] Add or update a regression test",
-              "- [ ] Implement the smallest safe fix",
-              "- [ ] Run CI and production smoke checks",
-              "- [ ] Deploy only after human review",
-            ].join("\n");
+            const body = `${plan}\n\nMonitor run: ${process.env.RUN_URL}`;
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -105,38 +100,33 @@ jobs:
     if: github.event_name == 'repository_dispatch' && github.event.action == 'sentry-issue'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate evidence-bound bugfix plan
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TRIAGE_MODEL: ${{ vars.TRIAGE_MODEL || 'gpt-6-astra' }}
+          TRIAGE_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        run: node scripts/create-bugfix-plan.mjs --source sentry > bugfix-plan.md
+      - name: Upload bugfix plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentry-bugfix-plan-${{ github.run_id }}
+          path: bugfix-plan.md
       - name: Create or update bugfix-plan issue
         uses: actions/github-script@v7
         env:
+          PLAN: ${{ github.workspace }}/bugfix-plan.md
           PAYLOAD: ${{ toJSON(github.event.client_payload) }}
         with:
           script: |
+            const fs = require("node:fs");
             const payload = JSON.parse(process.env.PAYLOAD || "{}");
-            const shortId = payload.issue_short_id || payload.short_id || "unknown";
+            const shortId = String(payload.issue_short_id || payload.short_id || "unknown").replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 80);
             const title = `Bugfix plan: ${shortId}`;
-            const body = [
-              "## Detection",
-              `- Source: Sentry`,
-              `- Issue: ${payload.issue_url || "not supplied"}`,
-              `- Short ID: ${shortId}`,
-              `- Title: ${payload.issue_title || payload.title || "not supplied"}`,
-              `- Environment: ${payload.environment || "not supplied"}`,
-              `- Release: ${payload.release || "not supplied"}`,
-              "",
-              "## Investigation plan",
-              "- [ ] Confirm the issue is production-impacting and not test/development traffic",
-              "- [ ] Inspect the Sentry stack trace, breadcrumbs, tags, and release",
-              "- [ ] Map the release to a commit and affected code path",
-              "- [ ] Reproduce with a safe test or production read-only probe",
-              "",
-              "## Bugfix plan",
-              "- [ ] State the root cause and smallest safe change",
-              "- [ ] Add a regression test",
-              "- [ ] Run CI and production smoke checks",
-              "- [ ] Request human review before deployment",
-              "",
-              "This issue is an investigation handoff. It does not authorize automatic code changes, deployment, or Sentry resolution.",
-            ].join("\n");
+            const body = fs.readFileSync(process.env.PLAN, "utf8");
             const openIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
