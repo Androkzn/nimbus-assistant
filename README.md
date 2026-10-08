@@ -15,6 +15,7 @@ The production deployment does not expose internal developer tooling. The develo
 
 - ⚙️ [CI/CD](#cicd)
 - 🗂️ [Knowledge base portal](#knowledge-base-portal)
+- 🧪 [Readiness](#readiness)
 - 💻 [Local development](#local-development)
 - ✅ [Verification](#verification)
 - 🧭 [Product behavior](#product-behavior)
@@ -76,6 +77,48 @@ The application runs at `http://localhost:3000`. To run without provider keys:
 ```bash
 LLM_MODE=mock npm run dev
 ```
+
+## Readiness
+
+Readiness is the developer verification feature for checking the application against its quality gates and requirement traceability. It is available on local development and preview deployments; the production deployment hides the Readiness page and runner endpoint.
+
+### Features
+
+- **Live quality gates:** runs typecheck, lint, unit/integration/retrieval tests, production build, client-bundle scanning, and browser E2E tests.
+- **Recorded evidence:** replays the latest published local run with a `recorded` label, including its build and date.
+- **Live deployment probes:** checks the running server for health, model availability, chat behavior, bundle exposure, and other public-route guarantees.
+- **Traceability:** maps requirements to BRD items, acceptance rows, automated checks, and individual test results.
+- **Failure-focused review:** defaults to “Needs improvement” and also supports Failed, Live, Recorded, All, and text search filters.
+- **Controlled model usage:** replay and probes do not spend model tokens by default. An optional “Include one real answer” check runs one provider call for live answer evidence.
+- **Safe local execution:** readiness builds use `.next-readiness` and port `3199`, leaving the normal `.next/` build untouched; emitted evidence redacts secrets and message content.
+
+### Examples
+
+Run the complete readiness suite locally:
+
+```bash
+npm run readiness
+```
+
+Run only selected gates:
+
+```bash
+npm run readiness -- --stages typecheck,lint,unit
+```
+
+Publish the completed local run for the developer portal to replay:
+
+```bash
+npm run readiness -- --publish
+```
+
+Open the browser report and start it automatically:
+
+```text
+http://localhost:3000/readiness?autostart=1
+```
+
+For example, a live health probe can return HTTP `200` but still fail if the JSON says `ok: false` or no model providers are available. The report keeps that distinction visible instead of treating the HTTP status alone as success.
 
 ## Verification
 
@@ -139,12 +182,6 @@ The requirements package defines the product baseline and its evidence:
 - [Implementation plan](docs/requirements/03_Implementation_Plan.md)
 - [Acceptance matrix](docs/requirements/04_Acceptance_Matrix.md)
 - [Readiness report](docs/requirements/06_Readiness_Report.md)
-
-## Readiness screenshots
-
-![Readiness overview](docs/screenshots/readiness-overview.png)
-
-![Live deployment probes](docs/screenshots/readiness-live-probes.png)
 
 ## Project layout
 
