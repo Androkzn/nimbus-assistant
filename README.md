@@ -78,7 +78,14 @@ The project is organized as a set of reusable engineering workflows rather than 
 5. **Security and operations** — keep provider credentials server-side, redact sensitive telemetry, scan the client bundle, enforce rate limits, and expose deployment health checks.
 6. **Promotion and feedback** — run the same gates in CI, deploy only the tested commit, smoke-test the public routes, and retain evidence for review.
 
-Reusable skills/workflows applied across the project include requirements analysis, technical documentation, test design, security review, observability, and deployment orchestration. The result is a traceable path from brief → design decision → implementation → automated evidence → deployed behavior.
+### Skills used by the AI agent
+
+- **Requirements and documentation:** converted the brief into traceable decisions, acceptance criteria, and concise handoff notes.
+- **Readiness testing:** mapped requirements to automated checks, live probes, and deployment evidence.
+- **Security and observability:** checked server-side secrets, bundle exposure, rate limits, telemetry, and grounding signals.
+- **Deployment orchestration:** promoted only passing `main` builds, verified production health, and kept Readiness tooling in the developer environment.
+
+Each skill produced evidence for the next step: brief → decision → implementation → verification → deployment.
 
 ## Optional internal tooling
 
