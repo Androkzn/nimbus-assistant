@@ -116,7 +116,7 @@ describe("POST /api/chat", () => {
 
   it("logs a structured record without any message text", async () => {
     const d = deps();
-    await (await handleChat(post({ modelId: "gemini-flash", messages: [{ role: "user", content: "SECRET-QUESTION-TEXT about Relay" }] }), d.deps)).text();
+    await (await handleChat(post({ modelId: "gemini-flash", messages: [{ role: "user", content: "SECRET-QUESTION-TEXT about Relay pricing" }] }), d.deps)).text();
     const record = d.logs.find((l) => l.event === "chat.request");
     expect(record).toMatchObject({ requestedModel: "gemini-flash", answeredBy: "gemini-flash", outcome: "done" });
     expect(JSON.stringify(d.logs)).not.toContain("SECRET-QUESTION-TEXT");
@@ -167,10 +167,22 @@ describe("deterministic grounding layers", () => {
     },
   );
 
-  it("does not guard a question that names a product, even with a weak match", async () => {
+  it("abstains when a product question has no supporting evidence", async () => {
     const d = deps();
-    await (await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Is there a free trial of Vault?" }] }), d.deps)).text();
-    expect(d.factory).toHaveBeenCalled();
+    const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "Is there a free trial of Vault?" }] }), d.deps));
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID, usage: { inputTokens: 0, outputTokens: 0 }, costUSD: 0 });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "abstain", guardReason: "insufficient_evidence" });
+  });
+
+  it("asks for clarification when a product is named without a topic", async () => {
+    const d = deps();
+    const evs = await events(await handleChat(post({ modelId: "gemini-flash-lite", messages: [{ role: "user", content: "What is Relay?" }] }), d.deps));
+    const text = evs.filter((e) => e.type === "delta").map((e) => (e.type === "delta" ? e.text : "")).join("");
+    expect(text).toContain("Please specify the topic or feature");
+    expect(evs.at(-1)).toMatchObject({ type: "done", answeredBy: KB_GUARD_ID });
+    expect(d.factory).not.toHaveBeenCalled();
+    expect(d.logs.find((l) => l.event === "chat.request")).toMatchObject({ answerability: "clarify", guardReason: "incomplete" });
   });
 
   it("NKA-GRD-010: done carries the figure check — invented figures listed, sourced ones not", async () => {

@@ -102,6 +102,29 @@ GitHub Issues are the operational source of truth. New incidents receive `incide
 5. **Verify and release** — pass CI, deploy the tested commit, run production smoke checks, and document rollback.
 6. **Close** — mark the issue `done` only after production verification.
 
+### Continuous improvement after deployment
+
+Production is also a quality feedback loop:
+
+1. **Observe** — record privacy-safe answerability and grounding signals in backend logs.
+2. **Classify** — separate `out_of_scope`, `insufficient_evidence`, `incomplete`, and `ambiguous` cases; review conflicting-document cases separately.
+3. **Evaluate** — turn representative failures into deterministic retrieval and answerability cases; review them against the golden set.
+4. **Improve** — update the knowledge base, retrieval rules, prompts, or tests based on confirmed evidence.
+5. **Promote** — run the same CI gates and production probes before releasing the improvement.
+
+The system records the decision, guard reason, retrieval scores, passage count, model outcome, latency, usage, and grounding-warning count—not the user's question or answer. This supports documentation improvements without creating a transcript database. High-risk changes remain human-reviewed and reversible.
+
+### Non-technical documentation collaboration
+
+Google Drive can provide an editable collaboration layer for product and support users:
+
+- use Google Docs or Sheets for documentation suggestions, content gaps, and improvement ideas;
+- include evidence links, impact, owner, status, and proposed acceptance criteria;
+- review and promote accepted suggestions into GitHub requirements, issues, knowledge-base changes, and evaluation cases;
+- keep GitHub as the source of truth for code, tests, CI evidence, releases, and rollback.
+
+Drive content must not directly deploy to production. Do not place secrets, raw user transcripts, or unredacted logs in shared documents. This keeps editing accessible while preserving review, privacy, and release controls.
+
 ## Agentic delivery approach
 
 The project follows a requirements-driven approach:
