@@ -78,7 +78,7 @@ test.describe("Readiness report", () => {
 
     const filters = page.getByRole("group", { name: "Filter checks" }).getByRole("button");
     await expect(filters.first()).toHaveAttribute("data-testid", "filter-all");
-    await expect(filters.last()).toHaveAttribute("data-testid", "filter-recorded");
+    await expect(filters.last()).toHaveAttribute("data-testid", "filter-skipped");
     await expect(page.getByTestId("filter-all")).toHaveAttribute("aria-pressed", "true");
     // A replay cannot run the live answer eval: the box is shown off and disabled, saying why.
     await expect(page.getByTestId("include-answer")).toBeDisabled();
@@ -86,7 +86,8 @@ test.describe("Readiness report", () => {
     await expect(page.getByText("Runs only in a local run; this page replays the recorded eval")).toBeVisible();
 
     // The tabs count checks, the headline's unit ("N of 174 checks complete"); the list groups them by requirement.
-    const checksTotal = await page.locator('[aria-valuetext$="checks complete"]').getAttribute("data-total");
+    // The checks in this run: the bar's denominator. Skipped checks are under their own tab.
+    const checksTotal = await page.locator('[aria-valuetext$="checks complete"]').getAttribute("aria-valuemax");
     expect(checksTotal).toBeTruthy();
     await expect(page.getByTestId("filter-all")).toHaveText(new RegExp(`^All\\s*${checksTotal}$`));
     await expect(page.getByTestId("trace-summary")).toHaveText(`Showing ${checksTotal} checks across ${manifest.requirements.length} requirements`);

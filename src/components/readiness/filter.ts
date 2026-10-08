@@ -1,8 +1,13 @@
 import type { CheckView, RequirementView } from "@/readiness/coverage";
 import type { TestResult } from "@/readiness/schema";
 
-/** All · Needs improvement · Failed · Live · Recorded, plus free-text search over requirement, check and test text. */
-export type Filter = "needs-improvement" | "failed" | "live" | "recorded" | "all";
+/**
+ * All · Needs improvement · Failed · Live · Recorded · Skipped, plus free-text search over requirement, check and test
+ * text. Every tab except Skipped counts only the checks in this run, the same number the progress bar uses: a check
+ * that was not evaluated (its stage was skipped, e.g. the live answer eval with "Include live answers" off) is under
+ * Skipped.
+ */
+export type Filter = "needs-improvement" | "failed" | "live" | "recorded" | "skipped" | "all";
 
 export interface FilteredRequirement {
   view: RequirementView;
@@ -27,6 +32,7 @@ export function resultPasses(r: TestResult, filter: Filter): boolean {
   if (filter === "failed") return r.status === "failed";
   if (filter === "live") return r.source === "live";
   if (filter === "recorded") return r.source === "recorded";
+  if (filter === "skipped") return r.status === "skipped";
   return true;
 }
 
@@ -35,11 +41,13 @@ export function resultPasses(r: TestResult, filter: Filter): boolean {
  * running while the run is in progress is only waiting, so it does not count.
  */
 function needsImprovement(c: CheckView, settled: boolean): boolean {
-  if (c.status === "failed" || c.status === "skipped" || c.results.some((r) => r.status !== "passed")) return true;
+  if (c.status === "failed" || c.results.some((r) => r.status === "failed")) return true;
   return settled && (c.status === "pending" || c.status === "running");
 }
 
 function checkPasses(c: CheckView, filter: Filter, settled: boolean): boolean {
+  if (filter === "skipped") return c.status === "skipped";
+  if (c.status === "skipped") return false;
   if (filter === "all") return true;
   if (filter === "needs-improvement") return needsImprovement(c, settled);
   if (filter === "failed") return c.status === "failed" || c.results.some((r) => r.status === "failed");

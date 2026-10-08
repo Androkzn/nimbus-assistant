@@ -147,7 +147,8 @@ function RequirementRow({
 }) {
   const { view, checks } = item;
   const r = view.requirement;
-  const testCount = new Set(view.checks.flatMap((c) => c.results.map((x) => x.id))).size;
+  // Counts follow the active tab: under All, the checks in this run (skipped ones are under Skipped).
+  const testCount = new Set(checks.flatMap((c) => c.results.map((x) => x.id))).size;
   const panelId = `req-${slug(r.id)}`;
   const failed = view.status === "failed";
   return (
@@ -189,7 +190,7 @@ function RequirementRow({
         </span>
         <span className="col-span-2 col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 md:col-span-1 md:col-start-2 md:row-start-1 md:flex-col md:items-end md:gap-1.5 md:pt-0.5">
           <span className="text-[12px] whitespace-nowrap text-muted tabular-nums">
-            {plural(view.checks.length, "check")} · {plural(testCount, "test")}
+            {plural(checks.length, "check")} · {plural(testCount, "test")}
           </span>
           <span className="flex gap-1">
             {view.sources.map((s) => (

@@ -67,6 +67,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "failed", label: "Failed" },
   { id: "live", label: "Live" },
   { id: "recorded", label: "Recorded" },
+  { id: "skipped", label: "Skipped" },
 ];
 
 export function ReadinessReport({ options }: { options: ReadinessOptions }) {
