@@ -76,6 +76,17 @@ describe("POST /api/chat", () => {
     expect(d.factory).not.toHaveBeenCalled();
   });
 
+  it("explains how to recover when the conversation exceeds the history limit", async () => {
+    const d = deps();
+    const messages = Array.from({ length: 41 }, (_, index) => ({ role: index % 2 === 0 ? "user" : "assistant", content: `message ${index}` }));
+    messages[messages.length - 1] = { role: "user", content: "A client is getting a 500 on the API?" };
+    const res = await handleChat(post({ modelId: "gemini-flash", messages }), d.deps);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.message).toBe("This chat is full. Start a new conversation to keep going.");
+    expect(d.factory).not.toHaveBeenCalled();
+  });
+
   it("rejects an unknown model id", async () => {
     const res = await handleChat(post({ modelId: "gpt-imaginary", messages: [{ role: "user", content: "hi" }] }), deps().deps);
     expect(res.status).toBe(400);

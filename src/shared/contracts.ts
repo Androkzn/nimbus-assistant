@@ -21,7 +21,7 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export const ChatRequestSchema = z
   .object({
     modelId: z.string().min(1),
-    messages: z.array(ChatMessageSchema).min(1).max(MAX_MESSAGES),
+    messages: z.array(ChatMessageSchema).min(1).max(MAX_MESSAGES, { message: "This chat is full. Start a new conversation to keep going." }),
   })
   .superRefine((req, ctx) => {
     const last = req.messages[req.messages.length - 1];

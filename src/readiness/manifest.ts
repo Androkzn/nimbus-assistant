@@ -253,6 +253,8 @@ const TEST_CHECKS: Check[] = [
     "An empty or whitespace-only message gets a 400 'invalid_input' reply and no AI provider is called."),
   chat("chat.oversize", "Over-long message rejected with the limit", "NKA-CHAT-006: rejects messages over 2,000 characters", ["NKA-CHAT-006"],
     "A 2,001-character message is rejected with 400, the reply states the 2000-character limit, and no provider is called."),
+  chat("chat.history-limit", "Long conversation gives recovery guidance", "explains how to recover when the conversation exceeds the history limit", ["R5"],
+    "A full chat gives a plain recovery message and makes no provider call."),
   chat("chat.unknown-model", "Unknown model id rejected", "rejects an unknown model id", ["R5"],
     "A request naming a model that isn't in config/models.json ('gpt-imaginary') is rejected with HTTP 400."),
   chat("chat.stream-contract", "Stream order and wire contract", "NKA-CHAT-001: streams meta → sources → delta", ["NKA-CHAT-001", "R2"],
