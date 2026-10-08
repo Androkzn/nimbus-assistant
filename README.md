@@ -73,9 +73,10 @@ The pipeline is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml
 Production deployment requires these GitHub environment secrets:
 
 - `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
 - `EVAL_BYPASS_TOKEN` for manual live evaluation
+
+`VERCEL_ORG_ID` is used only by optional production incident-log collection.
 
 ## Readiness
 
