@@ -147,9 +147,11 @@ For example, a live health probe can return HTTP `200` but still fail if the JSO
 
 ### Example: failed readiness check
 
-The report can show a failed health check even when the endpoint returns HTTP `200`. In this example, the deployment loaded all 10 knowledge-base documents, but `providers: none` caused `ok: false`, so the deployment could not answer questions. The failed result is shown in the traceability matrix and the live feed with the reason exposed for review.
+This example shows how Readiness helps developers separate an HTTP transport success from an application readiness failure. The health probe returned HTTP `200` and loaded 10 knowledge-base files, but `providers: none` made `ok: false`; the report connects that evidence to the failed D1 deployment requirement. Developers can see the affected requirement, live probe, and redacted cause together, making the missing provider configuration actionable without searching through logs.
 
-![Failed readiness health check](docs/screenshots/readiness-live-probes.png)
+![Failed readiness check](docs/screenshots/readiness-failure-example.png)
+
+Developers use the report as a delivery gate: start with the failed requirement, open its linked BRD item and acceptance row, inspect the automated check and test evidence, fix the code or deployment configuration, and rerun the gates. Delivery is complete only when every requirement has passing evidence—for this project, `39 / 39` verified—not merely when the code builds.
 
 ## Verification
 
