@@ -56,6 +56,8 @@ export interface RunSession {
   /** Replay speed this run used. */
   speed: ReplaySpeed;
   includeAnswer: boolean;
+  /** A deployment's live checks: recorded gates shown at once, then the live eval (or skipped) and the live probes. */
+  liveChecks?: boolean;
   /** Present when the gates come from a recorded run. */
   recorded?: RecordedRun;
   /** Origin the live probes ran against, once they start. */
@@ -84,6 +86,13 @@ function isAbort(err: unknown): boolean {
 function errorText(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   return msg.length > 200 ? `${msg.slice(0, 200)}…` : msg;
+}
+
+/** A recorded event of the live answer eval stage (dropped when a deployment runs its own eval), or the recorded run-end. */
+function isLiveEvalEvent(e: ReadinessEvent): boolean {
+  if (e.type === "run-end") return true;
+  if (e.type === "test-result") return e.result.stage === "live-eval";
+  return "stage" in e && e.stage === "live-eval";
 }
 
 /** "2026-10-07-21-30-00" from a Date, the runner's run-id format. */
@@ -262,6 +271,14 @@ export function useReadinessRun(options: ReadinessOptions) {
     const patch = (p: Partial<RunSession>) => {
       if (live()) setSession((s) => ({ ...s, ...p }));
     };
+    /** "Include live answers": the golden questions asked of this server for real (~170 answers, real tokens), else skipped. */
+    const liveEvalStage = async (origin: string) => {
+      if (runAnswer) return runLiveEval({ origin, signal }, push);
+      const at = new Date().toISOString();
+      push({ type: "stage-start", stage: "live-eval", at });
+      const note = 'skipped: "Include live answers" is off, so no provider tokens were spent';
+      push({ type: "stage-end", stage: "live-eval", status: "skipped", durationMs: 0, counts: { passed: 0, failed: 0, skipped: 0 }, source: "live", at, note });
+    };
 
     try {
       let mode: RunMode | undefined = options.mode;
@@ -270,11 +287,11 @@ export function useReadinessRun(options: ReadinessOptions) {
         const avail = await fetchRunnerAvailability(signal);
         if (!live()) return;
         setAvailability(avail);
-        // A deployment has no local runner: it runs the live checks against itself instead of a replay.
+        // A deployment has no local runner: it shows the recorded gates and runs the live checks against itself.
         if (avail.available && !avail.running) mode = "local";
         else {
-          mode = "probes";
-          notice = avail.available ? "A local run is already in progress elsewhere, so this page runs the live checks against this server." : undefined;
+          mode = "replay";
+          notice = avail.available ? "A local run is already in progress elsewhere, so this page shows the recorded gates and runs the live checks." : undefined;
         }
       }
 
@@ -282,8 +299,8 @@ export function useReadinessRun(options: ReadinessOptions) {
         patch({ mode, notice, phase: "running" });
         const res = await fetch(runAnswer ? RUN_ENDPOINT : `${RUN_ENDPOINT}?answers=0`, { method: "POST", cache: "no-store", signal });
         if (res.status === 404) {
-          mode = "probes";
-          notice = "The local runner is not available here, so this page runs the live checks against this server.";
+          mode = "replay";
+          notice = "The local runner is not available here, so this page shows the recorded gates and runs the live checks.";
         } else if (res.status === 409) {
           throw new Error("Another readiness run is already in progress on this machine. Wait for it to finish, then re-run.");
         } else if (!res.ok || !res.body) {
@@ -306,17 +323,27 @@ export function useReadinessRun(options: ReadinessOptions) {
         const recordedStart = events.find((e) => e.type === "run-start");
         const recordedEnd = events.find((e) => e.type === "run-end");
         if (!recordedStart || recordedStart.type !== "run-start") throw new Error("The recorded run has no run-start event.");
+        // Without an explicit mode=replay this is a deployment's live checks: the recorded gates appear at once, and the
+        // recorded eval and verdict are dropped, because the eval runs live here (or is skipped) and the probes run live.
+        const liveChecks = !options.mode;
         patch({
+          liveChecks,
           recorded: {
             meta: recordedStart.meta,
             status: recordedEnd?.type === "run-end" ? recordedEnd.status : undefined,
             durationMs: recordedEnd?.type === "run-end" ? recordedEnd.durationMs : undefined,
           },
         });
-        await replay(events, push, { speed: runSpeed === "instant" ? Infinity : runSpeed, signal, includeRunEnd: false });
+        const shown = liveChecks ? events.filter((e) => !isLiveEvalEvent(e)) : events;
+        await replay(shown, push, { speed: liveChecks || runSpeed === "instant" ? Infinity : runSpeed, signal, includeRunEnd: false });
         if (!live()) return;
-        // The recorded producer's verdict counts too: a failed recorded run cannot turn green by replaying it.
-        if (recordedEnd?.type === "run-end") held.end = recordedEnd;
+        if (liveChecks) {
+          await liveEvalStage(window.location.origin);
+          if (!live()) return;
+        }
+        // The recorded producer's verdict counts too: a failed recorded run cannot turn green by replaying it. (Its
+        // eval is not shown in live checks, so there the shown stages decide.)
+        else if (recordedEnd?.type === "run-end") held.end = recordedEnd;
       }
 
       if (mode === "probes") {
@@ -332,14 +359,7 @@ export function useReadinessRun(options: ReadinessOptions) {
         };
         if (!live()) return;
         push({ type: "run-start", meta, stages: [STAGE_INFO["live-eval"], STAGE_INFO.probes] });
-        // "Include live answers": the golden questions, asked of this server for real (~170 answers, real tokens).
-        if (runAnswer) await runLiveEval({ origin, signal }, push);
-        else {
-          const at = new Date().toISOString();
-          push({ type: "stage-start", stage: "live-eval", at });
-          const note = 'skipped: "Include live answers" is off, so no provider tokens were spent';
-          push({ type: "stage-end", stage: "live-eval", status: "skipped", durationMs: 0, counts: { passed: 0, failed: 0, skipped: 0 }, source: "live", at, note });
-        }
+        await liveEvalStage(origin);
         if (!live()) return;
       }
 

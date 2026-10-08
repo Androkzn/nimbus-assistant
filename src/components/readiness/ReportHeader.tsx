@@ -58,7 +58,7 @@ export function ModeBanner({ session, meta }: { session: RunSession; meta: RunMe
             {formatUtc(rec?.startedAt)}
             <span className="text-on-navy-muted"> · build </span>
             <span className="font-mono text-[12.5px]">{rec?.build ?? "—"}</span>
-            <span className="text-on-navy-muted"> · {speedLabel(session.speed)}</span>
+            <span className="text-on-navy-muted"> · {session.liveChecks ? "latest local run's gates" : speedLabel(session.speed)}</span>
           </span>
         </span>
         {session.probeOrigin && (
@@ -66,7 +66,7 @@ export function ModeBanner({ session, meta }: { session: RunSession; meta: RunMe
             <span aria-hidden className="text-on-navy-muted max-md:hidden">
               +
             </span>
-            <LivePill>Live probes</LivePill>
+            <LivePill>{session.liveChecks ? "Live checks" : "Live probes"}</LivePill>
             <span className="text-on-navy">
               {phase === "running" ? "running now against " : "ran against "}
               <span className="font-mono text-[12.5px]">{shortOrigin(session.probeOrigin)}</span>

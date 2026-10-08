@@ -9,7 +9,7 @@ const SPEEDS: { value: ReplaySpeed; label: string }[] = [
 
 /** What Start will run: the explicit mode, else a local run where the runner is free, else a replay. */
 export function plannedMode(mode: RunMode | undefined, availability: RunnerAvailability | null): RunMode | undefined {
-  return mode ?? (availability?.available && !availability.running ? "local" : availability ? "probes" : undefined);
+  return mode ?? (availability?.available && !availability.running ? "local" : availability ? "replay" : undefined);
 }
 
 function startLabel(session: RunSession, mode: RunMode | undefined, availability: RunnerAvailability | null): string {
@@ -17,6 +17,8 @@ function startLabel(session: RunSession, mode: RunMode | undefined, availability
   const planned = plannedMode(mode, availability);
   if (planned === "local") return again ? "Re-run all gates" : "Run all gates locally";
   if (planned === "probes") return again ? "Re-run live checks" : "Run live checks";
+  // A deployment (no explicit mode): the recorded gates plus the live checks, not a replay.
+  if (planned === "replay" && !mode) return again ? "Re-run live checks" : "Run live checks";
   if (planned === "replay") return again ? "Replay again" : "Replay recorded run";
   return again ? "Re-run" : "Start";
 }
@@ -34,6 +36,7 @@ function startHint(mode: RunMode | undefined, availability: RunnerAvailability |
   const tail = probes ? ", then the live probes against this server" : "";
   if (planned === "local") return `Runs typecheck, lint, tests, build, bundle scan and E2E on this machine${tail}.`;
   if (planned === "probes") return "Runs the live probes from this browser against this server, and the live answer eval when Include live answers is ticked.";
+  if (!mode) return "Shows the latest local run's gates (recorded), then runs the live checks against this server.";
   return `Replays the last published local run, labelled recorded${tail}.`;
 }
 
@@ -64,8 +67,9 @@ export function RunControls({
   // Replay is opt-in (mode=replay); a deployment runs the live checks instead.
   const replayRelevant = mode === "replay";
   const planned = plannedMode(mode, availability);
-  // A local run and a deployment's live checks can run the live answer eval; a replay shows the box off and disabled.
-  const liveEvalLocal = planned === "local" || planned === "probes";
+  // A local run and a deployment's live checks can run the live answer eval; only an explicit replay (mode=replay)
+  // shows the box off and disabled.
+  const liveEvalLocal = planned === "local" || planned === "probes" || (planned === "replay" && !mode);
   const answerRelevant = liveEvalLocal || planned === "replay";
 
   return (

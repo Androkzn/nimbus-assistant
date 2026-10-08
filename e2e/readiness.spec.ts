@@ -52,9 +52,11 @@ test.describe("Readiness report", () => {
     const url = new URL(popup.url());
     expect(url.pathname + url.search).toBe("/readiness?autostart=1");
     await expect(popup.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
-    // A deployment has no local runner: it runs the live checks against itself, never a replay.
-    await expect(popup.getByTestId("mode-banner")).toHaveAttribute("data-mode", "probes");
+    // A deployment has no local runner: the latest local run's gates (recorded) at once, then the live checks.
+    await expect(popup.getByTestId("mode-banner")).toContainText("Live checks");
+    await expect(popup.getByTestId("stage-typecheck")).toHaveAttribute("data-status", "passed");
     await expect(popup.getByTestId("stage-live-eval")).toHaveAttribute("data-status", "skipped");
+    await expect(popup.getByTestId("stage-probes")).toHaveAttribute("data-status", "passed");
 
     // The chat stays where it was.
     expect(new URL(page.url()).pathname).toBe("/");
@@ -160,25 +162,29 @@ test.describe("Readiness report", () => {
     expect(calls, "a probe-only run never touches the runner").toEqual([]);
   });
 
-  test("RDY-005: the page never starts a local run unless asked; where the runner is unavailable it runs the live checks", async ({ page }) => {
+  test("RDY-005: the page never starts a local run unless asked; where the runner is unavailable it shows the recorded gates and runs the live checks", async ({ page }) => {
     const calls = await stubRunner(page.context());
 
     await page.goto("/readiness");
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", "idle");
     await expect(page.getByTestId("start-run")).toHaveText(/Run live checks/);
-    // Only the stages a deployment can run: no local gates, and no replay speed.
-    await expect(page.getByTestId("stage-typecheck")).toHaveCount(0);
+    // Every stage, with the eval card following the box (off by default); no replay speed control.
+    await expect(page.getByTestId("stage-typecheck")).toHaveCount(1);
+    await expect(page.getByTestId("stage-live-eval")).toHaveAttribute("data-status", "skipped");
+    await expect(page.getByTestId("include-answer")).toBeEnabled();
     await expect(page.getByRole("group", { name: "Replay speed" })).toHaveCount(0);
 
     // The header button's URL, on a deployment without the runner (GET → unavailable).
     await page.goto("/readiness?autostart=1");
     await page.getByTestId("filter-all").click();
     await expect(page.getByTestId("verdict")).toHaveAttribute("data-verdict", FINAL, { timeout: 30_000 });
-    await expect(page.getByTestId("mode-banner")).toHaveAttribute("data-mode", "probes");
+    await expect(page.getByTestId("mode-banner")).toContainText("Live checks");
 
-    // Everything here ran now, against this server: nothing is recorded.
+    // The gates are recorded; the probes ran now; the recorded eval is not shown (it runs live here, or is skipped).
     await expect(feedItem(page, "probe::health")).toHaveAttribute("data-source", "live");
-    await expect(page.locator('[data-testid="feed-item"][data-source="recorded"]')).toHaveCount(0);
+    await expect(page.getByTestId("stage-typecheck")).toHaveAttribute("data-status", "passed");
+    await expect(page.locator('[data-testid="feed-item"][data-result-id^="eval::"]')).toHaveCount(0);
+    await expect(page.getByTestId("stage-live-eval")).toHaveAttribute("data-status", "skipped");
 
     expect(calls).toContain("GET");
     expect(calls, "no POST, so no gate run was spawned").not.toContain("POST");
