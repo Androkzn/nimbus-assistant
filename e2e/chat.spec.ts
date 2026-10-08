@@ -110,7 +110,7 @@ test("NKA-MDL-005: mid-stream failure shows only the backup's answer", async ({ 
 test("NKA-MDL-006: all providers rate-limited → clear message, no stack trace", async ({ page }) => {
   await ask(page, "Relay pricing #rate-limit-all");
   const error = lastAnswer(page).getByTestId("answer-error");
-  await expect(error).toContainText(/rate-limited right now\. Wait about \d+ seconds/);
+  await expect(error).toContainText(/busy right now\. Wait about \d+ seconds/);
   await expect(error).not.toContainText(/Error:|at .*\.ts/);
   await expect(page.getByTestId("send")).toBeVisible(); // not frozen
 });

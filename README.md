@@ -79,11 +79,11 @@ The production deployment is intentionally customer-facing and excludes the inte
 
 ### Shared knowledge-base database
 
-Production and developer deployments use the same persistent Postgres database (provisioned through Vercel Marketplace/Neon) for published documents and privacy-safe improvement reports. On first connection, it is seeded from the checked-in `knowledge-base/` Markdown files. The Knowledge base portal can then create, edit, publish, draft, and delete documents; those changes invalidate the retrieval cache and become visible to both deployments.
+Production and developer deployments use the same persistent Postgres database (provisioned through Vercel Marketplace/Neon) for published documents, privacy-safe improvement reports, and chat history. On first connection, it is seeded from the checked-in `knowledge-base/` Markdown files. The Knowledge base portal can then create, edit, publish, draft, and delete documents; those changes invalidate the retrieval cache and become visible to both deployments. Chat history is associated with an anonymous browser cookie, so it follows the same browser/device until authentication is added.
 
 Set `DATABASE_URL` (or `POSTGRES_URL`) in both Vercel Production and Preview environments. The app creates the `documents` and `reports` tables automatically on first use. Local development keeps a SQLite fallback at `.data/nimbus-kb.sqlite`; set `NIMBUS_KB_DB_PATH` to choose another local file. Do not commit database credentials.
 
-The developer portal polls the shared API every five seconds and refreshes on window focus, so issue counts, detection/occurrence counters, filters, document counts, and published totals update without a page reload. Repeated findings remain one review report but increment its observed count. The database stores issue type, priority, status, product, dates, evidence, and document content; raw user transcripts and provider credentials are not stored.
+The developer portal polls the shared API every five seconds and refreshes on window focus, so issue counts, detection/occurrence counters, filters, document counts, and published totals update without a page reload. Repeated findings remain one review report but increment its observed count. The database stores issue type, priority, status, product, dates, evidence, document content, and explicitly saved chat turns; provider credentials are not stored. Users can open Chat history to reload or delete saved conversations.
 
 ### Production monitoring and triage
 

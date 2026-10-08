@@ -36,7 +36,7 @@ The approved business baseline is handed to engineering through [02_TRD.md](02_T
 
 ### Approval intent
 
-This BRD is the business baseline for a production candidate. NimbusStack stakeholders should confirm the assumptions in §9, particularly the treatment of unnamed-product questions, source conflicts, and the absence of login and chat persistence. The implementation and verification artifacts support review; they do not change the business scope in this document.
+This BRD is the business baseline for a production candidate. NimbusStack stakeholders should confirm the assumptions in §9, particularly the treatment of unnamed-product questions, source conflicts, and the absence of login and cross-device identity. The implementation and verification artifacts support review; they do not change the business scope in this document.
 
 ---
 
@@ -87,7 +87,7 @@ NimbusStack’s product information is spread across product pages, release note
 
 ### 2.2 Out of scope
 
-- Login / SSO for the app itself; per-user history; saving chats between sessions.
+- Login / SSO for the app itself, per-user identity, and cross-device history; browser-scoped chat history is supported.
 - Editing the knowledge base from the UI; admin analytics dashboards.
 - Prompt caching (cost optimisation) — documented as a future lever.
 - Answering from the open web or model general knowledge — **forbidden**, not merely out of scope.

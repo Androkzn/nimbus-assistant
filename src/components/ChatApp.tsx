@@ -10,10 +10,12 @@ import { applyEvent, emptyAnswer, type AnswerState } from "@/shared/answer";
 import { contextLevel, estimateTokens } from "@/shared/context";
 import { HISTORY_MESSAGES, KB_GUARD_ID, MAX_MESSAGE_CHARS, MAX_MESSAGES, type ChatMessage, type ModelsResponse, type PublicModel } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
+import type { ConversationSummary, StoredConversation } from "@/shared/history";
 import { AnswerCard } from "./AnswerCard";
 import { BrandLockup } from "./BrandLockup";
+import { ConversationHistory } from "./ConversationHistory";
 import { EmptyState } from "./EmptyState";
-import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, PlusIcon, StopIcon } from "./icons";
+import { AlertIcon, ArrowDownIcon, ArrowUpIcon, ChartIcon, CheckIcon, HistoryIcon, StopIcon } from "./icons";
 import { ModelPicker } from "./ModelPicker";
 import { SessionPanel } from "./SessionPanel";
 
@@ -21,6 +23,22 @@ interface Turn {
   id: string;
   question: string;
   answer: AnswerState;
+}
+
+function usageRows(turns: Turn[]): UsageRow[] {
+  return turns.flatMap((turn, index) => {
+    const answer = turn.answer;
+    if (answer.status !== "done" || !answer.usage || !answer.answeredBy || !answer.requestedModel) return [];
+    return [{
+      turn: index + 1,
+      timestamp: new Date().toISOString(),
+      requestedModel: answer.requestedModel,
+      answeredBy: answer.answeredBy,
+      inputTokens: answer.usage.inputTokens,
+      outputTokens: answer.usage.outputTokens,
+      costUSD: answer.costUSD ?? 0,
+    }];
+  });
 }
 
 /** Instructions + retrieved passages, measured at ≈1.1–1.4k tokens per request. */
@@ -44,6 +62,10 @@ export function ChatApp() {
   const cooldownLeft = useCountdown(cooldownUntil);
   const cooling = cooldownLeft > 0;
   const [panelOpen, setPanelOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLElement>(null);
@@ -58,6 +80,24 @@ export function ChatApp() {
         setModelId((prev) => prev || c.defaultModelId);
       })
       .catch(() => setCatalogError(true));
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/conversations")
+      .then((response) => (response.ok ? (response.json() as Promise<ConversationSummary[]>) : []))
+      .then((items) => {
+        if (active) setConversations(items);
+      })
+      .catch(() => {
+        if (active) setConversations([]);
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Dev-only portal metric: poll as a fallback and listen for instant cross-tab updates.
@@ -101,6 +141,42 @@ export function ChatApp() {
   }, [draft]);
 
   const closePanel = useCallback(() => setPanelOpen(false), []);
+
+  async function persistConversation(nextTurns: Turn[]) {
+    if (nextTurns.length === 0) return;
+    const id = conversationId ?? crypto.randomUUID();
+    const response = await fetch(`/api/conversations/${id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ turns: nextTurns }),
+    });
+    if (!response.ok) return;
+    const saved = (await response.json()) as StoredConversation;
+    setConversationId(saved.id);
+    setConversations((items) => [saved, ...items.filter((item) => item.id !== saved.id)]);
+  }
+
+  async function loadConversation(id: string) {
+    abortRef.current?.abort();
+    const response = await fetch(`/api/conversations/${id}`);
+    if (!response.ok) return;
+    const saved = (await response.json()) as StoredConversation;
+    setConversationId(saved.id);
+    setTurns(saved.turns);
+    setUsage(usageRows(saved.turns));
+    setDraft("");
+    followRef.current = true;
+    setAtBottom(true);
+    setHistoryOpen(false);
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }));
+  }
+
+  async function removeConversation(id: string) {
+    const response = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+    if (!response.ok) return;
+    setConversations((items) => items.filter((item) => item.id !== id));
+    if (conversationId === id) newConversation();
+  }
 
   const selected = catalog?.models.find((m) => m.id === modelId);
   const modelName = (id: string) =>
@@ -203,6 +279,7 @@ export function ChatApp() {
             costUSD: done.costUSD ?? 0,
           },
         ]);
+        void persistConversation([...turns, { id, question, answer: done }]);
       } else if (state.status === "streaming") {
         update({ ...state, status: "error", error: { code: "unavailable", message: "The answer was interrupted. Please try again." } });
       }
@@ -227,6 +304,7 @@ export function ChatApp() {
 
   function newConversation() {
     abortRef.current?.abort();
+    setConversationId(null);
     setTurns([]);
     setUsage([]);
     setDraft("");
@@ -246,6 +324,15 @@ export function ChatApp() {
   const canSend = draft.trim().length > 0 && !busy && !cooling && Boolean(modelId);
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden">
+      <ConversationHistory
+        open={historyOpen}
+        conversations={conversations}
+        activeId={conversationId}
+        loading={historyLoading}
+        onClose={() => setHistoryOpen(false)}
+        onSelect={(id) => void loadConversation(id)}
+        onDelete={(id) => void removeConversation(id)}
+      />
       <header className="brand-glow relative z-20 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-navy-3 bg-navy px-4 text-on-navy sm:px-6">
         <BrandLockup size="header" />
         <div className="flex items-center gap-2">
@@ -272,6 +359,16 @@ export function ChatApp() {
           )}
           <button
             type="button"
+            onClick={() => setHistoryOpen(true)}
+            aria-controls="chat-history"
+            aria-expanded={historyOpen}
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-navy-3 bg-navy-2 px-3 text-sm font-semibold transition-colors hover:border-orange hover:text-orange"
+          >
+            <HistoryIcon className="text-orange" />
+            <span className="max-sm:sr-only">History</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setPanelOpen(true)}
             aria-controls="session-panel"
             aria-expanded={panelOpen}
@@ -280,15 +377,6 @@ export function ChatApp() {
             <ChartIcon className="text-orange" />
             <span className="sr-only">Session usage:</span>
             {formatUSD(sessionTotals.costUSD)}
-          </button>
-          <button
-            type="button"
-            data-testid="new-conversation"
-            onClick={newConversation}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-orange bg-orange px-3 text-sm font-semibold text-navy transition-colors hover:border-orange-strong hover:bg-orange-strong"
-          >
-            <PlusIcon />
-            <span className="max-sm:sr-only">New conversation</span>
           </button>
         </div>
       </header>
@@ -441,6 +529,7 @@ export function ChatApp() {
         <SessionPanel
           open={panelOpen}
           onClose={closePanel}
+          onNewConversation={newConversation}
           totals={sessionTotals}
           rows={usage}
           modelName={modelName}

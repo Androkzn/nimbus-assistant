@@ -113,7 +113,7 @@ Browser (React, client component)            Server (Next.js route handler, Node
 | Runtime | Next.js App Router on Vercel; the server route handles provider calls and streaming | `GET /api/health`; deployment smoke test |
 | Environments | Local development, CI with deterministic mock providers, and production with encrypted Vercel environment variables | `.env.example`, GitHub Actions, deployment checklist |
 | Knowledge data | Published documents and privacy-safe improvement reports live in the shared Postgres database; the checked-in Markdown corpus seeds an empty database | `src/server/dev-portal/db.ts`; corpus and portal tests |
-| State | Conversation and usage totals live in the browser tab; operational knowledge documents and issue reports are shared across Production and Preview; no chat history is persisted | BRD scope; client-state and portal tests |
+| State | Active conversation and usage totals live in the browser; completed turns and conversation history persist in shared Postgres by anonymous browser owner; operational knowledge documents and issue reports are shared across Production and Preview | BRD scope; client-state, API, and portal tests |
 | Provider resilience | Configured multi-vendor fallback with an explicit reset before switching after a mid-stream error | Fallback unit/integration tests; live smoke |
 | Budget protection | Per-IP sliding-window limiter, input/output caps, provider-console spend limits; Redis/Upstash is the scale-up path | §5 and §7; documented limitation |
 | Monitoring | Structured request/model/latency/usage/error-class signals; Sentry receives redacted operational errors only | §7–§8; redaction tests |

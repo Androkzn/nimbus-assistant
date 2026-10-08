@@ -5,7 +5,7 @@ import type { UsageRow, UsageTotals } from "@/client/usage";
 import type { ContextLevel } from "@/shared/context";
 import type { PublicModel } from "@/shared/contracts";
 import { formatUSD } from "@/shared/cost";
-import { AlertIcon, CloseIcon, DownloadIcon } from "./icons";
+import { AlertIcon, CloseIcon, DownloadIcon, PlusIcon } from "./icons";
 
 /** Warning colours stay fixed: the panel is navy in both light and dark mode. */
 const LEVEL_BAR: Record<ContextLevel, string> = { ok: "bg-on-navy/80", amber: "bg-[#f5b14a]", red: "bg-[#f87171]" };
@@ -34,6 +34,7 @@ function Stat({ value, label, accent }: { value: string; label: string; accent?:
 export function SessionPanel({
   open,
   onClose,
+  onNewConversation,
   totals,
   rows,
   modelName,
@@ -46,6 +47,7 @@ export function SessionPanel({
 }: {
   open: boolean;
   onClose: () => void;
+  onNewConversation: () => void;
   totals: UsageTotals;
   rows: UsageRow[];
   modelName: (id: string) => string;
@@ -160,6 +162,17 @@ export function SessionPanel({
             {!canExport && <p className="mt-2 text-xs text-on-navy-muted">Available after the first answer.</p>}
           </PanelSection>
 
+          <div className="mt-auto border-t border-navy-3 pt-6">
+            <button
+              type="button"
+              data-testid="new-conversation"
+              onClick={onNewConversation}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-orange bg-orange px-3 text-sm font-semibold text-navy transition-colors hover:border-orange-strong hover:bg-orange-strong"
+            >
+              <PlusIcon />
+              New conversation
+            </button>
+          </div>
         </div>
       </aside>
     </>
