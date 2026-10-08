@@ -118,12 +118,13 @@ The system records the decision, guard reason, retrieval scores, passage count, 
 
 Google Drive can provide an editable collaboration layer for product and support users:
 
-- use Google Docs or Sheets for documentation suggestions, content gaps, and improvement ideas;
-- include evidence links, impact, owner, status, and proposed acceptance criteria;
-- review and promote accepted suggestions into GitHub requirements, issues, knowledge-base changes, and evaluation cases;
+- use a shared Google Sheet as the improvement findings backlog and Google Docs for proposed content;
+- capture a sanitized finding with category, date, impact, evidence link, affected area, proposed change, owner, and status;
+- use statuses such as `new`, `triage`, `accepted`, `in-progress`, `released`, `rejected`, and `duplicate`;
+- review findings periodically with a human, then promote accepted items into GitHub requirements, issues, knowledge-base changes, and evaluation cases;
 - keep GitHub as the source of truth for code, tests, CI evidence, releases, and rollback.
 
-Drive content must not directly deploy to production. Do not place secrets, raw user transcripts, or unredacted logs in shared documents. This keeps editing accessible while preserving review, privacy, and release controls.
+Drive content must not directly deploy to production. Do not place secrets, raw user transcripts, or unredacted logs in shared documents; store only privacy-safe summaries and links to restricted evidence. This keeps findings available for human analysis without turning the shared backlog into an uncontrolled incident database.
 
 ## Agentic delivery approach
 
